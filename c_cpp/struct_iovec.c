@@ -32,6 +32,5 @@ int main(int argc,char **argv)
     {
         sys_err("writev",-1);
     }
-    printf("%d\n",STDOUT_FILENO);
     return 0;
 }

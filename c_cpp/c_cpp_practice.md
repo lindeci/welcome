@@ -7,6 +7,7 @@
 - [僵尸进程](#僵尸进程)
   - [wait函数](#wait函数)
   - [waitpid函数](#waitpid函数)
+- [fork函数](#fork函数)
 
 # enum class
 在C++中，变量名字仅仅在一个作用域内生效，出了大括号作用域，那么变量名就不再生效了。但是传统C++的enum却特殊，只要有作用域包含这个枚举类型，那么在这个作用域内这个枚举的变量名就生效了。即枚举量的名字泄露到了包含这个枚举类型的作用域内。在这个作用域内就不能有其他实体取相同的名字。
@@ -134,3 +135,7 @@ options: 控制函数是阻塞还是非阻塞
     回收子进程资源的时候出现了异常
 ```
 
+# fork函数
+Negative Value: creation of a child process was unsuccessful.
+Zero: Returned to the newly created child process.
+Positive value: Returned to parent or caller. The value contains process ID of newly created child process.
