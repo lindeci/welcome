@@ -2,12 +2,15 @@
 - [try-catch-finally和return的执行顺](#try-catch-finally和return的执行顺)
 - [flexible array member not at end of struct](#flexible-array-member-not-at-end-of-struct)
 - [linux socket的epollin/epollout是何时触发的](#linux-socket的epollinepollout是何时触发的)
+  - [建议](#建议)
+  - [其它](#其它)
 - [进程替换](#进程替换)
 - [孤儿进程](#孤儿进程)
 - [僵尸进程](#僵尸进程)
   - [wait函数](#wait函数)
   - [waitpid函数](#waitpid函数)
 - [fork函数](#fork函数)
+- [copy-on-write](#copy-on-write)
 
 # enum class
 在C++中，变量名字仅仅在一个作用域内生效，出了大括号作用域，那么变量名就不再生效了。但是传统C++的enum却特殊，只要有作用域包含这个枚举类型，那么在这个作用域内这个枚举的变量名就生效了。即枚举量的名字泄露到了包含这个枚举类型的作用域内。在这个作用域内就不能有其他实体取相同的名字。
@@ -62,9 +65,26 @@ epollin产生的原因：
 2. 对方关闭了连接或只关闭了SEND_SHUTDOWN，导致我们关闭了RCV_SHUTDOWN。
 
 epollout产生的原因：
-1. 建立tcp连接
-2. 一直write，直到返回EAGAIN，然后等到write的数据发送完到一定程度后。
-3. 调用epoll_ctl重新设置一下event，强制触发一次
+1. 建立tcp连接,客户端连接场景  
+触发条件：客户端connect上服务端后，得到fd，这时候把fd添加到epoll 事件池里面后，因为连接可写，会触发EPOLLOUT事件
+2. 客户端发包场景  
+触发条件：缓冲区从满到不满，会触发EPOLLOUT事件  
+典型应用场景(数据包发送问题)：  
+数据包发送逻辑：将数据包发完内核缓冲区–>进而由内核再将缓冲区的内容发送出去；这边send只是做了第一部分的工作，如果缓存区满的话send将会得到已发送的数据大小(成功放到缓冲区的)，而不是整个数据包大小。
+这种情况我们可以借助EPOLLOUT事件加以解决：如果send部分成功，则表示缓存区满了，那么把剩下的部分交给epoll，当检测到EPOLLOUT事件后，再将剩余的包发送出去。
+3. 重新注册EPOLLOUT事件  
+触发条件：如果当连接可用后，且缓存区不满的情况下，调用epoll_ctl将fd重新注册到epoll事件池(使用EPOLL_CTL_MOD)，这时也会触发EPOLLOUT时间。  
+典型应用场景：  
+send或write发包函数会涉及系统调用，存在一定开销，如果能将数据包聚合起来，然后调用writev将多个数据包一并发送，则可以减少系统调用次数，提高效率。这时EPOLLOUT事件就派上用场了：当发包时，可以将先数据包发到数据buffer(用户缓存区)中存放，然后通过重新注册EPOLLOUT事件，从而触发EPOLLOUT事件时，再将数据包一起通过writev发送出去。
+## 建议
+1. 对于服务端listen socket不需要将EPOLLOUT注册到epoll事件模型中。因为listen socket只是负责接收数据（接收客户端建立连接请求），不会发送数据，所以不需要注册时EPOLLOUT。
+
+2. 按需注册EPOLLOUT。当我们调用send接口时，如果返回的-1且errno=EAGAIN时，再注册EPOLLOUT，后续send发送成功后，再将EPOLLOUT从epoll事件模型中移除，这就是按需注册EPOLLOUT。当然我们也可以不用移除，只不过需要判断是否真的有数据需要发送。大名鼎鼎的nginx的做法是：发送完成后会将发送的回调函数设置成一个空函数（这个函数只是定义里面什么都没有做）。nginx为什么不移除呢？因为反复添加、移除EPOLLOUT性能不友好，总是在用户层和内核层来回切换。
+
+## 其它
+- [对又一个epoll问题的全面分析](https://cloud.tencent.com/developer/article/1480243?from=15425&areaSource=102001.1&traceId=v8sW2FHaLIJOKXWR78RAy)  
+- [socket的epollin/epollout是何时触发的](https://cloud.tencent.com/developer/article/1481046?areaSource=&traceId=)  
+- [epoll和shutdown使用不当可能导致死循环](https://cloud.tencent.com/developer/article/1479210?areaSource=&traceId=)
 
 # 进程替换
 用fork创建子进程后，子进程执行的是和父进程相同的程序（但有可能执行不同的代码分支），若想让子进程执行另一个程序，往往需要调用一种exec函数。  
@@ -139,3 +159,31 @@ options: 控制函数是阻塞还是非阻塞
 Negative Value: creation of a child process was unsuccessful.
 Zero: Returned to the newly created child process.
 Positive value: Returned to parent or caller. The value contains process ID of newly created child process.
+
+# copy-on-write
+OS 领域 copy-on-write 核心思想则是 lazy copy。我们知道应用程序通常是不会直接和物理内存打交道的，所谓的内存寻址只是针对虚拟内存空间而言，而从虚拟内存到物理内存的映射则需要借助 MMU （存储管理单元）实现。  
+
+以 linux 为例，当通过系统调用（syscall）从一个已经存在的进程 P1 中 fork 出一个子进程 P2，OS会为 P2 创建一套与 P1 保持一致映射关系的虚拟内存空间，从而实现了 P1 和 P2 对物理空间的共享，这样做的目的是为了减少对物理内存的消耗，毕竟两份完全一样的数据没必要额外占用多一倍物理内存空间。此后，如果 P1 或 P2 需要更改某段内存，则须为其按需分配额外物理内存，将共享数据拷贝出来，供其修改，这里注意，无论父还是子进程，只要有修改，就会涉及到内存拷贝，这里的影响粒度范围是内存页，linux 内存页大小为 4KB。  
+
+![](pic/c_cpp_parctice/1.webp)  
+
+通过OS copy-on-write 的过程我们可以总结出两个重要的特性：
+- 父子进程的内存共享的数据仅仅是fork那一时间点的数据，fork 后的数据不会有任何共享；
+- 所谓 lazy copy，就是在需要修改的时候拷贝一个副本出来，如果没有任何改动，则不会占用额外的物理内存。
+
+基于这两个特性我们可以知道，copy-on-write 的在 OS 领域的设计初衷可能并非为了解决并发读的效率问题，参考维基[1]对 copy-on-write 的定义：
+```
+写入时复制（英语：Copy-on-write，简称COW）是一种计算机程序设计领域的优化策略。其核心思想是，如果有多个调用者（callers）同时请求相同资源（如内存或磁盘上的数据存储），他们会共同获取相同的指针指向相同的资源，直到某个调用者试图修改资源的内容时，系统才会真正复制一份专用副本（private copy）给该调用者，而其他调用者所见到的最初的资源仍然保持不变。
+```
+很明显，如若我们利用 OS 这层优化策略，我们将大大减少了对物理内存的消耗，同时也提高了创建进程的效率，因为 OS 一开始并不需要给 fork 出来的新进程分配物理内存空间。因此 copy-on-write 非常适合内存快照的 dump，例如 redis 的 rdb dump。至于为什么合适，我认为有如下几点：
+
+1. 考虑到 dump 的对象理应是某一时间点的内存快照信息，根据特性1，这里完美契合；
+2. dump 内存过程是耗时的，务必不能占用主线程资源，应当合理利用 CPU 多线程的优势，这里 fork 进程去处理 dump 任务本身就是理所应当的；
+3. 如果内存快照本身已经占用了50%以上的内存资源，如果不采用 copy-on-write 策略，显然无法 fork 出任何进程，因为没有足够的物理内存可以分配。
+
+综上，无论 redis 还是数据库，或是其他中间件，采用 OS 层面 copy-on-write 优化策略实现 dump 内存快照功能都是非常合理的，或许会问为什么不用多线程的方式去做，而用多进程？  
+
+copy-on-write 只是一套思想理念，至于你用进程和线程，我相信实现效果上并无差别，唯一的差别是你通过系统调用直接 fork 出来的进程就已经囊括了 copy-on-write 优化策略了，而你却尝试用线程去实现一套与 OS 层面一样的逻辑，这又是何苦呢？
+
+Copy_on_write即写时复制,它的原理是通过引用计数来实现的:  
+即在分配空间时多分配额外的空间,用来记录有多少个指针指向该空间.当有新的指针指向该空间,引用计数则加一,当要释放该空间时,引用计数则减一,直到引用计数减为0时,才真正释放该空间.当有指针要改变该空间的值时,再为这个指针分配自己的空间.而我们说的引用计数,存在于堆内存中.
