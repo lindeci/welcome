@@ -15,6 +15,15 @@
 - [查看是否机械硬盘](#查看是否机械硬盘)
 - [查找对应线程所占的 cpu核](#查找对应线程所占的-cpu核)
 - [文件句柄](#文件句柄)
+- [卷](#卷)
+- [cgroup](#cgroup)
+	- [查看cgroups的挂载信息](#查看cgroups的挂载信息)
+	- [创建group](#创建group)
+	- [添加任务进程到cgroup](#添加任务进程到cgroup)
+	- [删除 cgroup](#删除-cgroup)
+	- [限制cpu使用](#限制cpu使用)
+		- [cpu子系统](#cpu子系统)
+		- [cpu.shares](#cpushares)
 
 
 # 收集系统信息
@@ -381,5 +390,107 @@ fs.nr_open     单进程句柄数
 DefaultLimitNOFIL    用户总句柄数
 ```
 ----------------------------------------------------------------------------
+# 卷
+- 物理盘 raid 设置,划分 partition,在LVM上是PV
+- 多个PV组成VG
+- 从VG分割出LV
+- LV格式化后mount到目录
 
+# cgroup
+## 查看cgroups的挂载信息
+```sh
+# mount -t cgroup
+cgroup on /sys/fs/cgroup/systemd type cgroup (rw,nosuid,nodev,noexec,relatime,xattr,release_agent=/usr/lib/systemd/systemd-cgroups-agent,name=systemd)
+cgroup on /sys/fs/cgroup/cpu,cpuacct type cgroup (rw,nosuid,nodev,noexec,relatime,cpu,cpuacct)
+cgroup on /sys/fs/cgroup/hugetlb type cgroup (rw,nosuid,nodev,noexec,relatime,hugetlb)
+cgroup on /sys/fs/cgroup/net_cls,net_prio type cgroup (rw,nosuid,nodev,noexec,relatime,net_cls,net_prio)
+cgroup on /sys/fs/cgroup/perf_event type cgroup (rw,nosuid,nodev,noexec,relatime,perf_event)
+cgroup on /sys/fs/cgroup/pids type cgroup (rw,nosuid,nodev,noexec,relatime,pids)
+cgroup on /sys/fs/cgroup/freezer type cgroup (rw,nosuid,nodev,noexec,relatime,freezer)
+cgroup on /sys/fs/cgroup/rdma type cgroup (rw,nosuid,nodev,noexec,relatime,rdma)
+cgroup on /sys/fs/cgroup/memory type cgroup (rw,nosuid,nodev,noexec,relatime,memory)
+cgroup on /sys/fs/cgroup/devices type cgroup (rw,nosuid,nodev,noexec,relatime,devices)
+cgroup on /sys/fs/cgroup/cpuset type cgroup (rw,nosuid,nodev,noexec,relatime,cpuset)
+cgroup on /sys/fs/cgroup/blkio type cgroup (rw,nosuid,nodev,noexec,relatime,blkio)
 
+如果没有的话，也可以通过以下命令来把想要的subsystem mount 到系统中：
+# mount -t cgroup -o cpu,cpuset,memory cpu_and_mem /cgroup/cpu_and_mem
+这个命令就创建一个名为cpu_and_mem的层级，这个层级上附加了cpu,cpuset,memory三个子系统，并把层级挂载到了/cgroup/cpu_and_mem.
+
+什么是子系统？
+cgroups支持的所有可配置的资源称为subsystem。例如cpu是一种subsystem，memory也是一种subsystem。linux内核在演进过程中subsystem是不断增加的。
+```
+## 创建group
+```sh
+# mkdir /sys/fs/cgroup/cpu/mycgroup
+# ls /sys/fs/cgroup/cpu/mycgroup
+# 该目录中会自动创建一些文件
+-rw-r--r-- 1 root root 0 Mar 23 15:40 cgroup.clone_children
+-rw-r--r-- 1 root root 0 Mar 23 15:40 cgroup.procs
+-r--r--r-- 1 root root 0 Mar 23 15:40 cpuacct.stat
+-rw-r--r-- 1 root root 0 Mar 23 15:40 cpuacct.usage
+-r--r--r-- 1 root root 0 Mar 23 15:40 cpuacct.usage_all
+-r--r--r-- 1 root root 0 Mar 23 15:40 cpuacct.usage_percpu
+-r--r--r-- 1 root root 0 Mar 23 15:40 cpuacct.usage_percpu_sys
+-r--r--r-- 1 root root 0 Mar 23 15:40 cpuacct.usage_percpu_user
+-r--r--r-- 1 root root 0 Mar 23 15:40 cpuacct.usage_sys
+-r--r--r-- 1 root root 0 Mar 23 15:40 cpuacct.usage_user
+-rw-r--r-- 1 root root 0 Mar 23 15:40 cpu.cfs_period_us
+-rw-r--r-- 1 root root 0 Mar 23 15:40 cpu.cfs_quota_us
+-rw-r--r-- 1 root root 0 Mar 23 15:40 cpu.rt_period_us
+-rw-r--r-- 1 root root 0 Mar 23 15:40 cpu.rt_runtime_us
+-rw-r--r-- 1 root root 0 Mar 23 15:40 cpu.shares
+-r--r--r-- 1 root root 0 Mar 23 15:40 cpu.stat
+-rw-r--r-- 1 root root 0 Mar 23 15:40 notify_on_release
+-rw-r--r-- 1 root root 0 Mar 23 15:40 tasks
+```
+除了每个cgroup独特的资源控制文件，还有一些通用的文件。
+
+- tasks：当前 cgroup 包含的任务（task）pid 列表，把某个进程的 pid 添加到这个文件中就等于把进程交由到该cgroup控制。
+- cgroup.procs：使用逻辑和tasks相同。
+- notify_on_release：0或者1，该文件的内容为1时，当cgroup退出时（不再包含任何进程和子cgroup），将调用release_agent里面配置的命令。
+- release_agent：需要执行的命令。
+## 添加任务进程到cgroup
+```sh
+echo PID > tasks
+```
+一次只能添加一个任务进程ID。如果有多个任务ID，需分多次添加。  
+
+cgroup各个子系统初始化时，默认把系统中所有进程都纳管了，将一个进程的pid添加到新建的cgroup tasks文件的操作，实际是从一个cgroup移入到另一个cgroup的操作。所以要将进程从某个cgroup中删除，只能通过将其移出到另一个cgroup来实现，或者将进程终止。
+
+## 删除 cgroup
+删除子资源，就是删除对应的目录：
+```sh
+rmdir /sys/fs/cgroup/cpu/mycgroup
+```
+## 限制cpu使用
+跟cpu相关的子系统有cpu、cpuacct和cpuset。其中：
+- cpuset主要用于设置cpu的亲和性，可以限制cgroup中的进程只能在指定的cpu上运行。
+- cpuacct包含当前cgroup所使用的CPU的统计信息。
+- cpu：限制cgroup的cpu使用上限。  
+
+此篇，我们主要看下cpu子系统的使用。  
+### cpu子系统
+
+1. 限制进程可使用的CPU百分比。
+
+设置 CPU 数字的单位都是微秒，用us表示。
+```
+cpu.cfs_period_us:时间周期长度，取值范围为1毫秒到1秒。
+cfs_quota_us：当前cgroup在设置的周期长度内所能使用的CPU时间。
+```
+两个文件配合起来设置CPU的使用上限。  
+示例：
+```sh
+限制使用2个CPU（内核）（每500ms能使用1000ms的CPU时间，即使用两个内核）
+# echo 1000000 > cpu.cfs_quota_us
+# echo 500000 > cpu.cfs_period_us
+```
+### cpu.shares
+用来设置CPU的相对值，并且是针对所有的CPU（内核），默认值是1024，假如系统中有两个cgroup，分别是A和B，A的shares值是1024，B的shares值是512，那么A将获得1024/(1204+512)=66%的CPU资源，而B将获得33%的CPU资源。  
+
+shares有两个特点:
+- 如果A不忙，没有使用到66%的CPU时间，那么剩余的CPU时间将会被系统分配给B，即B的CPU使用率可以超过33%
+- 如果添加了一个新的cgroup C，且它的shares值是1024，那么A的限额变成了1024/(1204+512+1024)=40%，B的变成了20%。  
+
+综上，我们看到shares是一个绝对值，需要和其他cgroup的值进行比较才能得到自己的相对限额。
