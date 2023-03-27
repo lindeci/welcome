@@ -54,5 +54,9 @@ int main()
         printf("Stopped scan at: %s\n", stopstring);
     }
     printf("--------------------------\n");
+    char* c="h12321h12";
+    printf("%s\n",c);
+    int a='\032';
+    printf("%d\n",a);
     return 0;
 }

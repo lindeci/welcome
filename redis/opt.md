@@ -44,6 +44,8 @@
   - [原因](#原因)
   - [服务端限制返回包最大64k](#服务端限制返回包最大64k)
   - [为什么客户端连接服务端后，服务端会返回那么大的包](#为什么客户端连接服务端后服务端会返回那么大的包)
+- [查看RDB文件](#查看rdb文件)
+- [rax结构](#rax结构)
 - [源码文件描述](#源码文件描述)
 
 # Redis Cluster 安装部署
@@ -1043,7 +1045,70 @@ tcpdump -i lo dst port 60760
 
 # 上面的内容是服务端告诉客户端的命令集合
 ```
-
+# 查看RDB文件
+```sh
+# ./redis-check-rdb ../dump.rdb 
+[offset 0] Checking RDB file ../dump.rdb
+[offset 26] AUX FIELD redis-ver = '7.0.8'
+[offset 40] AUX FIELD redis-bits = '64'
+[offset 52] AUX FIELD ctime = '1679884024'
+[offset 67] AUX FIELD used-mem = '1023800'
+[offset 85] AUX FIELD repl-stream-db = '0'
+[offset 135] AUX FIELD repl-id = 'b3e2df4983add09fd168d3f4069131e58a6381b1'
+[offset 153] AUX FIELD repl-offset = '56527'
+[offset 165] AUX FIELD aof-base = '0'
+[offset 167] Selecting DB ID 0
+[offset 184] Checksum OK
+[offset 184] \o/ RDB looks OK! \o/
+[info] 1 keys read
+[info] 0 expires
+[info] 0 already expired
+```
+```sh
+# hexdump -cx ../dump.rdb
+0000000   R   E   D   I   S   0   0   1   0 372  \t   r   e   d   i   s
+0000000    4552    4944    3053    3130    fa30    7209    6465    7369
+0000010   -   v   e   r 005   7   .   0   .   8 372  \n   r   e   d   i
+0000010    762d    7265    3705    302e    382e    0afa    6572    6964
+0000020   s   -   b   i   t   s 300   @ 372 005   c   t   i   m   e 302
+0000020    2d73    6962    7374    40c0    05fa    7463    6d69    c265
+0000030 370 376       d 372  \b   u   s   e   d   -   m   e   m 302   8
+0000030    fef8    6420    08fa    7375    6465    6d2d    6d65    38c2
+0000040 237 017  \0 372 016   r   e   p   l   -   s   t   r   e   a   m
+0000040    0f9f    fa00    720e    7065    2d6c    7473    6572    6d61
+0000050   -   d   b 300  \0 372  \a   r   e   p   l   -   i   d   (   b
+0000050    642d    c062    fa00    7207    7065    2d6c    6469    6228
+0000060   3   e   2   d   f   4   9   8   3   a   d   d   0   9   f   d
+0000060    6533    6432    3466    3839    6133    6464    3930    6466
+0000070   1   6   8   d   3   f   4   0   6   9   1   3   1   e   5   8
+0000070    3631    6438    6633    3034    3936    3331    6531    3835
+0000080   a   6   3   8   1   b   1 372  \v   r   e   p   l   -   o   f
+0000080    3661    3833    6231    fa31    720b    7065    2d6c    666f
+0000090   f   s   e   t 302 317 334  \0  \0 372  \b   a   o   f   -   b
+0000090    7366    7465    cfc2    00dc    fa00    6108    666f    622d
+00000a0   a   s   e 300  \0 376  \0 373 001  \0  \0 001   b 300   { 377
+00000a0    7361    c065    fe00    fb00    0001    0100    c062    ff7b
+00000b0   B 212 213   > 016 252   R 016                                
+00000b0    8a42    3e8b    aa0e    0e52                                
+00000b8
+```
+# rax结构
+官网的图
+```cpp
+ *                    (f) ""
+ *                    /
+ *                 (i o) "f"
+ *                 /   \
+ *    "firs"  ("rst")  (o) "fo"
+ *              /        \
+ *    "first" []       [t   b] "foo"
+ *                     /     \
+ *           "foot" ("er")    ("ar") "foob"
+ *                    /          \
+ *          "footer" []          [] "foobar"
+```
+消费者组的图
+![](pic/rax.png)
 # 源码文件描述
 
 ```cpp
