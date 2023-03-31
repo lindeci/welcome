@@ -142,3 +142,8 @@
  进入项目目录
  命令:git config --global credential.helper store
  ```
+
+ 28、linux设置账号密码
+git config --global user.name lindeci
+git config --global user.password
+git config --global user.email 541287039@qq.com
