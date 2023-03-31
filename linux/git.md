@@ -147,3 +147,5 @@
 git config --global user.name lindeci
 git config --global user.password
 git config --global user.email 541287039@qq.com
+
+my class token: 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
