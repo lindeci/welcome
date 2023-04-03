@@ -1,5 +1,26 @@
  
 
+- [主要概念](#主要概念)
+- [DNS 访问流程](#dns-访问流程)
+- [例子](#例子)
+- [常见记录](#常见记录)
+  - [A记录](#a记录)
+  - [CNAME记录](#cname记录)
+  - [NS 记录](#ns-记录)
+  - [MX记录](#mx记录)
+- [常见工具DNS缓存时间](#常见工具dns缓存时间)
+  - [一些浏览器的DNS缓存时间:](#一些浏览器的dns缓存时间)
+  - [IOS](#ios)
+- [DNS在linux上解析](#dns在linux上解析)
+  - [常见操作](#常见操作)
+    - [查看dns缓存](#查看dns缓存)
+    - [清除dns缓存](#清除dns缓存)
+    - [查看DNS解析器](#查看dns解析器)
+    - [使用systemd-resolved刷新DNS](#使用systemd-resolved刷新dns)
+    - [验证DNS缓存是否被刷新](#验证dns缓存是否被刷新)
+    - [调整A记录的TTL](#调整a记录的ttl)
+    - [dig](#dig)
+
 # 主要概念
 主机名  
 次级域名  
@@ -133,9 +154,10 @@ mail2  86400  IN  A     192.0.2.4             ; IPv4 address for mail2.example.c
 ```
 
 ### dig
-```
 dig（domain information groper）是域名查询工具
 
+查询对应域名的 IP
+```
 # dig google.com
 
 ; <<>> DiG 9.18.1-1ubuntu1.2-Ubuntu <<>> google.com
@@ -195,4 +217,11 @@ com.                    86400   IN      DS      30909 8 2 E2D3C916F6DEEAC73294E8
 com.                    86400   IN      RRSIG   DS 8 1 86400 20230416050000 20230403040000 60955 . SRaXauZ48jcmDpP27/RG3ihQDatUnsASr/727qW7WKZmrfRzdcXO/4n5 O9Go+HBUxi41eL4mnX4IwDpNTJh9JqNdND+ndJ1ZQE4i8GHjTQUkvw8U IYSP0j6uNSbLU/vNmW8DDztxI5N0ynJ2TiFan8pIWGRv/nUGe36cwQxf Dv3/JnAGKXXSZrYzHxVe/rTewbOPfj2k/W4EsdqnOyjExXey7XcaU1FP Og5EahnAmrJVhAuM2EXifh8rKOZK3mol05upfHobC71GhKKpI2XhPNT3 wXTqUTfLOwt6ajIbbBRyWFBw8hYnrrEmxvv4D8oaoqVluCT0H/CwMhyk jgqxRA==
 ;; Received 1173 bytes from 192.203.230.10#53(e.root-servers.net) in 0 ms
 
+```
+DNS反向解析
+```
+我们一般所说的DNS域名解析指的是正向解析即从域名解析到相应的IP,反之从IP解析到对应的DNS服务器就是反向解析，8.8.8.8是google的一个公共DNS服务器，我们可以通过dig -x查找该ip对应的DNS服务器
+
+$ dig -x 8.8.8.8 +short    
+google-public-dns-a.google.com.
 ```
