@@ -62,4 +62,10 @@ test -e /etc/security/limits.d/80-nofile.conf && (grep '# BEGIN ES SET' /etc/sec
 *          -    nofile     1000000
 # END ES SET
 " >> /etc/security/limits.d/80-nofile.conf )
+
+
+
+sudo sysctl -p
 ```
+
+
