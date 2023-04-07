@@ -18,6 +18,7 @@
 - [-D](#-d)
   - [常见宏](#常见宏)
 - [-DDEBUG](#-ddebug)
+- [查看gcc/g++版本以及对应默认的的C++标准](#查看gccg版本以及对应默认的的c标准)
 - [注](#注)
 
 GCC常用选项
@@ -63,6 +64,9 @@ GCC常用选项
 
 ## -std
 编译程序时所使用的编译标准
+```sh
+g++ -std=c++17
+```
 
 ## -Wall
 开启大多数的警告信息
@@ -80,6 +84,11 @@ _MSC_VER:  微软的预编译控制
 
 ## -DDEBUG
 
+## 查看gcc/g++版本以及对应默认的的C++标准
+```sh
+$ g++ -dM -E -x c++  /dev/null | grep -F __cplusplus
+#define __cplusplus 201703L
+```
 
 ## 注
 

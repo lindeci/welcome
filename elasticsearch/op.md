@@ -1,3 +1,17 @@
+- [网上资料](#网上资料)
+- [安装时OS调优](#安装时os调优)
+- [consistency](#consistency)
+
+# 网上资料
+
+    官网 https://www.elastic.co/guide/index.html
+    书籍
+    《Elasticsearch权威指南（中文版）》
+    社区
+    中文社区 https://elasticsearch.cn/
+    Elastic 社区 Meetup https://meetup.elasticsearch.cn/event/index.html （最后一次举办时间时间：2019-11-16）
+    Elastic 中国社区官方博客 https://blog.csdn.net/UbuntuTouch
+
 # 安装时OS调优
 ```sh
 sudo groupadd es
@@ -63,10 +77,10 @@ test -e /etc/security/limits.d/80-nofile.conf && (grep '# BEGIN ES SET' /etc/sec
 # END ES SET
 " >> /etc/security/limits.d/80-nofile.conf )
 
-
-
 sudo sysctl -p
 ```
 
+# consistency
+https://www.elastic.co/guide/en/elasticsearch/reference/7.17/docs-index_.html#index-wait-for-active-shards
 
 ObGMYDi5Xh4EL5Ls9VYKwoWj

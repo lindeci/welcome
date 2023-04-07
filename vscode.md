@@ -1,5 +1,6 @@
 
 - [VSCode如何返回上一步](#vscode如何返回上一步)
+  - [安装常见插件](#安装常见插件)
 
 # VSCode如何返回上一步
 在Windows中可以使用快捷键“Alt+←”实现  
@@ -18,3 +19,4 @@
 8. Markdown All in One
 9. GDB Debugger - Beyond
 10. C/C++
+11. Code Runner
