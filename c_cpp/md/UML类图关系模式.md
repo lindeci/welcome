@@ -164,14 +164,14 @@ class CPerson
 - 
 ## 箭头及指向
 - 聚合  
-![image](pic/uml/Aggregation.png)
+![image](../pic/uml/Aggregation.png)
 - 关联  
-![image](pic/uml/Association.png)  
+![image](../pic/uml/Association.png)  
 - 组合  
-![image](pic/uml/Composition.png)  
+![image](../pic/uml/Composition.png)  
 - 依赖  
-![image](pic/uml/Dependency.png)  
+![image](../pic/uml/Dependency.png)  
 - 泛化  
-![image](pic/uml/Generalization.png) 
+![image](../pic/uml/Generalization.png) 
 - 实现  
-![image](pic/uml/Realization.png) 
+![image](../pic/uml/Realization.png) 

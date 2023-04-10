@@ -54,33 +54,38 @@ dimension 英/dɪˈmenʃn/ 美/daɪˈmenʃn/
 n.维(构成空间的因素);尺寸;规模;程度;范围;方面;侧面
 
 # 2023-04-07
-sanity                                理智
-sanity check                      正常检查
-polygen                             多边形
-plot                                   情节、绘制
-accumulate 
-  英 [əˈkjuːmjəleɪt]  美 [əˈkjuːmjəleɪt]
-  v. 	积累
-stance
-  英/stæns/  美/stæns/
-  n.立场;
-fiat
-  英/ˈfiːæt/  美/ˈfiːæt/
-  n.命令
-eliminates
-  英/ɪˈlɪmɪneɪts/  美/ɪˈlɪmɪneɪts/
-  v.排除;清除
-debate
-  英/dɪˈbeɪt/  美/dɪˈbeɪt/
-  n.辩论;
-trivia
-  英/ˈtrɪviə/  美/ˈtrɪviə/
-  n.琐事
-pointless
-  英/ˈpɔɪntləs/美/ˈpɔɪntləs/
-  adj.无意义的
-infeasible
-  美/ɪnˈfizəbəl/  
-  adj.不能实行的
+sanity                                理智  
+sanity check                      正常检查  
+polygen                             多边形  
+plot                                   情节、绘制  
+accumulate  
+  英 [əˈkjuːmjəleɪt]  美 [əˈkjuːmjəleɪt]  
+  v. 	积累  
+stance  
+  英/stæns/  美/stæns/  
+  n.立场;  
+fiat  
+  英/ˈfiːæt/  美/ˈfiːæt/  
+  n.命令  
+eliminates  
+  英/ɪˈlɪmɪneɪts/  美/ɪˈlɪmɪneɪts/  
+  v.排除;清除  
+debate  
+  英/dɪˈbeɪt/  美/dɪˈbeɪt/  
+  n.辩论;  
+trivia  
+  英/ˈtrɪviə/  美/ˈtrɪviə/  
+  n.琐事  
+pointless  
+  英/ˈpɔɪntləs/美/ˈpɔɪntləs/  
+  adj.无意义的  
+infeasible  
+  美/ɪnˈfizəbəl/    
+  adj.不能实行的  
 
 # 2023-04-08
+
+# 2023-04-10
+英文写作校对工具汇总
+1. Grammarly：http://www.grammarly.com，可实现实时语法检查，你边写它就边改，语法问题和修改意见会以标注的形式显示在文档的右侧，而且在每条批注下面都会配有详细的解释，告诉你哪里错了，为什么要这样修改。  
+2. https://app.grammarly.com/ddocs/2006613483
