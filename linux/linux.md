@@ -25,6 +25,12 @@
 		- [cpu子系统](#cpu子系统)
 		- [cpu.shares](#cpushares)
 - [查看文件编码](#查看文件编码)
+- [查看带宽、流量](#查看带宽流量)
+- [man使用](#man使用)
+- [free 详解](#free-详解)
+	- [手工释放内存](#手工释放内存)
+	- [查看内存硬件](#查看内存硬件)
+- [查看 systemctl enable 哪些组件](#查看-systemctl-enable-哪些组件)
 
 
 # 收集系统信息
@@ -501,4 +507,154 @@ shares有两个特点:
 vi 文件
 然后
 :set fileencoding
+```
+
+# 查看带宽、流量
+1. 查看网络带宽  
+ethtool eth0 | grep Speed
+
+2. 查看流量   
+Iftop
+
+3. 查看多网卡绑定  
+cat /proc/net/bonding/bond0
+
+# man使用
+yum install -y man   
+yum install -y man-pages  
+man命令是Linux下的帮助指令，通过man指令可以查看Linux中的指令帮助、配置文件帮助和编程帮助等信息。  
+
+man(选项)(参数)  
+选项   
+-a：在所有的man帮助手册中搜索；   
+-f：等价于whatis指令，显示给定关键字的简短描述信息；   
+-P：指定内容时使用分页程序；   
+-M：指定man手册搜索的路径。   
+参数   
+数字：指定从哪本man手册中搜索帮助；   
+关键字：指定要搜索帮助的关键字。  
+
+
+# free 详解
+在介绍Cached与Buffers区别之前，我们先来看看Linux下的内存信息。
+```sh
+# free
+              total        used        free      shared  buff/cache   available
+Mem:       16400176     5846976     3617776      723728     6935424     9212468
+Swap:             0           0
+```
+```
+　　首先我们来看看上述都表示什么意思：
+　　Mem：表示物理内存统计 
+　　-/+ buffers/cached：表示物理内存的缓存统计 
+　　Swap：表示硬盘上交换分区的使用情况，这里我们不去关心。
+　　系统的总物理内存：255988Kb（256M），但系统当前真正可用的内存并不是第一行free 标记的 24284Kb，它仅代表未被分配的内存。
+
+　　我们使用total1、used1、free1、used2、free2 等名称来代表上面统计数据的各值，1、2 分别代表第一行和第二行的数据。
+
+　　total1：表示物理内存总量。 
+　　used1：表示总计分配给缓存（包含buffers 与cache ）使用的数量，但其中可能部分缓存并未实际使用。 
+　　free1：未被分配的内存。 
+　　shared1：共享内存，一般系统不会用到，这里也不讨论。 
+　　buffers1：系统分配但未被使用的buffers 数量。 
+　　cached1：系统分配但未被使用的cache 数量。buffer 与cache 的区别见后面。 
+　　used2：实际使用的buffers 与cache 总量，也是实际使用的内存总量。 
+　　free2：未被使用的buffers 与cache 和未被分配的内存之和，这就是系统当前实际可用内存。
+　　可以整理出如下等式：
+
+　　　　total1 = used1 + free1
+　　　　total1 = used2 + free2
+　　　　used1 = buffers1 + cached1 + used2
+　　　　free2 = buffers1 + cached1 + free1
+　　　　内存利用率 = used2 / total1
+```
+buffer 与cache 的区别
+```
+	A buffer is something that has yet to be "written" to disk.
+	A cache is something that has been "read" from the disk and stored for later use.
+	两者都是RAM中的数据。
+```
+## 手工释放内存
+```
+第一步，使用free命令查看内存，这其实没有什么实际作用，就是做个前后对比；
+第二步，执行sync命令，是为了确保文件系统的完整性（sync命令将所有未写的系统缓存写到磁盘中）；
+第三步，执行echo 3 > /proc/sys/vm/drop_caches就开始释放内存了。
+
+这里说明一下/proc/sys/vm/drop_caches的作用：当写入1时，释放页面缓存；写入2时，释放目录文件和inodes；写入3时，释放页面缓存、目录文件和inodes。可见，整个操作过程就是释放磁盘缓存。
+```
+## 查看内存硬件
+```
+find /sys -name meminfo
+cat /sys/devices/system/node/node*/meminfo
+
+MemTotal:          45964 kB    //所有可用的内存大小，物理内存减去预留位和内核使用。系统从加电开始到引导完成，firmware/BIOS要预留一些内存，内核本身要占用一些内存，最后剩下可供内核支配的内存就是MemTotal。这个值在系统运行期间一般是固定不变的，重启会改变。
+MemFree:            1636 kB    //表示系统尚未使用的内存。
+MemAvailable:       8496 kB    //真正的系统可用内存，系统中有些内存虽然已被使用但是可以回收的，比如cache/buffer、slab都有一部分可以回收，所以这部分可回收的内存加上MemFree才是系统可用的内存
+Buffers:               0 kB    //用来给块设备做缓存的内存，(文件系统的 metadata、pages)
+Cached:             7828 kB    //分配给文件缓冲区的内存,例如vi一个文件，就会将未保存的内容写到该缓冲区
+SwapCached:            0 kB    //被高速缓冲存储用的交换空间（硬盘的swap）的大小
+Active:            19772 kB    //经常使用的高速缓冲存储器页面文件大小
+Inactive:           3128 kB    //不经常使用的高速缓冲存储器文件大小
+Active(anon):      15124 kB    //活跃的匿名内存
+Inactive(anon):       52 kB    //不活跃的匿名内存
+Active(file):       4648 kB    //活跃的文件使用内存
+Inactive(file):     3076 kB    //不活跃的文件使用内存
+Unevictable:           0 kB    //不能被释放的内存页
+Mlocked:               0 kB    //系统调用 mlock 家族允许程序在物理内存上锁住它的部分或全部地址空间。这将阻止Linux 将这个内存页调度到交换空间（swap space），即使该程序已有一段时间没有访问这段空间
+SwapTotal:             0 kB    //交换空间总内存
+SwapFree:              0 kB    //交换空间空闲内存
+Dirty:                 4 kB    //等待被写回到磁盘的
+Writeback:             0 kB    //正在被写回的
+AnonPages:         15100 kB    //未映射页的内存/映射到用户空间的非文件页表大小
+Mapped:             7160 kB    //映射文件内存
+Shmem:               100 kB    //已经被分配的共享内存
+Slab:               9236 kB    //内核数据结构缓存
+SReclaimable:       2316 kB    //可收回slab内存
+SUnreclaim:         6920 kB    //不可收回slab内存
+KernelStack:        2408 kB    //内核消耗的内存
+PageTables:         1268 kB    //管理内存分页的索引表的大小
+NFS_Unstable:          0 kB    //不稳定页表的大小
+Bounce:                0 kB    //在低端内存中分配一个临时buffer作为跳转，把位于高端内存的缓存数据复制到此处消耗的内存
+WritebackTmp:          0 kB    //FUSE用于临时写回缓冲区的内存
+CommitLimit:       22980 kB    //系统实际可分配内存
+Committed_AS:     536244 kB    //系统当前已分配的内存
+VmallocTotal:     892928 kB    //预留的虚拟内存总量
+VmallocUsed:       29064 kB    //已经被使用的虚拟内存
+VmallocChunk:     860156 kB    //可分配的最大的逻辑连续的虚拟内存
+```
+
+
+
+# 查看 systemctl enable 哪些组件
+```sh
+# systemctl list-unit-files
+UNIT FILE                                     STATE   
+proc-sys-fs-binfmt_misc.automount             static  
+dev-hugepages.mount                           static  
+dev-mqueue.mount                              static  
+proc-sys-fs-binfmt_misc.mount                 static  
+sys-fs-fuse-connections.mount                 static  
+sys-kernel-config.mount                       static  
+sys-kernel-debug.mount                        static  
+tmp.mount                                     disabled
+brandbot.path                                 disabled
+systemd-ask-password-console.path             static  
+systemd-ask-password-plymouth.path            static  
+systemd-ask-password-wall.path                static  
+session-19716.scope                           static  
+session-22053.scope                           static  
+session-22372.scope                           static  
+session-23364.scope                           static  
+session-23977.scope                           static  
+session-24260.scope                           static  
+session-25275.scope                           static  
+session-25445.scope                           static  
+session-26637.scope                           static  
+session-26646.scope                           static  
+session-6089.scope                            static  
+arp-ethers.service                            disabled
+auditd.service                                enabled 
+autovt@.service                               enabled 
+blk-availability.service                      disabled
+……
 ```
