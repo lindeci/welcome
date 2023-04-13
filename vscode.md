@@ -24,5 +24,5 @@
 9. GDB Debugger - Beyond
 10. C/C++
 11. Code Runner
-12. GitHub Copilot
-13. 
+12. GitHub Copilot  //收费 $10/月
+13. CodeGeeX

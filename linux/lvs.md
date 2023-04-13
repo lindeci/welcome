@@ -9,6 +9,10 @@
       - [参数调优](#参数调优)
     - [测试VIP](#测试vip)
     - [注意点](#注意点)
+    - [keepalive 配置](#keepalive-配置)
+    - [keepalive 操作](#keepalive-操作)
+    - [es 健康检测脚本](#es-健康检测脚本)
+    - [抓包分析](#抓包分析)
 - [网卡中断平衡](#网卡中断平衡)
 
 # 基本概念
@@ -63,6 +67,21 @@ echo 2 > /proc/sys/net/ipv4/conf/all/arp_announce
 echo 0 > /proc/sys/net/ipv4/conf/tunl0/rp_filter
 echo 0 > /proc/sys/net/ipv4/conf/all/rp_filter
 ```
+上面两部可以持久化配置
+```sh
+echo -e "
+#BEGIN LVS SET
+net.ipv4.conf.tunl0.arp_ignore = 1
+net.ipv4.conf.tunl0.arp_announce = 2
+net.ipv4.conf.all.arp_ignore = 1
+net.ipv4.conf.all.arp_announce = 2
+net.ipv4.conf.tunl0.rp_filter = 0
+net.ipv4.conf.all.rp_filter = 0
+#END LVS SET
+" >> /etc/sysctl.conf
+sysctl -p
+```
+
 ```sh
 ifconfig tunl0 172.21.228.114 broadcast 172.21.228.114 netmask 255.255.255.255 up
 route add -host 172.21.228.114 tunl0
@@ -142,6 +161,8 @@ net.ipv4.tcp_keepalive_time=5
 net.ipv4.tcp_keepalive_intvl=2
 net.ipv4.tcp_keepalive_probes=5
 net.ipv4.tcp_retries2=6
+
+net.ipv4.ip_forward=1
 #END LVS SET
 " >> /etc/sysctl.conf
 
@@ -244,6 +265,101 @@ Prot LocalAddress:Port Scheduler Flags
   -> RemoteAddress:Port           Forward Weight ActiveConn InActConn
 TCP  172.21.228.114:9200 wrr
   -> 172.21.229.56:9200           Tunnel  1      0          0  
+```
+
+### keepalive 配置
+```json
+global_defs {
+   router_id LVS_TEST
+   script_user root
+}
+
+vrrp_instance VI_1 {
+    state MASTER
+    interface eth0
+    virtual_router_id 114
+    priority 100
+    advert_int 1
+    authentication {
+        auth_type PASS
+        auth_pass 1111
+    }
+    virtual_ipaddress {
+        172.21.228.114 dev tunl0
+    }
+}
+
+virtual_server 172.21.228.114 9200 {
+    #健康时间检查，单位秒
+    delay_loop 3
+    #负载均衡调度算法wlc|rr，和您将使用的LVS的调度算法保持原则一致
+    lb_algo wrr
+    #负载均衡转发规则 DR NAT TUN。和您将启动的LVS的工作模式设置一致
+    lb_kind TUN
+    #会话保持时间，因为我们经常使用的是无状态的集群架构，所以这个设置可有可无
+    persistence_timeout 10
+    #转发协议，当然是TCP
+    protocol TCP
+    #真实的下层ES管理节点的健康监测
+    real_server 172.21.229.54 9200 {
+        #节点权重
+        weight 10
+        #设置检查方式，可以设置HTTP_GET | SSL_GET|TCP_CHECK
+        MISC_CHECK {            #0 检测成功, 1 检测失败，将从服务器池中移除
+            misc_path "/data/es_check.sh 172.21.229.54 9200" #脚本名，需全路径
+                        misc_timeout 3             #脚本执行的超时时间
+                        misc_dynamic                #动态调整服务器权重 
+        }
+    }
+    real_server 172.21.229.55 9200 {
+        #节点权重
+        weight 10
+        #设置检查方式，可以设置HTTP_GET | SSL_GET|TCP_CHECK
+        MISC_CHECK {            #0 检测成功, 1 检测失败，将从服务器池中移除
+            misc_path "/data/es_check.sh 172.21.229.55 9200" #脚本名，需全路径
+                        misc_timeout 3             #脚本执行的超时时间
+                        misc_dynamic                #动态调整服务器权重 
+        }
+    }
+    real_server 172.21.229.56 9200 {
+        #节点权重
+        weight 10
+        #设置检查方式，可以设置HTTP_GET | SSL_GET|TCP_CHECK
+        MISC_CHECK {            #0 检测成功, 1 检测失败，将从服务器池中移除
+            misc_path "/data/es_check.sh 172.21.229.56 9200" #脚本名，需全路径
+                        misc_timeout 3             #脚本执行的超时时间
+                        misc_dynamic                #动态调整服务器权重 
+        }
+    }
+}
+```
+### keepalive 操作
+```sh
+#查看日志
+journalctl -f -u keepalived
+#重启
+systemctl restart keepalived
+```
+
+### es 健康检测脚本
+```sh
+$ cat /data/es_check.sh 
+#!/bin/bash
+ip=$1
+port=$2
+health=`curl -XGET "http://${ip}:${port}/_cluster/health?pretty" -uelastic:elastic -s | grep cluster_name | wc -l`
+if [ ${health} -eq 1 ]
+then
+    exit 0
+else 
+    exit 1
+fi
+```
+
+### 抓包分析
+```sh
+tcpdump -e -nn 'port 9200' -i any
+tcpdump -e -nn 'port 9200' -i any -A #打印包的ASCII值
 ```
 
 # 网卡中断平衡
