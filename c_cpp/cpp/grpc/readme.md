@@ -1,3 +1,20 @@
+- [官网学习](#官网学习)
+  - [安装步骤](#安装步骤)
+  - [Service definition](#service-definition)
+  - [Unary RPC](#unary-rpc)
+  - [Server streaming RPC](#server-streaming-rpc)
+  - [Client streaming RPC](#client-streaming-rpc)
+  - [Bidirectional streaming RPC](#bidirectional-streaming-rpc)
+  - [Deadlines/Timeouts](#deadlinestimeouts)
+  - [RPC termination](#rpc-termination)
+  - [Cancelling an RPC](#cancelling-an-rpc)
+  - [Metadata](#metadata)
+  - [Channels](#channels)
+  - [Protocol Buffers](#protocol-buffers)
+  - [Generating Your Classes](#generating-your-classes)
+- [本例子的编译、运行](#本例子的编译运行)
+
+# 官网学习
 [quickstart](https://grpc.io/docs/languages/cpp/quickstart/)
 
 ## 安装步骤
@@ -45,3 +62,33 @@ Changes made before a cancellation are not rolled back.
 ## Metadata
 ## Channels
 A gRPC channel provides a connection to a gRPC server on a specified host and port. 
+
+## Protocol Buffers 
+Protocol buffers provide a language-neutral, platform-neutral, extensible mechanism for serializing structured data in a forward-compatible and backward-compatible way. It’s like JSON, except it’s smaller and faster, and it generates native language bindings. You define how you want your data to be structured once, then you can use special generated source code to easily write and read your structured data to and from a variety of data streams and using a variety of languages.
+
+Protocol buffers are a combination of the definition language (created in .proto files), the code that the proto compiler generates to interface with data, language-specific runtime libraries, and the serialization format for data that is written to a file (or sent across a network connection).
+
+## Generating Your Classes
+```shell
+protoc --proto_path=IMPORT_PATH --cpp_out=DST_DIR --java_out=DST_DIR --python_out=DST_DIR --go_out=DST_DIR --ruby_out=DST_DIR --objc_out=DST_DIR --csharp_out=DST_DIR path/to/file.proto
+```
+
+```sh
+protoc -I=$SRC_DIR --cpp_out=$DST_DIR $SRC_DIR/addressbook.proto
+
+#This generates the following files in your specified destination directory:
+#    addressbook.pb.h, the header which declares your generated classes.
+#    addressbook.pb.cc, which contains the implementation of your classes.
+```
+
+# 本例子的编译、运行
+```sh
+# 添加cmake/common.cmake
+# 编写CMakelitsts.txt
+# 编译
+mkdir build
+cd bulid
+cmake -DCMAKE_PREFIX_PATH=$MY_INSTALL_DIR ..
+make
+./write_personal_details  ../address_book.txt
+```

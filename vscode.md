@@ -26,3 +26,22 @@
 11. Code Runner
 12. GitHub Copilot  //收费 $10/月
 13. CodeGeeX
+14. Makefile Tools
+
+
+| 编号 | 插件名称                                       | 插件简介                                                     |
+| ---- | ---------------------------------------------- | ------------------------------------------------------------ |
+| 1    | CMake                                          | CMake 工程管理工具                                          |
+| 2    | CMake Tools                                    | 为 CMake 提供更好的支持，包括自动补全、语法高亮、调试等功能 |
+| 3    | Remote - SSH                                   | 支持通过 SSH 连接到远程主机进行开发和调试                   |
+| 4    | C/C++ Themes                                   | 提供 C/C++ 语言的主题，美化代码界面                         |
+| 5    | Chinese Language Pack for Visual Studio        | 提供中文语言包                                               |
+| 6    | C/C++ Extension pack                           | 包括 C/C++ 开发所需的插件，如 IntelliSense、调试器、代码片段等 |
+| 7    | Markdown Editor                                | Markdown 编辑器                                             |
+| 8    | Markdown All in One                            | Markdown 编辑器增强，提供语法高亮、预览、TOC 生成等功能     |
+| 9    | GDB Debugger - Beyond                          | 提供 GDB 调试器的增强功能，支持多线程调试等                 |
+| 10   | C/C++                                         | 提供 C/C++ 开发所需的插件，如 IntelliSense、调试器、代码片段等 |
+| 11   | Code Runner                                    | 可以直接在编辑器中运行代码                                   |
+| 12   | GitHub Copilot                                 | 由 OpenAI 提供的 AI 代码助手，可以生成代码片段、自动补全等功能。收费 $10/月 |
+| 13   | CodeGeeX                                       | 提供多种语言的代码片段和代码模板                             |
+| 14   | Makefile Tools                                 | 提供 Makefile 的支持，可以自动构建项目                       |
