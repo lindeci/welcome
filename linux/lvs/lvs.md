@@ -1,4 +1,3 @@
-
 - [基本概念](#基本概念)
 - [模式](#模式)
   - [NAT 模式](#nat-模式)
@@ -14,32 +13,42 @@
     - [es 健康检测脚本](#es-健康检测脚本)
     - [抓包分析](#抓包分析)
 - [网卡中断平衡](#网卡中断平衡)
+- [Q \& A](#q--a)
+  - [为什么 LVS的机器要在同个子网(vrrp)](#为什么-lvs的机器要在同个子网vrrp)
 
 # 基本概念
+
 数据包的发送链路为：CIP ➡ VIP ➡ DIP ➡ RIP，即 客户端 IP ➡ 虚拟 IP ➡ 分发 IP ➡ 真实服务器 IP
 
 # 模式
+
 红色表示发出的数据包，绿色表示返回的数据包，黄色表示负载均衡器修改的内容 ，虚线表示经过 N 个下一跳，即可以不在同一局域网内，实线表示只能 “跳跃一次”，即必须在同一局域网内。
 
 ## NAT 模式
-![](pic/lvs_03.jpg)
-    
+
+![](../pic/lvs_03.jpg)
+
 - NAT 模式修改数据包的「目标 IP 地址」或 「源 IP 地址」，所有的请求数据包、响应数据包都要经过负载均衡器，所以 NAT 模式支持对端口的转换
 - 真实服务器的默认网关是负载均衡器，所以真实服务器和负载均衡器必须在同一个网段
 
 ## DR 模式
-![](pic/lvs_01.jpg)
+
+![](../pic/lvs_01.jpg)
+
 - DR 模式仅修改数据包的「目标 MAC 地址」，只有请求数据包需要经过负载均衡器，所以 DR 模式不支持对端口的转换
 - 真实服务器和负载均衡器必须在同一个网段，且真实服务器的默认网关不能是负载均衡器
 - 真实服务器的 lo 接口上需要配置 VIP 的 IP 地址，且真实服务器需要更改 ARP 协议，“隐藏” lo 接口上的 VIP
 
 ## TUN 模式
-![](pic/lvs_02.jpg)
+
+![](../pic/lvs_02.jpg)
+
 - TUNNEL 模式不改变原数据包，而是在原数据包上新增一层 IP 首部信息。所以 TUNNEl 模式不支持对端口的转换，且真实服务器必须能够支持解析两层 IP 首部信息
 - 真实服务器和负载均衡器可以不在同一个网段中
 - 真实服务器需要更改 ARP 协议，“隐藏” lo 接口上的 VIP
 
 ### 配置RS机器
+
 ```sh
 #RS
 #安装 ipip 模块
@@ -53,21 +62,25 @@ ip_tunnel              24576  1 ipip
 
 
 ```
+
 ```sh
 #修改 ARP 协议
 #默认都是0
-echo 1 > /proc/sys/net/ipv4/conf/tunl0/arp_ignore
-echo 2 > /proc/sys/net/ipv4/conf/tunl0/arp_announce
-echo 1 > /proc/sys/net/ipv4/conf/all/arp_ignore
-echo 2 > /proc/sys/net/ipv4/conf/all/arp_announce
+echo 1 > /proc/sys/net/ipv4/conf/tunl0/arp_ignore # 忽略来自tunl0接口的ARP请求
+echo 2 > /proc/sys/net/ipv4/conf/tunl0/arp_announce # 在回应ARP请求时，使用tunl0接口的IP地址作为源IP地址
+echo 1 > /proc/sys/net/ipv4/conf/all/arp_ignore # 忽略来自所有接口（包括虚拟接口和物理接口）的ARP请求
+echo 2 > /proc/sys/net/ipv4/conf/all/arp_announce # 回应ARP请求时，使用接口的IP地址作为源IP地址
 ```
+
 ```sh
 #rp_filter 表示是否开启对数据包源地址的校验，这里我们直接关闭校验即可。
 #默认都是1
 echo 0 > /proc/sys/net/ipv4/conf/tunl0/rp_filter
 echo 0 > /proc/sys/net/ipv4/conf/all/rp_filter
 ```
+
 上面两部可以持久化配置
+
 ```sh
 echo -e "
 #BEGIN LVS SET
@@ -115,6 +128,7 @@ Destination     Gateway         Genmask         Flags Metric Ref    Use Iface
 ```
 
 ### 配置DIP机器
+
 ```sh
 yum install -y ipvsadm keepalived
 
@@ -135,7 +149,9 @@ ipvsadm -ln
 ```
 
 #### 参数调优
+
 OS参数调优
+
 ```sh
 # 关闭透明大页
 test -e /sys/kernel/mm/transparent_hugepage/enabled && cat /sys/kernel/mm/transparent_hugepage/enabled | grep never && echo never > /sys/kernel/mm/transparent_hugepage/enabled && (grep '# ES TRANSPARENT_HUGEPAGE SET' /etc/rc.local || echo 'echo never > /sys/kernel/mm/transparent_hugepage/enabled # ES TRANSPARENT_HUGEPAGE SET' >> /etc/rc.local)
@@ -195,7 +211,9 @@ modprobe ip_vs
 
 sudo sysctl -p
 ```
+
 lvs参数调优
+
 ```sh
 #--set tcp tcpfin udp 设置连接超时值
 # tcp:tcp空闲释放时间  tcpfin:如果客户端发起了FIN断连,服务端等待断离连时间  udp:udp空闲释放时间 
@@ -214,9 +232,8 @@ ipvsadm --set 900 120 300
 
 ```
 
-
-
 ### 测试VIP
+
 ```sh
 #在client机器上
 route add -host 172.21.228.114 gw 172.21.228.108
@@ -224,7 +241,9 @@ curl -XGET 'http://172.21.228.114:9200/_cluster/health?pretty' -uelastic:elastic
 ```
 
 ### 注意点
-openstack 的虚拟机上，Neutron默认会在安全组规则中添加一条防火墙策略检测TCP连接状态，经过状态检测后认为连接是无效状态的，就会将包丢弃，导致无法正常通信，因此需要修改Neutron代码使其不添加相关防火墙策略，并更新所有节点节点的Neutron服务  
+
+openstack 的虚拟机上，Neutron默认会在安全组规则中添加一条防火墙策略检测TCP连接状态，经过状态检测后认为连接是无效状态的，就会将包丢弃，导致无法正常通信，因此需要修改Neutron代码使其不添加相关防火墙策略，并更新所有节点节点的Neutron服务
+
 ```sh
 #注释
 sed -i 's/ self._setup_spoof_filter_chain/ #self._setup_spoof_filter_chain/g' /usr/lib/python2.7/site-packages/neutron/agent/linux/iptables_firewall.py
@@ -241,7 +260,9 @@ grep -rn "self._drop_invalid_packets" /usr/lib/python2.7/site-packages/neutron/a
 ##重启服务
 systemctl status neutron-openvswitch-agent.service
 ```
+
 modprobe -r ip_vs 执行失败
+
 ```sh
 #如果上面的命令失败
 $ lsmod|more
@@ -268,6 +289,7 @@ TCP  172.21.228.114:9200 wrr
 ```
 
 ### keepalive 配置
+
 ```json
 global_defs {
    router_id LVS_TEST
@@ -333,7 +355,9 @@ virtual_server 172.21.228.114 9200 {
     }
 }
 ```
+
 ### keepalive 操作
+
 ```sh
 #查看日志
 journalctl -f -u keepalived
@@ -342,6 +366,7 @@ systemctl restart keepalived
 ```
 
 ### es 健康检测脚本
+
 ```sh
 $ cat /data/es_check.sh 
 #!/bin/bash
@@ -357,10 +382,24 @@ fi
 ```
 
 ### 抓包分析
+
 ```sh
 tcpdump -e -nn 'port 9200' -i any
 tcpdump -e -nn 'port 9200' -i any -A #打印包的ASCII值
 ```
 
 # 网卡中断平衡
+
 [网卡中断](网卡中断.md)
+
+# Q & A
+
+## 为什么 LVS的机器要在同个子网(vrrp)
+
+LVS是一个负载均衡器，其主要工作原理是将来自客户端的请求分发到多个后端服务器上，以提高系统的性能和可靠性。为了实现这个目的，LVS通常使用虚拟路由器冗余协议（VRRP）来实现高可用性。
+
+在VRRP中，LVS服务器集群中的多个节点（通常是主节点和备用节点）会共享一个虚拟IP地址，并使用VRRP协议来协调节点之间的通信，确保当主节点出现故障时，备用节点可以接管虚拟IP地址并继续为客户端提供服务。
+
+为了确保VRRP的正常工作，LVS服务器集群中的所有节点必须位于同一子网中。这是因为VRRP使用多播消息来协调节点之间的通信，而多播消息只能在同一子网内传递。
+
+如果LVS服务器集群中的节点不在同一子网中，则VRRP无法正常工作，节点之间无法协调，也就无法实现高可用性。因此，为了确保LVS服务器集群的正常运行，所有节点必须位于同一子网中。
