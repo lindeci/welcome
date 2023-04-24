@@ -12,3 +12,44 @@
 
 ![](pic/cloud_03.png)
 - 可以查看同个区域下所有可用区的实例列表
+
+# PAAS和SAAS的区别
+PAAS（Platform as a Service）和SAAS（Software as a Service）是云计算中两个不同的服务模型，它们有着明显的区别：
+
+    PAAS提供的是开发平台，为开发者提供开发、测试和部署的基础架构，开发者需要自行编写和维护应用程序代码。
+    SAAS提供的是完整的应用程序，用户只需要通过浏览器或移动应用程序访问云上提供的应用程序即可，无需管理或维护基础架构。
+
+简单来说，PAAS提供了一种构建自己的应用程序的方式，而SAAS提供的是已经构建好的应用程序。
+
+在实际应用中，一些云服务可能同时提供PAAS和SAAS服务，因此需要根据具体的情况来进行严格的区分
+
+![](pic/Layered-Model-of-Cloud-Computing.png)
+
+# 微服务
+What is Microservice architecture?
+
+Microservice architecture is a development pattern that includes multiple independent and loosely coupled services. Each service has a separate codebase, which small developer teams can well manage.
+
+Developers can deploy all these services independently, providing a faster and easier application development. The application in this architecture can be developed as smaller independent parts.
+
+Moreover, the architecture provides a framework to develop, deploy, and maintain services independently. You can know more about this architecture by understanding its characteristics.
+
+![](pic/Architecture-Of-Microservices_01.webp)
+
+# 数据湖的底座
+数据湖的底座通常包括以下几个方面的技术和组件：
+
+1. 存储系统：数据湖需要一个可扩展、高效、低成本的存储系统，以存储海量的数据。常用的存储系统包括HDFS、S3、Azure Blob Storage等。
+
+2. 数据采集和传输：数据湖需要从各种数据源中采集和传输数据，包括传感器、应用程序、第三方服务等。常用的数据采集和传输工具包括Kafka、Flume、Logstash、Filebeat等。
+
+3. 数据管理和元数据：数据湖需要一个元数据系统来管理和跟踪所有数据和数据资产。常用的数据管理和元数据工具包括Hive、Glue、Atlas等。
+
+4. 数据处理和计算：数据湖需要一组数据处理和计算工具，以支持各种数据分析和挖掘工作，包括ETL工具、数据挖掘工具、机器学习工具等。常用的数据处理和计算工具包括Spark、Flink、Presto、Hadoop等。
+
+5. 安全和权限控制：数据湖需要一个安全的访问和权限控制机制，以确保数据的机密性和完整性。常用的安全和权限控制工具包括Kerberos、LDAP、Apache Ranger等。
+
+6. 监控和警报：数据湖需要一个监控和警报系统，以及时检测和响应各种数据问题和故障。常用的监控和警报工具包括Nagios、Zabbix、Prometheus等。
+
+![](pic/data_lake_01.jpg)
+
