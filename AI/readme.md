@@ -11,6 +11,8 @@ https://sms-activate.org/getNumber
 541287039@qq.com
 lin541287039
 
+可以通过这个网站访问接口 https://github.com/Yidadaa/ChatGPT-Next-Web   
+
 ChatGPT 使用技巧
 
 | 技巧                                 | 描述                                                                                                                                                     | 重要性 |

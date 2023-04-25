@@ -1,3 +1,12 @@
+- [云服务器可用区是什么](#云服务器可用区是什么)
+- [腾讯云的可用区分析](#腾讯云的可用区分析)
+- [PAAS和SAAS的区别](#paas和saas的区别)
+- [微服务](#微服务)
+- [数据湖的底座](#数据湖的底座)
+- [服务网格](#服务网格)
+  - [Istio Architecture](#istio-architecture)
+
+
 # 云服务器可用区是什么
 可用区是指同一个区域下网络、水、火及电力相互独立的区域，可用区之间可以做到故障隔离
 
@@ -53,3 +62,9 @@ Moreover, the architecture provides a framework to develop, deploy, and maintain
 
 ![](pic/data_lake_01.jpg)
 
+# 服务网格
+Microservices service mesh
+Service mesh is a technology pattern that can be applied to a microservice-based system to manage networked communication between services. With a service mesh, the networking functionality is decoupled from the service's application logic, which means it can be managed independently.  
+![](pic/Service_Mesh_Architecture_01.png)
+## Istio Architecture
+![](pic/Service_Mesh_Architecture_02.png)
