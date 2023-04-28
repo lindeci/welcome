@@ -143,6 +143,7 @@ ipvsadm -a -t 172.21.228.114:9200 -r 172.21.229.54 -i -w 1
 #安装 ipip 模块
 modprobe ipip
 ifconfig tunl0 172.21.228.114 broadcast 172.21.228.114 netmask 255.255.255.255 up
+# 如果不是隧道模式，建议执行  arping -c 3 -A -I eth0 172.21.228.114  这里我们使用的是隧道模式，所以不需要执行arping
 route add -host 172.21.228.114 tunl0
 #验证配置
 ipvsadm -ln
