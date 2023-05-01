@@ -24,7 +24,14 @@
     
 ## 2.3 单位矩阵和逆矩阵
 
-
+<div style="text-align:left">
+$$
+\begin{aligned}
+&f(x) = (x+a)(x+b) \\
+&\quad = x^2 + (a+b)x + ab
+\end{aligned}
+$$
+</div>
 
 一次方程：$ax+b=c$
 
