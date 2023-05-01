@@ -39,9 +39,14 @@
 求和：
 $$\sum_{i=1}^n a_i$$
 
-<span class="math">
-$$\sum_{i=1}^n a_i$$
-</span>
+<div style="text-align:left">
+$$
+\begin{aligned}
+&f(x) = (x+a)(x+b) \\
+&\quad = x^2 + (a+b)x + ab
+\end{aligned}
+$$
+</div>
 
 
 
