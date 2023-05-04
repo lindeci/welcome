@@ -24,6 +24,8 @@
     
 ## 2.3 单位矩阵和逆矩阵
 
+![](pic/01.gif)
+
 <div style="text-align:left">
 $$
 \begin{aligned}
