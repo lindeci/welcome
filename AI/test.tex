@@ -1,0 +1,390 @@
+\documentclass{article}
+\usepackage{xeCJK}
+
+%\setCJKmainfont{STHeiti} % 设置字体
+%\setCJKsansfont{STHeiti}
+%\setCJKmonofont{STHeiti}
+
+\usepackage{amsmath} % 数学公式包
+\usepackage{amssymb} % 实数集的包
+\usepackage{parskip} % 段落包
+\usepackage{setspace} % 行距包
+% \setlength{\parindent}{0pt} % 取消段落缩进
+\usepackage{titlesec} % 章节标题格式包
+\titleformat*{\section}{\large\bfseries} % 设定section标题格式为加粗大号字体
+\usepackage{tocloft} % 目录格式包
+\renewcommand\cftsecfont{\normalfont\bfseries} % 设定section标题格式为加粗字体
+\renewcommand\cftsecpagefont{\normalfont\bfseries} % 目录页码字体
+\usepackage{ragged2e} % 左对齐包
+\usepackage{hyperref} % 超链接包
+\usepackage{array} % 引入 array、表格 包
+\hypersetup{colorlinks=true, linkcolor=blue, filecolor=magenta, urlcolor=blue} % 超链接格式设置
+
+
+\title{常见数学公式}
+\author{Lindeci}
+\date{\today}
+
+\begin{document}
+\maketitle
+\tableofcontents
+
+\section{高中数学}
+$sin(a+b) = \sin a \cos b + \cos a \sin b$ \\
+$cos(a+b) = \cos a \cos b - \sin a \sin b$ \\
+向量$A(x_1,y_1),B(x_2,y_2),
+\begin{bmatrix}
+x_1 & x_2 \\
+y_1 & y_2
+\end{bmatrix}
+$ \\
+$A \bot B \Leftrightarrow A \cdot B = x_1 x_2   + y_1 y_2 = 0$ \\
+$ \cos \theta = \frac {A \cdot B} {\vert A \vert \vert B \vert} =\frac {(x_1 x_2 + y_1 y_2)} {\sqrt{x_1^2+y_1^2} \sqrt{x_2^2+y_2^2}}$ \\
+$
+A \times B = x_1  y_2 - x_2 y_1 = \mathbf{S}_{abcd} = 
+\begin{vmatrix} x_1 & x_2 \\
+y_1 & y_2 
+\end{vmatrix}
+$
+%--------------------------------------------------------------------------------------------------
+
+\section{线性代数}
+\subsection{标量、向量、矩阵和张量} 
+广播:$\mathbf{C}=\mathbf{A}+\boldsymbol{b}$，其中C和A是矩阵，b是向量，且$\mathbf{C}_{i,j}=\mathbf{A}_{i,j}+\boldsymbol{b}_j$
+
+例子
+\[
+\begin{bmatrix}
+2 & 3 & 4 \\
+5 & 6 & 7 \\
+8 & 9 & 10
+\end{bmatrix}
++
+\begin{bmatrix}
+1 \\
+2 \\
+3
+\end{bmatrix}
+=
+\begin{bmatrix}
+2+1 & 3+2 & 4+3 \\
+5+2 & 6+2 & 7+3 \\
+8+3 & 9+3 & 10+3
+\end{bmatrix}
+=
+\begin{bmatrix}
+3 & 5 & 7 \\
+7 & 8 & 10 \\
+11 & 12 & 13
+\end{bmatrix}
+\]
+
+--------------------------------------------------------------------------------------------------
+
+\subsection{矩阵和向量相乘}
+矩阵乘积
+\begin{equation}
+    \boldsymbol{C}=\boldsymbol{A}\boldsymbol{B}
+\end{equation}
+具体地
+\begin{equation}
+    \mathbf{C}_{i,j}=\sum_{k}\mathbf{A}_{i,k}\mathbf{B}_{k,j}
+\end{equation}
+
+\[
+\begin{bmatrix}
+1 & 2 \\
+3 & 4 \\
+5 & 6
+\end{bmatrix}
+\times
+\begin{bmatrix}
+7 & 8 \\
+9 & 10
+\end{bmatrix}
+=
+\begin{bmatrix}
+1 \times 7 + 2 \times 9 & 1 \times 8 + 2 \times 10 \\
+3 \times 7 + 4 \times 9 & 3 \times 8 + 4 \times 10 \\
+5 \times 7 + 6 \times 9 & 5 \times 8 + 6 \times 10
+\end{bmatrix}
+=
+\begin{bmatrix}
+25 & 28 \\
+57 & 64 \\
+89 & 100
+\end{bmatrix}
+\]
+
+矩阵乘积满足分配律、结合律，不满足交换律
+
+--------------------------------------------------------------------------------------------------
+
+元素对应乘积
+$$
+\mathbf{A} \odot \mathbf{B}
+$$
+具体地
+$$
+\begin{bmatrix}
+a_{1,1} & a_{1,2} & \cdots & a_{1,n} \\
+a_{2,1} & a_{2,2} & \cdots & a_{2,n} \\
+\vdots & \vdots & \ddots & \vdots \\
+a_{m,1} & a_{m,2} & \cdots & a_{m,n} \\
+\end{bmatrix}
+\odot
+\begin{bmatrix}
+b_{1,1} & b_{1,2} & \cdots & b_{1,n} \\
+b_{2,1} & b_{2,2} & \cdots & b_{2,n} \\
+\vdots & \vdots & \ddots & \vdots \\
+b_{m,1} & b_{m,2} & \cdots & b_{m,n} \\
+\end{bmatrix}
+=
+\begin{bmatrix}
+a_{1,1} b_{1,1} & a_{1,2} b_{1,2} & \cdots & a_{1,n} b_{1,n} \\
+a_{2,1} b_{2,1} & a_{2,2} b_{2,2} & \cdots & a_{2,n} b_{2,n} \\
+\vdots & \vdots & \ddots & \vdots \\
+a_{m,1} b_{m,1} & a_{m,2} b_{m,2} & \cdots & a_{m,n} b_{m,n} \\
+\end{bmatrix}
+$$
+
+--------------------------------------------------------------------------------------------------
+
+\subsection{单位矩阵和逆矩阵}
+\[
+\boldsymbol{I}_n\boldsymbol{x}=\boldsymbol{x}, \qquad \boldsymbol{x} \in \mathbb{R}^n
+\]
+
+--------------------------------------------------------------------------------------------------
+
+\subsection{线性相关和生成子空间}
+线性组合
+$$
+\mathbf{Ax} = \sum_{i=1}^{m} x_i\mathbf{A}_{:,i}
+$$
+具体地
+\begin{equation*}
+    \mathrm{span}(v_1, v_2, \dots, v_n) = \left\{ \sum_{i=1}^n \alpha_i v_i : \alpha_i \in \mathbb{R} \right\}
+\end{equation*}
+
+生成子空间
+
+方阵：即 m = n。 可以证明它的左逆跟右逆是想等的。
+
+奇异的：一个列向量线性相关的方阵
+
+--------------------------------------------------------------------------------------------------
+
+\subsection{范数}
+衡量向量的大小。
+$$
+||\mathbf{x}||_p = \left( \sum_{i=1}^n |x_i|^p \right)^{\frac{1}{p}}
+$$
+最大范数：它用来表示向量中具有最大幅度值的元素的绝对值。
+$$
+\| \boldsymbol{x} \|_{\infty} = \max_i | x_i |
+$$
+
+衡量矩阵的大小
+\begin{equation}
+    \| \mathbf{A} \|_F = \sqrt{\sum_{i,j} A_{i,j}^2}
+\end{equation}
+
+用范数表示向量的点积(其中 $\theta$ 表示两个向量的夹角 )
+$$\|x\|_2 \cdot \|y\|_2 \cdot \cos \theta = x^T y$$
+
+--------------------------------------------------------------------------------------------------
+\subsection{特殊类型的矩阵和向量}
+对角矩阵： $\text{diag}(\mathbf{v})$ 表示对角元素由向量 $\mathbf{v}$ 中元素给定的一个对角方阵
+$$\text{diag}(\mathbf{v})\mathbf{x} = \mathbf{v} \odot \mathbf{x} $$
+
+对称矩阵：转置和自己相等的矩阵
+$$\mathbf{A} = \mathbf{A}^T$$
+
+单位向量
+$$\|\mathbf{u}\|_2 = 1 \text{ 且 } \mathbf{u}^T\mathbf{u}=1$$
+
+正交、标准正交
+
+正交矩阵：行向量和列向量是分别标准正交的方阵
+$$
+\boldsymbol{A}^T \boldsymbol{A} = \boldsymbol{A} \boldsymbol{A}^T = \boldsymbol{I}
+$$
+这意味着
+$$
+\boldsymbol{A}^T = \boldsymbol{A}^{-1}
+$$
+--------------------------------------------------------------------------------------------------
+\subsection{特征分解}
+方阵、特征向量、特征值、左特征向量、右特征向量、单位特征向量
+$$A \mathbf{v} = \lambda \mathbf{v}$$
+
+特征分解
+$$A = V \text{diag}(\lambda) V^{-1}$$
+
+--------------------------------------------------------------------------------------------------
+
+具体例子
+
+设矩阵 $A = \begin{pmatrix} 2 & 1 \\ 1 & 2 \end{pmatrix}$，则其特征值和特征向量分别为：
+
+$$\lambda_1 = 3, \quad v_1 = \begin{pmatrix} 1 \\ 1 \end{pmatrix}$$
+
+$$\lambda_2 = 1, \quad v_2 = \begin{pmatrix} -1 \\ 1 \end{pmatrix}$$
+
+将特征向量按列组成矩阵 $Q = \begin{pmatrix} 1 & -1 \\ 1 & 1 \end{pmatrix}$，则有：
+
+$$Q^{-1} = \frac{1}{2} \begin{pmatrix} 1 & 1 \\ -1 & 1 \end{pmatrix}$$
+
+$$\text{diag}(\lambda_1, \lambda_2) = \begin{pmatrix} 3 & 0 \\ 0 & 1 \end{pmatrix}$$
+
+因此，$A$可以进行特征分解：
+
+$$A = Q \text{diag}(\lambda_1, \lambda_2) Q^{-1} = \frac{1}{2} \begin{pmatrix} 1 & -1 \\ 1 & 1 \end{pmatrix} \begin{pmatrix} 3 & 0 \\ 0 & 1 \end{pmatrix} \begin{pmatrix} 1 & 1 \\ -1 & 1 \end{pmatrix}$$
+
+--------------------------------------------------------------------------------------------------
+
+实对称矩阵：不是每个矩阵都可以分解成特征值和特征向量。但每个实对称矩阵可以分解成实特征向量和实特征值。实对称矩阵的特征向量是正交的。
+$$A = Q \Lambda Q^T$$
+其中Q是A的特征向量组成的正交矩阵。$\Lambda$ 是对角矩阵。
+
+对称矩阵的特征向量互相正交的证明
+$$
+\begin{aligned}
+    q_i^T q_j &= \frac{(Aq_i)^T(Aq_j)}{\lambda_i \lambda_j} \\
+    &= \frac{(q_i^T A^T)(Aq_j)}{\lambda_i \lambda_j} \\
+    &= \frac{(q_i^T A)(Aq_j)}{\lambda_i \lambda_j} \\
+    &= \frac{(q_i^T \lambda_j q_j)}{\lambda_i} \\
+    &= 0
+\end{aligned}
+$$
+
+正定、半正定、负定、半负定
+
+--------------------------------------------------------------------------------------------------
+
+\subsection{奇异值分解}
+$$\mathbf{A} = \mathbf{U} \mathbf{D} \mathbf{V}^\top$$
+其中 $\mathbf{A}$ 是 $ m \times n$ 的矩阵；
+
+$\mathbf{U}$ 是 $ m \times m$ 的正交矩阵，称为矩阵 $\mathbf{A}$ 的左奇异向量；
+
+$\mathbf{D}$ 是 $ m \times n$ 的对角矩阵，称为矩阵 $\mathbf{A}$ 的奇异值；
+
+$\mathbf{V}$ 是 $ n \times n$ 的正交矩阵，称为矩阵 $\mathbf{A}$ 的右奇异向量。
+
+--------------------------------------------------------------------------------------------------
+
+\subsection{Moore-Penrose伪逆}
+对于非方矩阵而言，其逆矩阵没有定义。
+$$A^+ = V D^+ U^T$$
+对角矩阵 $\mathbf{D}$ 的伪逆 $\mathbf{D}^+$ 是其非零元素取倒数之后再转置得到的。
+
+--------------------------------------------------------------------------------------------------
+
+\subsection{迹运算}
+矩阵对角元素的和
+$$\operatorname{Tr}(\mathbf{A}) = \sum_{i=1}^n A_{ii}$$
+
+多个矩阵相乘得到的方阵的迹
+$$\operatorname{Tr}\left(\prod_{i=1}^n \mathbf{F}^{(i)}\right)=\operatorname{Tr}\left(\mathbf{F}^{(n)}\prod_{i=1}^{n-1} \mathbf{F}^{(i)}\right)$$
+
+--------------------------------------------------------------------------------------------------
+
+\subsection{行列式}
+行列式的数学符号：
+$$
+\det(\mathbf{A})=\begin{vmatrix}a_{11} & a_{12} & \cdots & a_{1n}\\a_{21} & a_{22} & \cdots & a_{2n}\\\vdots & \vdots & \ddots & \vdots\\a_{n1} & a_{n2} & \cdots & a_{nn}\end{vmatrix}
+$$
+矩阵特征值的乘积：
+$$
+\det(\mathbf{A})=\lambda_1 \lambda_2 \cdots \lambda_n
+$$
+行列式的绝对值衡量矩阵参与矩阵乘法后空间的扩缩比例。如果行列式是0，那么空间至少沿着某一维完全收缩了，使其失去了所有的体积；如果行列式是1，那么这个转换保持空间不变。
+
+--------------------------------------------------------------------------------------------------
+
+\subsection{实例：主成分分析}
+
+--------------------------------------------------------------------------------------------------
+
+\section{概率与信息论}
+$\forall \exists \mathcal{X} \mathsf{X} $ \\
+
+--------------------------------------------------------------------------------------------------
+\subsection{条件概率}
+\begin{equation}
+    P(Y=y|X=x) = \frac{P(X=x,Y=y)}{P(X=x)}
+    \end{equation}
+--------------------------------------------------------------------------------------------------
+\subsection{条件概率的链式法则}
+$P(X_1, ..., X_n) = P(X_1) \prod_{i=2}^n P(X_i \mid X_{i-1},...,X_1)$
+
+$$
+\begin{aligned}
+    P(a,b,c) &= P(a|b,c)P(b,c) \\
+    P(b,c) &= P(b)P(b|c) \\
+    P(a,b,c) &= P(a|b,c)P(b)P(b|c)
+\end{aligned}
+$$
+
+--------------------------------------------------------------------------------------------------
+\subsection{独立性和条件独立}
+$p(x,y) = p(x)p(y) \Leftrightarrow p(x|y)=p(x) \text{ 且 } p(y|x)=p(y)$
+
+--------------------------------------------------------------------------------------------------
+\subsection{期望、方差和协方差}
+对于离散随机变量 xx，期望的计算公式是：
+\begin{equation}
+E_{x}[f(x)] = \sum_x f(x)p(x)
+\end{equation}
+对于连续随机变量 xx，期望的计算公式是：
+\begin{equation}
+E_{x}[f(x)] = \int f(x)p(x)dx
+\end{equation}
+方差表示的是随机变量取值和期望之间的差异程度。对于随机变量 xx，方差的计算公式是：
+\begin{equation}
+Var(f(x)) = E[(f(x) - E[f(x)])^2]
+\end{equation}
+协方差表示的是两个随机变量同时偏离各自期望的程度。对于随机变量 xx 和 yy，协方差的计算公式是：
+\begin{equation}
+Cov(f(x), g(y)) = E[(f(x) - E[f(x)])(g(y) - E[g(y)])]
+\end{equation}
+
+--------------------------------------------------------------------------------------------------
+
+\subsection{常用概率分布}
+\subsubsection{伯努利分布}
+伯努利分布是描述二元随机变量，即随机变量只有两种取值。伯努利分布的概率质量函数为：
+$$
+\begin{aligned}
+Bern(\mathbf{x}=x) &= \phi^x(1-\phi)^{1-x} \\
+E_{x}[\mathbf{x}] &= \phi \\
+Var(\mathbf{x}) &= \phi(1-\phi)
+\end{aligned}
+$$
+\subsubsection{高斯分布}
+高斯分布也叫正态分布，是最常见的概率分布之一。高斯分布的概率密度函数为：
+$$
+\begin{aligned}
+N(x;\mu, \sigma^2) = \frac{1}{\sqrt{2\pi\sigma^2}} exp (-\frac{(x-\mu)^2}{2\sigma^2} ) \\
+\end{aligned}
+$$
+其中，$\mu$ 表示分布的均值，$\sigma^2$ 表示分布的方差。
+
+--------------------------------------------------------------------------------------------------
+
+$[0,1]^{k}$
+
+--------------------------------------------------------------------------------------------------
+
+你好
+
+--------------------------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------------------------
+\end{document}

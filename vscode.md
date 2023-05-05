@@ -27,6 +27,7 @@
 12. GitHub Copilot  //收费 $10/月
 13. CodeGeeX
 14. Makefile Tools
+15. PDF Viewer
 
 
 | 编号 | 插件名称                                       | 插件简介                                                     |
