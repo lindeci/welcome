@@ -1,5 +1,17 @@
+% !TeX program = xelatex
+% !TeX TXS-program:xelatex = -shell-escape
+
 \documentclass{article}
 \usepackage{xeCJK}
+\usepackage[a4paper, left=1cm, right=1cm, top=1cm, bottom=1.5cm]{geometry}    %设置页面边距
+\usepackage{graphicx}   %插入图片
+
+\usepackage{minted}     %允许插入代码段。需要在settings.json中"latex-workshop.latex.tools"节点的子节点"name":"xelatex"下面添加"-shell-escape",
+% \usepackage{minted} % 引用minted包
+\usepackage{caption} % 引用caption包
+\usepackage{fvextra} % 引用fvextra包
+\DeclareCaptionType{code}[Code Listing][List of Code Listings] % 设置code环境为新的代码环境
+
 
 %\setCJKmainfont{STHeiti} % 设置字体
 %\setCJKsansfont{STHeiti}
@@ -28,6 +40,8 @@
 \begin{document}
 \maketitle
 \tableofcontents
+
+\definecolor{codebgcolor}{HTML}{F8F8F8} % 设置背景颜色
 
 \section{高中数学}
 $sin(a+b) = \sin a \cos b + \cos a \sin b$ \\
@@ -309,7 +323,9 @@ $$
 --------------------------------------------------------------------------------------------------
 
 \section{概率与信息论}
-$\forall \exists \mathcal{X} \mathsf{X} $ \\
+
+离散型变量和概率质量函数 \\
+连续型变量和概率密度函数(函数的取值可能大于1，表示的是密度，不是概率)
 
 --------------------------------------------------------------------------------------------------
 \subsection{条件概率}
@@ -334,22 +350,49 @@ $p(x,y) = p(x)p(y) \Leftrightarrow p(x|y)=p(x) \text{ 且 } p(y|x)=p(y)$
 
 --------------------------------------------------------------------------------------------------
 \subsection{期望、方差和协方差}
-对于离散随机变量 xx，期望的计算公式是：
-\begin{equation}
+
+\subsubsection{离散随机变量的期望}
+对于离散随机变量 x，期望的计算公式是：
+$$
+\begin{aligned}
 E_{x}[f(x)] = \sum_x f(x)p(x)
-\end{equation}
-对于连续随机变量 xx，期望的计算公式是：
-\begin{equation}
+\end{aligned}
+$$
+
+\subsubsection{连续随机变量的期望}
+对于连续随机变量 x，期望的计算公式是：
+$$
+\begin{aligned}
 E_{x}[f(x)] = \int f(x)p(x)dx
-\end{equation}
-方差表示的是随机变量取值和期望之间的差异程度。对于随机变量 xx，方差的计算公式是：
-\begin{equation}
+\end{aligned}
+$$
+
+\subsubsection{方差}
+方差表示的是随机变量取值和期望之间的差异程度。对于随机变量 x，方差的计算公式是：
+$$
+\begin{aligned}
 Var(f(x)) = E[(f(x) - E[f(x)])^2]
-\end{equation}
-协方差表示的是两个随机变量同时偏离各自期望的程度。对于随机变量 xx 和 yy，协方差的计算公式是：
-\begin{equation}
+\end{aligned}
+$$
+
+\subsubsection{协方差}
+协方差表示的是两个随机变量同时偏离各自期望的程度。对于随机变量 x 和 y，协方差的计算公式是：
+$$
+\begin{aligned}
 Cov(f(x), g(y)) = E[(f(x) - E[f(x)])(g(y) - E[g(y)])]
-\end{equation}
+\end{aligned}
+$$
+
+\subsubsection{向量的期望}
+向量的期望: \\
+如果有一个 n 维向量 V=(v1,v2,...,vn)，则其期望可以表示为 E(V)=(E(v1),E(v2),...,E(vn))，其中 E(vi)表示向量 V 的第 i 个分量的期望值。
+
+\subsubsection{向量的协方差}
+两个向量的协方差: \\
+向量的协方差表示了向量中各个分量之间的关系，它衡量了这些变量的共同变化程度。\\
+假设有两个 n 维向量 $X=(X1,X2,...,Xn)^T$ 和 $Y=(Y1,Y2,...,Yn)^T$，它们的协方差定义为：
+$Cov⁡(X,Y)=E⁡[(X−E(X))(Y−E(Y))^T]$ \\
+向量的协方差矩阵是一个 n×n 的矩阵，其中第 (i,j) 个元素表示 Xi​ 和 Yj​ 的协方差，即 Cov⁡(Xi,Yj)
 
 --------------------------------------------------------------------------------------------------
 
@@ -367,19 +410,76 @@ $$
 高斯分布也叫正态分布，是最常见的概率分布之一。高斯分布的概率密度函数为：
 $$
 \begin{aligned}
-N(x;\mu, \sigma^2) = \frac{1}{\sqrt{2\pi\sigma^2}} exp (-\frac{(x-\mu)^2}{2\sigma^2} ) \\
+N(x;\mu, \sigma^2) = \frac{1}{\sqrt{2\pi\sigma^2}} \exp (-\frac{(x-\mu)^2}{2\sigma^2} ) \\
 \end{aligned}
 $$
 其中，$\mu$ 表示分布的均值，$\sigma^2$ 表示分布的方差。
 
 --------------------------------------------------------------------------------------------------
 
-$[0,1]^{k}$
+\subsubsection{多维正态分布}
+$$f(\boldsymbol{x};\boldsymbol{\mu},\boldsymbol{\Sigma})=\sqrt{\frac{1}{(2\pi)^n \det(\Sigma)}}\exp\left(-\frac{1}{2}(\boldsymbol{x}-\boldsymbol{\mu})^{\top}\boldsymbol{\Sigma}^{-1}(\boldsymbol{x}-\boldsymbol{\mu})\right)$$
+其中，x是n维列向量，μ是n维列向量，Σ是n×n的对称正定矩阵。
+
+例如3维的状态分布的例子：
+均值向量为 $
+\mu  = \begin{bmatrix}
+2\\
+-1\\
+0
+\end{bmatrix}
+$,
+协方差矩阵为 $
+\Sigma  = \begin{bmatrix}
+1 & 0.5 & 0.2 \\
+0.5 & 2 & -0.3 \\
+0.2 & -0.3 & 1
+\end{bmatrix}
+$。
+
+多维正态分布中，因为协方差矩阵并不是一个很搞笑的参数化分布的方式，所以我们可以使用一个精度矩阵 $ \beta $ 进行替代：
+$$f(\boldsymbol{x};\boldsymbol{\mu},\boldsymbol{\beta^{-1}})=\sqrt{\frac{\det(\boldsymbol{\beta})}{(2\pi)^n}}\exp\left(-\frac{1}{2}(\boldsymbol{x}-\boldsymbol{\mu})^{\top}\boldsymbol{\beta}(\boldsymbol{x}-\boldsymbol{\mu})\right)$$
+我们常常把协方差矩阵固定成一个对角阵。一个更简单的版本是各向同性高斯分布，它的协方差矩阵是一个标量乘以单位阵。
 
 --------------------------------------------------------------------------------------------------
 
-你好
+\subsubsection{范畴分布}
+$ [0,1]^k $ 这个符号通常在概率论和统计学中用于表示k维随机变量的取值范围，其中每个维度都服从[0,1]的均匀分布。 \\
+具体来说，如果我们有一个k维随机向量$ \boldsymbol{X} = (X1,X2,...,Xk) $，其中每个维度都是在[0,1]之间的实数，那么我们可以将它表示为$ \boldsymbol{X} \in [0,1]^k $。
 
+$ \boldsymbol{1}^T $ 表示一个全1向量的转置，即$ ( 1,1,1,……,1 ) $。
+
+具体例子：
+在投掷骰子时，每个值的概率可以用一个 6 维的概率向量表示，例如$ [\frac{1}{6}, \frac{1}{6}, \frac{1}{6}, \frac{1}{6}, \frac{1}{6}, \frac{1}{6}] $。
+
+-------------------------------------------------------------------------------------------------
+\subsubsection{指数分布}
+$ \mathbf{1}_{x>0} $ 表示一个指示函数，它是一个随机变量的函数，当满足条件 x>0 时，函数值为 1，否则为 0。
+
+指数分布公式： \\
+$ p(x;\lambda) = \lambda \mathbf{1}_{x \geqslant 0} \exp (-\lambda x)$
+
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=0.5\textwidth]{pic/exponential_distribution.png}
+    \caption{三个不同参数的指数分布图表。}
+    \label{fig:exp_dist}
+\end{figure}
+
+% \begin{minted}[bgcolor=black!5!white,linenos=true]{python}
+% ……
+% \end{minted}
+
+% \begin{listing}[ht]
+%    \caption{指数分布图的PYTHON源码} % 设置图题
+%    \inputminted[bgcolor=codebgcolor,linenos=true]{python}{pic/exponential_distribution.py} % 引用代码文件
+% \end{listing}
+
+\inputminted[bgcolor=codebgcolor,linenos=true]{python}{pic/exponential_distribution.py}
+
+
+
+    
 --------------------------------------------------------------------------------------------------
 
 --------------------------------------------------------------------------------------------------

@@ -54,5 +54,9 @@
         "streambuf": "cpp",
         "typeinfo": "cpp"
     },
-    "C_Cpp.errorSquiggles": "disabled"
+    "C_Cpp.errorSquiggles": "disabled",
+    "latex-workshop.view.outline.commands": [
+        "label",
+        "\"pdflatex\": [\"pdflatex\", \"--shell-escape\", \"-synctex=1\", \"-interaction=nonstopmode\", \"-file-line-error\"]"
+    ]
 }
