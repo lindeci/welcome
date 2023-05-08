@@ -44,8 +44,10 @@
 \definecolor{codebgcolor}{HTML}{F8F8F8} % 设置背景颜色
 
 \section{高中数学}
+\subsection{三角函数}
 $sin(a+b) = \sin a \cos b + \cos a \sin b$ \\
 $cos(a+b) = \cos a \cos b - \sin a \sin b$ \\
+\subsection{向量}
 向量$A(x_1,y_1),B(x_2,y_2),
 \begin{bmatrix}
 x_1 & x_2 \\
@@ -60,6 +62,81 @@ A \times B = x_1  y_2 - x_2 y_1 = \mathbf{S}_{abcd} =
 y_1 & y_2 
 \end{vmatrix}
 $
+
+\subsection{求导法则}
+1、可加性：$(u+v)'=u'+v'$   \\
+2、常数因子：$(cu)'=cu'$    \\
+3、乘法法则：$(uv)'=u'v+uv'$    \\
+4、商法法则：$\left(\frac{u}{v}\right)'=\frac{u'v-uv'}{v^2}$    \\
+5、复合函数法则：$(f(g(x)))'=f'(g(x))\cdot g'(x)$   \\
+
+\subsection{导数表}
+\begin{table}[htbp]
+%    \begin{flushleft} %将表格左对齐
+    \centering
+    \renewcommand{\arraystretch}{1.8} % 设置表格行高
+    \begin{tabular}{|c|c|}
+        \hline
+        函数 & 导数公式\\
+        \hline
+        $c$ & $0$\\
+        \hline
+        $x$ & $1$\\
+        \hline
+        $x^n$ & $nx^{n-1}$\\
+        \hline
+        $\sqrt x$ & $\frac{1}{2\sqrt{x}}$\\
+        \hline
+        $\frac{1}{x}$ & $-\frac{1}{x^2}$\\
+        \hline
+        $\log_a x$ & $\frac{1}{x\ln a}$\\
+        \hline
+        $\ln x$ & $\frac{1}{x}$\\
+        \hline
+    \end{tabular}   %结束表格
+    \caption{高中数学的导数表}
+%   \end{flushleft} %结束左对齐命令
+\end{table}
+
+\subsection{不定积分}
+若连续函数 $F(x)$ 在区间 $[a,b]$ 内具有导数 $f(x)$，则记
+$$ \int f(x) dx = F(x) + C $$
+其中 $C$ 为任意常数。
+
+\subsection{简易积分表}
+$ \int x^n \ dx = \frac{1}{n+1} x^{n+1} + C $   \\
+$ \int \frac{1}{x} \ dx = \ln |x| + C $   \\
+$ \int e^x \ dx = e^x + C $   \\
+$ \int a^x \ dx = \frac{a^x}{\ln a} + C $   \\
+$ \int \sin x \ dx = -\cos x + C $   \\
+$ \int \cos x \ dx = \sin x + C $   \\
+$ \int \tan x \ dx = \ln |\sec x| + C $   \\
+$ \int \cot x \ dx = \ln |\sin x| + C $   \\
+$ \int \sec x \ dx = \ln |\sec x + \tan x| + C $   \\
+$ \int \csc x \ dx = \ln |\csc x - \cot x| + C $   \\
+
+\subsection{积分法则}
+1. 常数法则 $\quad\int k f(x) dx = k \int f(x) dx + C$   \\
+2. 换元法则 $\quad\int f(g(x)) g'(x) dx = \int f(u) du \quad (u=g(x))$   \\
+3. 分部积分法则 $\quad\int u v' dx = u v - \int u' v dx$   \\
+4. 简单的不定积分 $\quad\int x^n dx = \frac{x^{n+1}}{n+1} + C \quad (n \neq -1)$   \\
+5. 指数函数 $\quad\int e^x dx = e^x + C$   \\
+6. 正弦函数 $\quad\int \sin x dx = -\cos x + C$   \\
+7. 余弦函数 $\quad\int \cos x dx = \sin x + C$   \\
+8. 倒数函数 $\quad\int \frac{1}{x} dx = \ln|x| + C$   \\
+
+
+\subsection{定积分}
+定积分是将一个区间上的函数在该区间上的取值乘以区间长度（也就是自变量的取值范围），然后将这些乘积全部加起来，最后形成的一个数。数学符号表达式如下：
+
+$$ \int_a^b f(x)dx $$
+
+其中，aa和bb是定义定积分的区间，f(x)f(x)是在该区间中的函数。
+
+\subsection{定积分的计算公式}
+定积分的计算公式是牛顿－莱布尼茨公式，即：
+$$ \int_a^b f(x)dx=F(b)-F(a) $$
+
 %--------------------------------------------------------------------------------------------------
 
 \section{线性代数}
@@ -477,9 +554,35 @@ $ p(x;\lambda) = \lambda \mathbf{1}_{x \geqslant 0} \exp (-\lambda x)$
 
 \inputminted[bgcolor=codebgcolor,linenos=true]{python}{pic/exponential_distribution.py}
 
+--------------------------------------------------------------------------------------------------
+\subsubsection{贝叶斯规则}
+$ p(\mathbf{x} | \mathbf{y}) = \frac{p(\mathbf{y} | \mathbf{x})p(\mathbf{x})}{p(\mathbf{y})} $
+
+--------------------------------------------------------------------------------------------------
+
+\section{数值计算}
+\subsection{上溢和下溢}
+
+下溢：指数字的绝对值太小而无法用计算机中的浮点数表示。例如，当我们将一个非常接近于零的数乘以另一个非常接近于零的数时，结果可能会变得非常接近于零。在这种情况下，由于数字变得太小，计算机可能无法准确地表示它们，这导致结果存在误差。
+
+上溢：指数字的绝对值太大而无法用计算机中的浮点数表示。例如，当我们将两个非常大的数相乘时，结果可能会变得非常大，超出了计算机可以表示的范围。这导致计算机无法将结果准确地存储，并返回一个特殊的错误代码或无穷大值。
+
+--------------------------------------------------------------------------------------------------
+\subsection{病态条件}
+$ \kappa(\mathbf{X}) = \frac{\sigma_{max}}{\sigma_{min}} $  \\
+其中，$ \kappa(\mathbf{X}) $ 表示矩阵 $\mathbf{X}$ 的病态条件，$\sigma_{max}​$和$\sigma_{min}​$ 表示 $\mathbf{X}$ 的最大和最小奇异值，分别对应矩阵的最大和最小特征值的平方根。
+
+--------------------------------------------------------------------------------------------------
+\subsection{基于梯度的优化方法}
+偏导数：
+$$\frac{\partial f}{\partial x_i}$$
+梯度:
+$$\vec{\nabla}f=\begin{pmatrix}\frac{\partial f}{\partial x_1} \\ \frac{\partial f}{\partial x_2} \\ ... \\ \frac{\partial f}{\partial x_n} \end{pmatrix}$$
 
 
-    
+
+--------------------------------------------------------------------------------------------------
+
 --------------------------------------------------------------------------------------------------
 
 --------------------------------------------------------------------------------------------------
