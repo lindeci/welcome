@@ -44,3 +44,5 @@ https://vpnsetup.net/clients
 2. 开通所有端口权限
 3. 把文件放到/var/www/html
 4. http://40.112.53.186/vpnclient.mobileconfig
+
+https://dash.bixiny.ltd/index.php#/knowledge

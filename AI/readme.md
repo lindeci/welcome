@@ -53,7 +53,7 @@ ChatGPT 使用技巧
 | 利用样式转移 | 请你帮我将一个文本段落的风格应用到另一个文本段落中，以生成更加自然的回答 |
 | 使用回答评估 | 请你帮我评估一下CHATGPT生成的回答质量 |
 | 使用平滑技术 | 请你帮我使用平滑技术生成更加自然的回答 |
-
+| 回答中包含代码段落 | 请以代码段落的形式发送代码 |
 
 GITHUP 上优秀的 promps  
 https://github.com/PlexPt/awesome-chatgpt-prompts-zh#%E6%AD%A3%E7%BB%8F%E6%8C%87%E5%8D%97
