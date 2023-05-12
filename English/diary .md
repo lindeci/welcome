@@ -8,7 +8,6 @@ So I explain to improve my English. The first thing is to write English dairy ev
 
 # 2023-05-11 Thursday sunny
 
-
 | English Word        | Phonetics                       | Chinese Translation |
 | ------------------- | ------------------------------- | ------------------- |
 | crayon              | ˈkreɪən                      | 蜡笔                |
@@ -137,7 +136,6 @@ So I explain to improve my English. The first thing is to write English dairy ev
 | **cheetah**   | **ˈtʃiː.tə**          | **猎豹**      |
 | trip                | trɪp                           | 旅行                |
 | woke                | woʊk                           | 醒来                |
-
 
 # 2023-05-11 Thursday sunny
 
