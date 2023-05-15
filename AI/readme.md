@@ -6,13 +6,6 @@ https://chatai.com/accounts/login/
 
 https://chat.openai.com/
 
-手机号码验证码
-https://sms-activate.org/getNumber
-
-Welcome@1234 Lin@541287039
-541287039@qq.com rcqbckx@outlook.com
-
-https://www.bixiny.org 541287039@qq.com 541287039
 
 可以通过这个网站访问接口 https://github.com/Yidadaa/ChatGPT-Next-Web
 
