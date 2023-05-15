@@ -200,3 +200,108 @@ So I explain to improve my English. The first thing is to write English dairy ev
 |      hall      |        /hɔːl/        |          大厅；礼堂          |
 |  dining hall  |  /ˈdaɪnɪŋ hɔːl/  |             餐厅             |
 |      dish      |         /dɪʃ/         |            碟；盘            |
+
+# 2023-05-15 Monday cloudy day
+
+| 单词                  | 音标                          | 释义                                   |
+| --------------------- | ----------------------------- | -------------------------------------- |
+| do the dishes         | duː ðə 'dɪʃɪz           | 清洗餐具                               |
+| Clark                 | klɑːrk                      | 克拉克（姓；男名）                     |
+| Amy                   | 'eɪmi                        | 艾米（女名）                           |
+| Molly                 | 'mɑːli                      | 莫莉（女名）                           |
+| koala                 | kəʊ'ɑːlə                 | 树袋熊                                 |
+| giraffe               | dʒə'ræf                    | 长颈鹿                                 |
+| scary                 | 'skɛri                       | 吓人的；恐怖的                         |
+| ivory                 | 'aɪvəri                     | 象牙                                   |
+| Julie                 | 'dʒuːli                     | 朱莉（女名）                           |
+| Becky                 | 'bɛki                        | 贝姬（女名）                           |
+| Thailand              | 'taɪlænd                    | 泰国                                   |
+| Thai                  | taɪ                          | 泰国人；泰语；泰国（人的）；泰语（的） |
+| Dragon Boat Festival  | 'drægən bəʊt 'fɛstəvəl | 端午节                                 |
+| Steve                 | stiːv                        | 史蒂夫（男名）                         |
+| Laura                 | 'lɔːrə                     | 劳拉（女名）                           |
+| on (a) vacation       | ɒn ə və'keɪʃən          | 度假                                   |
+| Joe                   | dʒoʊ                        | 乔（男子名）                           |
+| Jeff                  | dʒɛf                        | 杰夫（男名）                           |
+| Moscow                | 'mɑːskoʊ                   | 莫斯科                                 |
+| Toronto               | tə'rɒntoʊ                  | 多伦多                                 |
+| Boston                | 'bɒstən                     | 波士顿                                 |
+| curly                 | 'kɜːrli                     | 卷曲的                                 |
+| (be) of medium height | əv 'midiəm haɪt            | 中等身高                               |
+| actress               | 'æktrɪs                     | 女演员                                 |
+| blonde                | blɒnd                        | 金黄色的                               |
+| singer                | 'sɪŋər                     | 歌手                                   |
+| jeans                 | dʒinz                        | 牛仔裤                                 |
+| Johnny                | 'dʒɑni                      | 约翰尼（男名）                         |
+| Dean                  | din                           | 迪安（姓）                             |
+| Tina                  | 'tinə                        | 蒂娜（女名）                           |
+| Jackson               | 'dʒæksən                   | 杰                                     |
+
+| 单词                   | 音标                      | 释义                   |
+| ---------------------- | ------------------------- | ---------------------- |
+| one (large) bowl of... | wʌn (lɑrdʒ) bol ʌv... | 一（大）碗......       |
+| tofu                   | 'toʊfu                   | 豆腐                   |
+| dumpling               | 'dʌmplɪŋ               | 饺子                   |
+| porridge               | 'pɔːrɪdʒ              | 粥；面糊               |
+| pancake                | 'pænkeɪk                | 烙饼；薄饼             |
+| feed                   | fid                       | 喂养；饲养             |
+| museum                 | mjuː'ziːəm             | 博物馆                 |
+| Carol                  | 'kærəl                  | 卡萝尔（女名）         |
+| badminton              | 'bædmɪntən             | 羽毛球运动             |
+| butterfly              | 'bʌtərflaɪ             | 蝴蝶                   |
+| shout                  | ʃaʊt                    | 呼叫，喊叫             |
+| shout at               | ʃaʊt æt                | 冲.....大声叫嚷        |
+| woof                   | wʊf                      | （狗叫声）汪汪         |
+| scared                 | skɛrd                    | 惊慌的；吓坏了的       |
+| up and down            | ʌp ænd daʊn            | 上上下下；起伏         |
+| bored                  | bɔrd                     | 厌倦的；烦闷的         |
+| paragliding            | 'pærəɡlaɪdɪŋ        | 滑翔伞运动             |
+| Central Park           | 'sɛntrəl pɑrk          | 中央公园（美国纽约）   |
+| Malaysia               | mə'leɪʒə              | 马来西亚               |
+| Malaysian              | mə'leɪʒiən            | 马来西亚人；马来西亚的 |
+| Georgetown             | 'dʒɔrdʒtaʊn           | 乔治市（马来西亚）     |
+| Weld Quay              | wɛld keɪ                | 海墘街                 |
+| Penang Hill            | pə'næŋ hɪl            | 槟榔山（马来西亚）     |
+| Tian'anmen Square      | tian'ænmɛn skwɛr       | 天安门广场             |
+| the Palace Museum      | ðə 'pælɪs mjuː'ziəm | 故宫博物院             |
+| Mark                   | mɑrk                     | 马克（男名）           |
+| housework              | 'haʊswɜrk               | 家务劳动；             |
+
+
+| 单词              | 音标                           | 释义                                   |
+| ----------------- | ------------------------------ | -------------------------------------- |
+| junk              | dʒʌŋk                       | 无用的东西；无价值的东西               |
+| junk food         | dʒʌŋk fud                   | 垃圾食品                               |
+| dentist           | 'dɛntɪst                     | 牙科医生                               |
+| Claire            | klɛr                          | 克莱儿（女名）                         |
+| Sue               | su                             | 休(女名)                               |
+| American Teenager | əˈmɛrɪkən 'tinˌeɪdʒər | 《美国青少年》（虚构的杂志名称）       |
+| outgoing          | ˈaʊtˌɡoʊɪŋ              | 爱交际的；友好的；外向的               |
+| fantastic         | fænˈtæstɪk                 | 极好的；了不起的                       |
+| grade             | ɡreɪd                        | 成绩等级；评分等级                     |
+| Tara              | ˈtɛrə                       | 塔拉（女名）                           |
+| Sam               | sæm                           | 萨姆（男名）                           |
+| Nelly             | ˈnɛli                        | 内莉（女名）                           |
+| Larry             | ˈlɛri                        | 拉里（男名）                           |
+| theater           | ˈθiətər                    | 剧场；戏院                             |
+| DJ                | ˌdiːˈdʒeɪ                 | （电台.电视台.俱乐部的）音乐节目主持人 |
+| pretty            | ˈprɪti                       | 相当；十分；很；漂亮的                 |
+| have in common    | hæv ɪn ˈkɑmən             | 有共同特征；（想法. 兴趣等方面）相同   |
+| magician          | məˈdʒɪʃən                | 魔术师                                 |
+| be up to          | bi ʌp tu                      | 是....的职责；由....决定               |
+| Greg              | ɡrɛɡ                        | 格雷格（男名）                         |
+| Danny             | ˈdæni                        | 丹尼（男名）                           |
+| Eliza             | ɪˈlaɪzə                    | 伊丽莎（女名）                         |
+| Vera              | ˈvɪrə                       | 薇拉（女名）                           |
+| Dennis            | ˈdɛnɪs                      | 丹尼斯（男名）                         |
+| American Idol     | əˈmɛrɪkən 'aɪdəl        | 美国偶像（电视节目名称                 |
+
+| 单词                 | 音标                           | 释义                                          |
+| -------------------- | ------------------------------ | --------------------------------------------- |
+| America's Got Talent | əˈmɛrɪkəz ɡɑt 'tælənt | 美国达人秀（电视节目名称）                    |
+| China's Got Talent   | 'tʃaɪnəz ɡɑt 'tælənt    | 中国达人秀（电视节目名称）                    |
+| sitcom               | 'sɪtkɑm                      | 情景喜剧（=situation comedy）                 |
+| comedy               | 'kɑmədi                      | 喜剧；喜剧片                                  |
+| Sarah                | 'sɛrə                        | 莎拉（女名）                                  |
+| Walt Disney          | wɔlt 'dɪzni                  | 沃特·迪斯尼（财富500强公司之一，总部在美国） |
+| Minnie               | 'mɪni                         | 明妮（女名）                                  |
