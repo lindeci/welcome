@@ -13,6 +13,7 @@
     Elastic 中国社区官方博客 https://blog.csdn.net/UbuntuTouch
 
 # 安装时OS调优
+
 ```sh
 sudo groupadd es
 sudo useradd es -g es
@@ -81,6 +82,91 @@ sudo sysctl -p
 ```
 
 # consistency
+
 https://www.elastic.co/guide/en/elasticsearch/reference/7.17/docs-index_.html#index-wait-for-active-shards
 
 ObGMYDi5Xh4EL5Ls9VYKwoWj
+
+# 慢日志设置
+
+### 索引慢速日志记录设置
+
+```
+PUT testindex-slowlogs/_settings{
+    "index.indexing.slowlog.threshold.index.warn": "0ms",
+    "index.indexing.slowlog.threshold.index.info": "0ms",
+    "index.indexing.slowlog.threshold.index.debug": "0ms",
+    "index.indexing.slowlog.threshold.index.trace": "0ms",
+    "index.indexing.slowlog.level": "trace",
+    "index.indexing.slowlog.source": "1000"
+}
+```
+
+### Search Slow Logging 设置
+因为搜索分两阶段 query、fetch,所有查询慢日志分为两类
+```
+PUT testindex-slowlogs/_settings{    "index.search.slowlog.threshold.query.warn": "0ms",
+    "index.search.slowlog.threshold.query.info": "0ms",
+    "index.search.slowlog.threshold.query.debug": "0ms",
+    "index.search.slowlog.threshold.query.trace": "0ms",
+    "index.search.slowlog.threshold.fetch.warn": "0ms",
+    "index.search.slowlog.threshold.fetch.info": "0ms",
+    "index.search.slowlog.threshold.fetch.debug": "0ms",
+    "index.search.slowlog.threshold.fetch.trace": "0ms"
+}
+```
+
+### 清除慢日志设置
+
+```
+PUT testindex-slowlogs/_settings{
+    "index.search.slowlog.threshold.query.warn": "",
+    "index.search.slowlog.threshold.query.info": "",
+    "index.search.slowlog.threshold.query.debug": "",
+    "index.search.slowlog.threshold.query.trace": "",
+    "index.search.slowlog.threshold.fetch.warn": "",
+    "index.search.slowlog.threshold.fetch.info": "",
+    "index.search.slowlog.threshold.fetch.debug": "",
+    "index.search.slowlog.threshold.fetch.trace": ""
+}
+```
+
+### 重置慢日志为默认值
+
+```
+PUT testindex-slowlogs/_settings{
+    "index.search.slowlog.threshold.query.warn": null,
+    "index.search.slowlog.threshold.query.info": null,
+    "index.search.slowlog.threshold.query.debug": null,
+    "index.search.slowlog.threshold.query.trace": null,
+    "index.search.slowlog.threshold.fetch.warn": null,
+    "index.search.slowlog.threshold.fetch.info": null,
+    "index.search.slowlog.threshold.fetch.debug": null,
+    "index.search.slowlog.threshold.fetch.trace": null
+}
+```
+
+# 审计日志
+需要license授权(收费)的功能。
+开启审计
+```yml
+xpack.security.audit.enabled=true
+```
+指定审计输出中包含哪些事件，一共包含这些事件：
+```
+access_denied, 
+access_granted, 
+anonymous_access_denied, 
+authentication_failed, 
+connection_denied, 
+tampered_request, 
+run_as_denied, 
+run_as_granted
+```
+
+从输出中排除某些事件。默认情况下，不排除任何事件
+```
+xpack.security.audit.logfile.events.include
+xpack.security.audit.logfile.events.exclude
+xpack.security.audit.logfile.events.emit_request_body
+```

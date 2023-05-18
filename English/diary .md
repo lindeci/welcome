@@ -267,7 +267,6 @@ So I explain to improve my English. The first thing is to write English dairy ev
 | Mark                   | mɑrk                     | 马克（男名）           |
 | housework              | 'haʊswɜrk               | 家务劳动；             |
 
-
 | 单词              | 音标                           | 释义                                   |
 | ----------------- | ------------------------------ | -------------------------------------- |
 | junk              | dʒʌŋk                       | 无用的东西；无价值的东西               |
@@ -305,3 +304,6 @@ So I explain to improve my English. The first thing is to write English dairy ev
 | Sarah                | 'sɛrə                        | 莎拉（女名）                                  |
 | Walt Disney          | wɔlt 'dɪzni                  | 沃特·迪斯尼（财富500强公司之一，总部在美国） |
 | Minnie               | 'mɪni                         | 明妮（女名）                                  |
+
+
+# 2023-05-16 Tuesday sunny
