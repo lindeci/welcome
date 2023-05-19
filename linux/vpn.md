@@ -1,6 +1,5 @@
 sudo wget https://get.vpnsetup.net -O vpn.sh && sudo sh vpn.sh
 
-
 40.112.53.186
 lindeci2023.eastus.cloudapp.azure.com
 
@@ -36,10 +35,9 @@ Client configuration is available at:
 Next steps: Configure IKEv2 clients. See:
 https://vpnsetup.net/clients
 
-
-
 ================================================
 下载文件
+
 1. apt-get install apache2
 2. 开通所有端口权限
 3. 把文件放到/var/www/html
@@ -49,3 +47,10 @@ https://dash.bixiny.ltd/index.php#/knowledge
 Welcome@123qQ
 
 miraclelin2088@gmail.com
+
+
+rcqbckx@outlook.com
+
+Welcome@541287039
+
+你少年C504 你理想F047 你认识F048 1988-07-15
