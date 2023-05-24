@@ -81,6 +81,55 @@ test -e /etc/security/limits.d/80-nofile.conf && (grep '# BEGIN ES SET' /etc/sec
 sudo sysctl -p
 ```
 
+
+
+# 配置模板
+
+```
+cat elasticsearch-7.17.0/config/elasticsearch.yml | grep -v \#
+cluster.name: es-cluster
+node.name: node-02
+node.master: true
+node.data: true
+node.ingest: true
+path.data: /data/elasticsearch-7.17.0/data
+path.logs: /data/elasticsearch-7.17.0/logs
+bootstrap.memory_lock: true
+network.host: 0.0.0.0
+http.port: 9200
+discovery.seed_hosts: ["1.1.1.1", "1.1.1.2", "1.1.1.3"]
+cluster.initial_master_nodes: ["node-01", "node-02", "node-03"]
+xpack.security.enabled: true
+xpack.security.transport.ssl.enabled: true
+xpack.security.transport.ssl.verification_mode: certificate
+xpack.security.transport.ssl.client_authentication: required
+xpack.security.transport.ssl.keystore.path: elastic-certificates.p12
+xpack.security.transport.ssl.truststore.path: elastic-certificates.p12
+xpack.security.audit.enabled: true
+```
+
+# 生成证书和设置密码
+
+```
+bin/elasticsearch-certutil ca
+bin/elasticsearch-certutil cert --ca elastic-stack-ca.p12
+
+./bin/elasticsearch-setup-passwords interactive
+```
+
+# Kibana配置
+
+```
+cat config/kibana.yml | egrep -v '^#|^$'
+server.port: 5601
+server.host: "1.1.1.1"
+server.publicBaseUrl: "http://1.1.1.1:5601"
+elasticsearch.hosts: ["http://1.1.1.1:9200","http://1.1.1.2:9200","http://1.1.1.1:9200"]
+elasticsearch.username: "elastic"
+elasticsearch.password: "elastic"
+i18n.locale: "zh-CN"
+```
+
 # consistency
 
 https://www.elastic.co/guide/en/elasticsearch/reference/7.17/docs-index_.html#index-wait-for-active-shards
@@ -103,7 +152,9 @@ PUT testindex-slowlogs/_settings{
 ```
 
 ### Search Slow Logging 设置
+
 因为搜索分两阶段 query、fetch,所有查询慢日志分为两类
+
 ```
 PUT testindex-slowlogs/_settings{    "index.search.slowlog.threshold.query.warn": "0ms",
     "index.search.slowlog.threshold.query.info": "0ms",
@@ -147,12 +198,16 @@ PUT testindex-slowlogs/_settings{
 ```
 
 # 审计日志
+
 需要license授权(收费)的功能。
 开启审计
+
 ```yml
 xpack.security.audit.enabled=true
 ```
+
 指定审计输出中包含哪些事件，一共包含这些事件：
+
 ```
 access_denied, 
 access_granted, 
@@ -165,8 +220,15 @@ run_as_granted
 ```
 
 从输出中排除某些事件。默认情况下，不排除任何事件
+
 ```
 xpack.security.audit.logfile.events.include
 xpack.security.audit.logfile.events.exclude
 xpack.security.audit.logfile.events.emit_request_body
+```
+
+# 导出索引映射
+
+```
+GET your_index_name/_mapping > your_mapping_file.json
 ```
