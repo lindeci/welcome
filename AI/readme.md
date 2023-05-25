@@ -6,7 +6,6 @@ https://chatai.com/accounts/login/
 
 https://chat.openai.com/
 
-
 可以通过这个网站访问接口 https://github.com/Yidadaa/ChatGPT-Next-Web
 
 ChatGPT 使用技巧
@@ -64,3 +63,8 @@ https://github.com/PlexPt/awesome-chatgpt-prompts-zh#%E6%AD%A3%E7%BB%8F%E6%8C%87
     使用记忆工具： 使用记忆工具可以帮助您更好地记忆。例如，制作笔记、制作闹钟提醒、使用记忆应用程序等。
 
 最重要的是，不要放弃。记忆力可以通过不断练习和培养来改善，坚持不懈会看到明显的进步。
+
+
+# bing 生成图片
+
+[来自 Microsoft 必应的图像创建者 (bing.com)](https://www.bing.com/images/create)
