@@ -84,8 +84,6 @@ test -e /etc/security/limits.d/80-nofile.conf && (grep '# BEGIN ES SET' /etc/sec
 sudo sysctl -p
 ```
 
-
-
 # 配置模板
 
 ```
@@ -234,4 +232,10 @@ xpack.security.audit.logfile.events.emit_request_body
 
 ```
 GET your_index_name/_mapping > your_mapping_file.json
+```
+
+# 强制索引刷盘
+
+```
+POST /索引名称/_refresh
 ```

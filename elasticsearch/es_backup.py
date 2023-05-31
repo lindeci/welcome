@@ -37,20 +37,6 @@ def backup_index(index_name):
             sid = result["_scroll_id"]
     print(f"Index {index_name} has been backed up to {backup_path}")
 
-# 恢复 Elasticsearch 索引
-def restore_index(index_name):
-    with open(f"{backup_path}/{index_name}.json", "r") as f:
-        actions = [
-            {
-                "_index": index_name,
-                "_type": "_doc",
-                "_source": line.strip(),
-            }
-            for line in f
-        ]
-    helpers.bulk(es, actions)
-    print(f"Index {index_name} has been restored from {backup_path}")
-
 # 备份或恢复 Elasticsearch 索引
 def main():
     # 备份索引

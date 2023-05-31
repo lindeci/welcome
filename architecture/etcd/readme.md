@@ -1,10 +1,13 @@
 # 官网
+
 https://github.com/etcd-io/etcd
 
 # 概述
+
 etcd is a distributed reliable key-value store for the most critical data of a distributed system
 
 # 安装
+
 安装配置页面
 http://play.etcd.io/install
 
@@ -140,7 +143,9 @@ WantedBy=multi-user.target
 EOF
 sudo mv /tmp/s3.service /etc/systemd/system/s3.service
 ```
+
 # 运维命令
+
 ```sh
 # to start service
 sudo systemctl daemon-reload
@@ -197,6 +202,7 @@ systemctl stop s3.service
 ```
 
 # 检查状态
+
 ```sh
 ETCD_VER=v3.3.8
 
@@ -223,7 +229,9 @@ ETCDCTL_API=3 /data/test-etcd/etcdctl \
   --endpoints localhost:2379,localhost:3379,localhost:4379 \
   endpoint health
 ```
+
 或者用容器去检查状态
+
 ```sh
 # to use 'docker' command to check the status
 /usr/bin/docker \
@@ -231,3 +239,74 @@ ETCDCTL_API=3 /data/test-etcd/etcdctl \
   etcd-v3.3.8-1 \
   /bin/sh -c "export ETCDCTL_API=3 && /usr/local/bin/etcdctl --endpoints localhost:2379,localhost:3379,localhost:4379 endpoint health"
 ```
+
+
+
+
+
+# yum 安装和使用
+
+
+ETCD 是一个高可用的分布式 key-value 存储系统，常用于服务发现、配置管理等场景。以下是在 YUM 安装 ETCD 后的常用运维命令：
+
+1. 启动 ETCD
+
+```
+systemctl start etcd
+```
+
+2. 停止 ETCD
+
+```
+systemctl stop etcd
+```
+
+3. 重启 ETCD
+
+```
+systemctl restart etcd
+```
+
+4. 查看 ETCD 运行状态
+
+```
+systemctl status etcd
+```
+
+5. 查看 ETCD 集群状态
+
+```
+etcdctl cluster-health
+```
+
+6. 查看 ETCD 中存储的所有键值对
+
+```
+etcdctl ls /
+```
+
+7. 查看 ETCD 中指定键的值
+
+```
+etcdctl get key
+```
+
+8. 设置 ETCD 中指定键的值
+
+```
+etcdctl set key value
+```
+
+9. 删除 ETCD 中指定键值对
+
+```
+etcdctl del key
+```
+
+10. 备份 ETCD 数据
+
+```
+ETCDCTL_API=3 etcdctl snapshot save /path/to/snapshot.db
+```
+
+以上是常用的 ETCD 运维命令，可以通过这些命令来管理 ETCD 集群，并进行数据的读写、备份等操作。
