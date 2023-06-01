@@ -32,3 +32,21 @@ pip3 install --upgrade /data/pip_deps/pip-21.3.1-py3-none-any.whl
 python3 -m pip install --no-index --find-links=/data/elasticsearch_deps elasticsearch
 python3 -m pip install --no-index --find-links=/data/etcd_deps etcd3
 ```
+
+# 问题
+
+发现etcd服务端是api v2版本
+
+```
+etcdctl --version
+etcdctl version: 3.3.11
+API version: 2
+```
+
+需要重新安装python-etcd包
+
+```
+python3 -m pip download --dest /tmp/etcd_deps python-etcd --index-url https://mirrors.aliyun.com/pypi/simple/
+```
+
+python3 -m pip install --no-index --find-links=/data/etcd_deps python-etcd
