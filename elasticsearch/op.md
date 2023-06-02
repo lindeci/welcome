@@ -239,3 +239,111 @@ GET your_index_name/_mapping > your_mapping_file.json
 ```
 POST /索引名称/_refresh
 ```
+
+# 给索引添加字段
+
+```
+POST test-10/_update_by_query?conflicts=proceed&scroll=2m
+{
+  "query": {
+    "bool": {
+      "must_not": {
+        "exists": {
+          "field": "@timestamp"
+        }
+      }
+    }
+  },
+  "script": {
+    "source": "ctx._source['@timestamp'] = new Date()"
+  }
+} 
+```
+
+- _update_by_query：表示使用update_by_query API，这个API允许以批量方式更新满足特定条件的文档。
+- conflicts=proceed：表示更新操作中可能出现的冲突以继续执行。
+- scroll=2m：表示设定滚动查询的过期时间为2分钟。
+- max_docs=100000：表示每个滚动查询批次最多处理10万个文档。如果结果集超过该限制，则滚动查询将被分成多个批次进行处理。
+- "script": {"source": "ctx._source['@timestamp'] = new Date()"}：表示修改操作，将每个文档的“@timestamp”字段更新为当前时间。
+- ctx是update_by_query API中的一个内置对象，代表上下文（context）对象。
+- ctx._source是上下文中的一个属性，表示当前要操作的文档对象。
+
+# 查看任务
+
+```
+GET _tasks/<task_id>
+```
+
+# 使用SQL查询
+
+```
+POST _sql?format=txt
+{
+  "query":"SELECT host_ip, COUNT(*) FROM my-index WHERE status='success' GROUP BY host_ip"
+}
+
+```
+
+# 时区
+
+在Elasticsearch中，日期类型的字段默认是使用UTC时间。当你插入一个文档时，如果没有明确将时间转换成UTC时间并指定时区，它会默认将本地时间转换成UTC时间存储。
+
+# 删除字段
+
+```
+POST /cf_rfem_hist_price/_update_by_query
+{
+  "script": "ctx._source.remove(\"@timestamp\")",
+  "query": {
+    "exists": {
+      "field": "@timestamp"
+    }
+  }
+}
+```
+
+# 直接复制索引
+
+[Reindex API | Elasticsearch Guide [7.17] | Elastic](https://www.elastic.co/guide/en/elasticsearch/reference/7.17/docs-reindex.html)
+
+```
+POST _reindex
+{
+  "source": {
+    "index": "cf_rfem_hist_price",
+    "size": 10,
+    "query": {
+      "match_all": {}
+    }
+  },
+  "dest": {
+    "index": "cf_rfem_hist_price_bak"
+  },
+  "script": {
+    "source": "ctx._source.remove('@timestamp')"
+  }
+}
+```
+
+# 字段类型
+
+| 字段类型    | 描述                                     |
+| ----------- | ---------------------------------------- |
+| text        | 用于全文本搜索和分析的文本字段           |
+| keyword     | 关键字字段，用于精确匹配和聚合           |
+| date        | 日期字段，可以存储日期和时间             |
+| long        | 长整型字段                               |
+| integer     | 整型字段                                 |
+| short       | 短整型字段                               |
+| byte        | 字节字段                                 |
+| double      | 双精度浮点型字段                         |
+| float       | 单精度浮点型字段                         |
+| boolean     | 布尔型字段                               |
+| binary      | 二进制数据字段                           |
+| geo_point   | 地理位置字段，用于存储经纬度坐标         |
+| geo_shape   | 地理形状字段，用于存储复杂的地理形状数据 |
+| ip          | IP地址字段                               |
+| completion  | 用于自动补全的字段类型                   |
+| token_count | 令牌计数字段，用于跟踪文本字段的令牌数量 |
+| nested      | 嵌套对象字段，用于存储嵌套的JSON对象     |
+| object      | 对象字段，用于存储JSON对象               |
