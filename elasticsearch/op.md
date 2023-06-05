@@ -347,3 +347,88 @@ POST _reindex
 | token_count | 令牌计数字段，用于跟踪文本字段的令牌数量 |
 | nested      | 嵌套对象字段，用于存储嵌套的JSON对象     |
 | object      | 对象字段，用于存储JSON对象               |
+
+# 使用pipeline添加时间戳字段
+
+```
+DELETE _ingest/pipeline/add_timestamp
+PUT _ingest/pipeline/add_timestamp
+{
+  "description": "Add @timestamp field as a timestamp",
+  "processors": [
+    {
+      "script": {
+        "source": "ctx['@timestamp'] = new Date().getTime();"
+      }
+    }
+  ]
+}
+
+DELETE your_index
+POST your_index/_doc?pipeline=add_timestamp
+{
+  "your_field": "your_value"
+}
+GET your_index/_search
+```
+
+显示结果：
+
+```
+"_source" : {
+          "your_field" : "your_value",
+          "@timestamp" : 1685926937718
+        }
+```
+
+# 字段映射参数
+
+```json
+{
+  "mappings": {  // 定义索引的映射
+    "doc": {  // 定义文档类型
+      "properties": {  // 定义文档的字段
+        "batch_number": {  // 定义名为 "batch_number" 的字段
+          "type": "text",  // 字段类型为 "text"
+          "fields": {  // 定义多字段(用于为同一个字段定义多个不同的映射。每个多字段都可以具有自己独立的数据类型和参数设置，这样在同一个字段上可以应用不同的分析器、存储方式或其他处理逻辑。)
+            "keyword": {  // 定义名为 "keyword" 的子字段
+              "type": "keyword",  // 子字段类型为 "keyword"
+              "ignore_above": 256  // 限制子字段的字符串长度上限为 256
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
+```
+
+| 参数                   | 说明                                                       |
+| ---------------------- | ---------------------------------------------------------- |
+| type                   | 字段的数据类型                                             |
+| index                  | 字段是否被索引                                             |
+| store                  | 字段是否被存储                                             |
+| analyzer               | 分析器用于分析字段的内容                                   |
+| search_analyzer        | 查询时使用的分析器                                         |
+| normalizer             | 规范化器用于标准化字段的内容                               |
+| format                 | 格式化日期字段的日期格式                                   |
+| null_value             | 字段的默认空值                                             |
+| doc_values             | 字段是否启用 Doc Values，用于排序、聚合和脚本操作          |
+| coerce                 | 字段是否尝试将字符串类型的值强制转换为字段的类型           |
+| ignore_malformed       | 是否忽略格式错误的字段值                                   |
+| scaling_factor         | 数字字段的缩放因子，用于改变字段的精度和范围               |
+| ignore_above           | 字符串字段截断长度上限                                     |
+| ignore_below           | 字符串字段截断长度下限                                     |
+| similarity             | 字段的相似度算法                                           |
+| copy_to                | 将字段值复制到指定的其他字段                               |
+| fields                 | 定义多字段，允许在一个字段上应用多个不同的分析器或存储方式 |
+| coerce                 | 尝试将字段的值强制转换为字段的数据类型                     |
+| dynamic                | 动态映射的行为设置，用于控制新字段的自动映射行为           |
+| enabled                | 字段是否启用                                               |
+| include_in_all         | 字段是否包含在 `_all`字段中                              |
+| index_options          | 控制字段在倒排索引中的存储方式                             |
+| norms                  | 控制字段的归一化因子的计算方式                             |
+| position_increment_gap | 控制在同一位置出现的多个词项之间的间隔                     |
+| similarity             | 字段的相似度算法                                           |
+| term_vector            | 控制文档中每个词项的存储方式                               |
