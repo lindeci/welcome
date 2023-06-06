@@ -2,6 +2,7 @@ import time, json
 import etcd
 from elasticsearch import Elasticsearch, helpers, exceptions
 
+import logging
 import sys
 from datetime import datetime, timedelta
 import pytz
@@ -9,9 +10,27 @@ import pytz
 import warnings
 warnings.filterwarnings("ignore", category=exceptions.ElasticsearchWarning)
 
+logging.basicConfig(
+    level=logging.WARNING,  # 设置日志级别为DEBUG，记录所有级别的日志
+    format='%(asctime)s - %(levelname)s - %(message)s',  # 设置日志格式
+    filename='app.log',  # 指定日志输出文件名
+    filemode='w'  # 设置文件打开模式为写入
+)
+logger = logging.getLogger("test")
+# 设置日志级别为WARNING或更高级别，屏蔽INFO级别以下的日志消息
+logger.setLevel(logging.INFO)
+
+# 获取日志处理器列表
+handlers = logger.handlers
+
+# 禁用所有处理器的日志输出
+for handler in handlers:
+    print(handler)
+    handler.setLevel(logging.INFO)
+    
 # gmt_tz = pytz.timezone('GMT')
 
-es = Elasticsearch(['localhost:9200','localhost:9200'], http_auth=('elastic', 'elastic'))
+es = Elasticsearch(['localhost:9200','localhost:9200'], http_auth=('elastic', 'elastic'), )
 
 # hosts = ["http://127.0.0.1:2379", "http://127.0.0.1:2379", "http://127.0.0.1:2379"]
 hosts = ["127.0.0.1", "127.0.0.1", "127.0.0.1"]
@@ -105,19 +124,16 @@ while True:
             ],
             "size": max_rows
         }
-    print(query)
-    res = es.search(index="cf_rfem_hist_price_bak", body=query)    
-    res_total = res["hits"]['total']['value']
+    logger.info(f"query:{query}")
+    res = es.search(index="cf_rfem_hist_price_bak", body=query,)    
+    res_total = len(res["hits"]['hits'])
     if res_total == 0:
-        time.sleep(3)
+        time.sleep(1)
         continue
     res_timestamp_begin = res["hits"]['hits'][0]['_source']['@timestamp']
     res_timestamp_end = res["hits"]['hits'][-1]['_source']['@timestamp']
     res__id_begin = res["hits"]['hits'][0]['_id']
     res__id_end = res["hits"]['hits'][-1]['_id']
-    
-    for i in res["hits"]['hits']:
-        print(i['_source'])
     
     actions = [
         {
@@ -139,5 +155,6 @@ while True:
             "return_rows": res_total
         }
     etcd_client.write(key = key, value = value)
+    logger.info(f"res_timestamp_begin:{res_timestamp_begin} res_timestamp_end:{res_timestamp_end} res__id_begin:{res__id_begin} res__id_end:{res__id_end} return_rows:{res_total}")
     
     time.sleep(1)
