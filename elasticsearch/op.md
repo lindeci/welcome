@@ -432,3 +432,59 @@ GET your_index/_search
 | position_increment_gap | 控制在同一位置出现的多个词项之间的间隔                     |
 | similarity             | 字段的相似度算法                                           |
 | term_vector            | 控制文档中每个词项的存储方式                               |
+
+# 查看版本
+```
+GET /
+```
+返回
+```
+{
+  "name" : "es01",
+  "cluster_name" : "es-cluster",
+  "cluster_uuid" : "zwgsf3m7Rmaj64SfgbH0PA",
+  "version" : {
+    "number" : "7.17.0",
+    "build_flavor" : "default",
+    "build_type" : "tar",
+    "build_hash" : "bee86328705acaa9a6daede7140defd4d9ec56bd",
+    "build_date" : "2022-01-28T08:36:04.875279988Z",
+    "build_snapshot" : false,
+    "lucene_version" : "8.11.1",
+    "minimum_wire_compatibility_version" : "6.8.0",
+    "minimum_index_compatibility_version" : "6.0.0-beta1"
+  },
+  "tagline" : "You Know, for Search"
+}
+```
+# 指定查询的目标节点
+将查询发送到名为node_A的节点上执行
+```
+GET /idx/_search?preference=node_A
+{
+  "query": {
+    "match_all": {}
+  }
+}
+```
+将查询限制为只在副本分片上执行
+```
+GET /idx/_search?preference=_only_nodes:replica
+{
+  "query": {
+    "match_all": {}
+  }
+}
+```
+# 异步复制控制参数
+```
+PUT idx/_settings
+{
+  "index.number_of_replicas": 1,
+  "index.write.wait_for_active_shards": "1"
+}
+```
+1. `index.number_of_replicas`: 这个参数定义了索引的副本数。将副本数设置为大于0的值，以便在多个节点上创建副本。默认值为1。
+
+2. `index.write.wait_for_active_shards`: 此参数定义了写入操作需要等待的活跃分片的副本数。活跃分片是指主分片和其副本。默认值为"1"，表示只需主分片写入成功即可返回响应。可以设置为"all"，以等待所有分片的副本写入成功。
+
