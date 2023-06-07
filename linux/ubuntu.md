@@ -19,6 +19,9 @@ Ubuntu 22.04 LTS \n \l
 #Linux内核的信息
 ubuntu@VM-32-14-ubuntu:~$ cat /proc/version
 Linux version 5.15.0-48-generic (buildd@lcy02-amd64-080) (gcc (Ubuntu 11.2.0-19ubuntu1) 11.2.0, GNU ld (GNU Binutils for Ubuntu) 2.38) #54-Ubuntu SMP Fri Aug 26 13:26:29 UTC 2022
+# 查看GLIBC版本
+# ldd --version
+ldd (Ubuntu GLIBC 2.35-0ubuntu3) 2.35
 ```
 
 # 安装docker
