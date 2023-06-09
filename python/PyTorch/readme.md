@@ -2,6 +2,7 @@
 - [计算机架构](#计算机架构)
 - [安装](#安装)
 - [核心功能](#核心功能)
+- [张量](#张量)
 
 # 新人学习建议
 There are many resources available online to learn PyTorch. Here are some of the best resources to get started:
@@ -44,4 +45,7 @@ conda install pytorch torchvision torchaudio cpuonly -c pytorch
 PyTorch 的核心是提供两个主要功能：
 - n 维张量，类似于 NumPy，但可以在 GPU 上运行 
 - 用于构建和训练神经网络的自动微分
+
+# 张量
+张量是 n 维数组，PyTorch 提供了许多在这些张量上进行操作的函数。 在幕后，张量可以跟踪计算图和梯度，但它们也可用作科学计算的通用工具。
 

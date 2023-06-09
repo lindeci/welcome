@@ -46,8 +46,8 @@
 sudo groupadd es
 sudo useradd es -g es
 
-mkdir -p /data
-chmod 777 /data
+sudo mkdir -p /data
+sudo chmod 777 /data
 sudo su - es
 cd /data
 
