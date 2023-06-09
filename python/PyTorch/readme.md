@@ -1,3 +1,9 @@
+- [新人学习建议](#新人学习建议)
+- [计算机架构](#计算机架构)
+- [安装](#安装)
+- [核心功能](#核心功能)
+
+# 新人学习建议
 There are many resources available online to learn PyTorch. Here are some of the best resources to get started:
 
 1. PyTorch Tutorials: This is the official PyTorch documentation that provides a quickstart guide to familiarize yourself with PyTorch concepts and modules. You can learn how to load data, build deep neural networks, train and save your models ¹⁴.
@@ -34,3 +40,8 @@ https://pytorch.org/get-started/locally/
 ```
 conda install pytorch torchvision torchaudio cpuonly -c pytorch
 ```
+# 核心功能
+PyTorch 的核心是提供两个主要功能：
+- n 维张量，类似于 NumPy，但可以在 GPU 上运行 
+- 用于构建和训练神经网络的自动微分
+
