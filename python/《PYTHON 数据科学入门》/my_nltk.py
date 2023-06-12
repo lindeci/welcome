@@ -101,8 +101,8 @@ print("14. 停用词表")
 print(stopwords.words('english'))
 
 # 15. 词性缩写
-print("15. 词性缩写")
-print(nltk.help.upenn_tagset())
+# print("15. 词性缩写")
+# print(nltk.help.upenn_tagset())
 
 # 16. 高级文本查找
 print("16. 高级文本查找")

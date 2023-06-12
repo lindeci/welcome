@@ -701,6 +701,20 @@ GET /my_index/_search
   }
 }
 ```
+long 字段设置"index": false时，不允许查询，下面脚本返回失败
+```
+GET /my_index/_search
+{
+  "query": {
+    "range": {
+      "call": {
+        "gte": 0,
+        "lte": 5000000
+      }
+    }
+  }
+}
+```
 
 ## 总结
 1. 如果字段设置"index": false，那么查询语句中的query不能查询该字段
