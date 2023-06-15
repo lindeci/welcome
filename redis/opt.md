@@ -48,6 +48,7 @@
 - [rax结构](#rax结构)
 - [源码阅读网站](#源码阅读网站)
 - [源码文件描述](#源码文件描述)
+- [redis跨机房部署方案](#redis跨机房部署方案)
 
 # Redis Cluster 安装部署
 
@@ -1288,3 +1289,23 @@ zmalloc.c             1
 zmalloc.h             1
 ```
 
+# redis跨机房部署方案
+Redis的区域感知节点（Redis Cross-Region Replication）功能也受到广泛的关注，并且可以简化跨机房部署的架设过程，使跨机房部署更加便捷、高效、简单。
+```
+# 配置源和目标节点
+# 将SRC IP设置为源节点的 IP 地址
+# 将DST IP 设置为目标节点的 IP 地址
+SRC_IP= "127.0.0.1"
+DST_IP= "128.0.0.1"
+# 配置Replication
+# Replication 位置: 源节点
+redis-cli -h SRC_IP -a  config set repl-role 0 
+redis-cli -h SRC_IP -a  config set repl-id "REDIS_SRC" 
+redis-cli -h SRC_IP -a  config set repl-ip "$DST_IP" 
+# Replication 位置: 目标节点
+redis-cli -h DST_IP -a  config set repl-role 1
+redis-cli -h DST_IP -a  config set repl-id "REDIS_DST"
+redis-cli -h DST_IP -a  config set repl-ip "$SRC_IP"
+# 启动Replication
+redis-cli -h DST_IP slaveof $SRC_IP 6379
+```

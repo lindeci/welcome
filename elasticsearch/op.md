@@ -14,6 +14,7 @@
 - [导出索引映射](#导出索引映射)
 - [强制索引刷盘](#强制索引刷盘)
 - [给索引添加字段](#给索引添加字段)
+- [索引健康状态修复演示](#索引健康状态修复演示)
 - [查看任务](#查看任务)
 - [使用SQL查询](#使用sql查询)
 - [时区](#时区)
@@ -30,17 +31,23 @@
 - [分页搜索](#分页搜索)
 - [字段的index设置测试](#字段的index设置测试)
   - [总结](#总结)
+- [设置别名](#设置别名)
+- [将一个索引设置为只读](#将一个索引设置为只读)
+- [\_cat命令集](#_cat命令集)
+- [\_cluster命令集](#_cluster命令集)
 
 
 # 网上资料
 
-    官网 https://www.elastic.co/guide/index.html
-    书籍
-    《Elasticsearch权威指南（中文版）》
-    社区
-    中文社区 https://elasticsearch.cn/
-    Elastic 社区 Meetup https://meetup.elasticsearch.cn/event/index.html （最后一次举办时间时间：2019-11-16）
-    Elastic 中国社区官方博客 https://blog.csdn.net/UbuntuTouch
+```
+官网 https://www.elastic.co/guide/index.html
+书籍
+《Elasticsearch权威指南（中文版）》
+社区
+中文社区 https://elasticsearch.cn/
+Elastic 社区 Meetup https://meetup.elasticsearch.cn/event/index.html （最后一次举办时间时间：2019-11-16）
+Elastic 中国社区官方博客 https://blog.csdn.net/UbuntuTouch
+```
 
 # 安装时OS调优
 
@@ -257,7 +264,9 @@ xpack.security.audit.logfile.events.include
 xpack.security.audit.logfile.events.exclude
 xpack.security.audit.logfile.events.emit_request_body
 ```
+
 # reindex添加白名单
+
 reindex.remote.whitelist: "1.1.1.1:9201, 1.1.1.2:9201"
 
 # 导出索引映射
@@ -299,6 +308,36 @@ POST test-10/_update_by_query?conflicts=proceed&scroll=2m
 - "script": {"source": "ctx._source['@timestamp'] = new Date()"}：表示修改操作，将每个文档的“@timestamp”字段更新为当前时间。
 - ctx是update_by_query API中的一个内置对象，代表上下文（context）对象。
 - ctx._source是上下文中的一个属性，表示当前要操作的文档对象。
+
+# 索引健康状态修复演示
+
+```
+GET _cat/indices?v&health=red
+GET _cat/indices?v&health=yellow
+```
+
+发现索引 `.kibana_task_manager`变成了yellow
+进行修复
+
+```
+# 清理数据
+POST /.kibana_task_manager/_delete_by_query?conflicts=proceed&pretty
+{
+  "query": {
+    "match_all": {}
+  }
+}
+# 把从副本数设置为1
+PUT /.kibana_task_manager/_settings
+{
+    "number_of_replicas": 0
+}
+#把从副本数设置为2
+PUT /.kibana_task_manager/_settings
+{
+    "number_of_replicas": 1
+}
+```
 
 # 查看任务
 
@@ -466,10 +505,13 @@ GET your_index/_search
 | term_vector            | 控制文档中每个词项的存储方式                               |
 
 # 查看版本
+
 ```
 GET /
 ```
+
 返回
+
 ```
 {
   "name" : "es01",
@@ -489,8 +531,11 @@ GET /
   "tagline" : "You Know, for Search"
 }
 ```
+
 # 指定查询的目标节点
+
 将查询发送到名为node_A的节点上执行
+
 ```
 GET /idx/_search?preference=node_A
 {
@@ -499,7 +544,9 @@ GET /idx/_search?preference=node_A
   }
 }
 ```
+
 将查询限制为只在副本分片上执行
+
 ```
 GET /idx/_search?preference=_only_nodes:replica
 {
@@ -508,7 +555,9 @@ GET /idx/_search?preference=_only_nodes:replica
   }
 }
 ```
+
 # 异步复制控制参数
+
 ```
 PUT idx/_settings
 {
@@ -516,49 +565,56 @@ PUT idx/_settings
   "index.write.wait_for_active_shards": "1"
 }
 ```
-1. `index.number_of_replicas`: 这个参数定义了索引的副本数。将副本数设置为大于0的值，以便在多个节点上创建副本。默认值为1。
 
+1. `index.number_of_replicas`: 这个参数定义了索引的副本数。将副本数设置为大于0的值，以便在多个节点上创建副本。默认值为1。
 2. `index.write.wait_for_active_shards`: 此参数定义了写入操作需要等待的活跃分片的副本数。活跃分片是指主分片和其副本。默认值为"1"，表示只需主分片写入成功即可返回响应。可以设置为"all"，以等待所有分片的副本写入成功。
 
 # 字段index属性介绍
+
 当在 Elasticsearch 中将字段的 `index` 设置为 `false` 时，该字段将不会被索引，也不会出现在倒排索引中。这意味着该字段的内容不可搜索，无法通过搜索查询来匹配或过滤。
 
 设置字段的 `index` 为 `false` 主要有以下效果：
 
 1. **节省磁盘空间**：不将该字段索引可以减少占用的磁盘空间。对于大型文本字段或不需要搜索的字段，这可以节省宝贵的存储资源。
-
 2. **提高索引和搜索性能**：通过禁用字段的索引，可以减少索引过程中的处理时间和资源消耗。在索引和搜索操作中跳过不需要的字段可以提高整体性能。
-
 3. **隐藏字段内容**：将字段的 `index` 设置为 `false` 可以防止字段的内容被搜索和检索。这对于包含敏感信息或不希望公开的字段很有用。
 
 请注意，将字段的 `index` 设置为 `false` 后，您将无法使用该字段进行搜索、聚合、排序等操作。如果需要在某些情况下进行这些操作，您可以将字段的 `index` 设置为 `true` 或根据需要进行灵活的字段配置。
 
 # 对查询的结果的JSON节点进行选择
+
 ```
 GET /my_index/_search?size=10&filter_path=hits.hits
 ```
+
 # 分页搜索
+
 如果每页显示 5 条结果，下面的命令可以得到 1-3 页的结果：
+
 ```
 GET /_search?size=5
 GET /_search?size=5&from=5
 GET /_search?size=5&from=10
 ```
+
 Elasticsearch 默认最多返回 10000 个文档。
 
-每种分页方式的特点: 
+每种分页方式的特点:
+
 1. from+size 支持跳页，不适合深分页。
 2. scroll 不支持跳页，适合拉取大量数据，不适合大量并发。
 3. search_after 不支持跳页，适合拉取大量数据。
 
 scroll 和 search_after 都可以用于深分页，search_after 需要提供一个主键字段进行排序，默
 认为 _shard_doc，它是 shard index 与 Lucene 内部 ID 的组合值。在服务端保存的上下文
-要比 scroll 小，目前官方推荐使用 search_after 
+要比 scroll 小，目前官方推荐使用 search_after
 
 search_after 要求数据中存在一个无重复，可以用于排序的字段
 
 # 字段的index设置测试
+
 构造数据
+
 ```
 DELETE my_index
 
@@ -621,7 +677,9 @@ POST /my_index/_doc/3
   "comment": "This is a sample document3."
 }
 ```
+
 keyword 字段，不管是"index": false还是"index": true，都能排序
+
 ```
 POST /my_index/_search
 {
@@ -635,7 +693,9 @@ POST /my_index/_search
   ]
 }
 ```
+
 long 字段，不管是"index": false还是"index": true，都能排序、聚合
+
 ```
 GET /my_index/_search
 {
@@ -659,7 +719,9 @@ GET /my_index/_search
   }
 }
 ```
+
 text 字段不允许排序，下面脚本返回失败
+
 ```
 POST /my_index/_search
 {
@@ -670,7 +732,9 @@ POST /my_index/_search
   ]
 }
 ```
+
 text 字段设置"index": false时，不允许全文检索，下面脚本返回失败
+
 ```
 POST /my_index/_search
 {
@@ -681,7 +745,9 @@ POST /my_index/_search
   }
 }
 ```
+
 keyword 字段设置"index": false时，不允许查询、模糊查询，下面脚本返回失败
+
 ```
 GET /my_index/_search
 {
@@ -701,7 +767,9 @@ GET /my_index/_search
   }
 }
 ```
+
 long 字段设置"index": false时，不允许查询，下面脚本返回失败
+
 ```
 GET /my_index/_search
 {
@@ -717,6 +785,105 @@ GET /my_index/_search
 ```
 
 ## 总结
+
 1. 如果字段设置"index": false，那么查询语句中的query不能查询该字段
 2. text 字段不允许排序、聚合
 3. 非 text 字段，"index"的设置不影响其排序、聚合
+
+# 设置别名
+
+```json
+PUT my_index
+{
+  "aliases": {
+      "ldc_index": {
+        "is_write_index": true
+      }
+  }
+}
+```
+
+`is_write_index`：举例来说，假设你有两个索引，logs_2023_06 和 logs_2023_07，你可以设置一个别名 logs_write，并将 is_write_index 设置为 true 对于最新的索引 logs_2023_07。这样，当你通过 logs_write 别名写入数据时，数据将被写入到 logs_2023_07 索引。
+
+根据别名查看索引名
+```
+GET /_cat/aliases?v
+或者
+GET /_alias/ldc_index
+```
+
+# 将一个索引设置为只读
+```
+PUT /my_index/_settings
+{
+    "index.blocks.read_only": true
+}
+# 恢复可写
+PUT /my_index/_settings
+{
+    "index.blocks.read_only": false
+}
+```
+
+# _cat命令集
+
+末尾添加 ?v可以打印字段标题
+
+| /_cat/aliases                       | 查看别名接口              |
+| ----------------------------------- | ------------------------- |
+| /_cat/aliases/{alias}               |                           |
+| /_cat/allocation                    | 查看分配资源接口          |
+| /_cat/count                         | 查看文档个数接口          |
+| /_cat/count/{index}                 |                           |
+| /_cat/fielddata                     | 查看字段分配情况接口      |
+| /_cat/fielddata/{fields}            |                           |
+| /_cat/health                        | 查看健康状态接口          |
+| /_cat/indices                       | 查看索引信息接口          |
+| /_cat/indices/{index}               |                           |
+| /_cat/master                        | 查看master信息接口        |
+| /_cat/ml/anomaly_detectors          | 查看异常信息接口          |
+| /_cat/ml/anomaly_detectors/{job_id} |                           |
+| /_cat/ml/data_frame/analytics       |                           |
+| /_cat/ml/data_frame/analytics/{id}  |                           |
+| /_cat/ml/datafeeds                  |                           |
+| /_cat/ml/datafeeds/{datafeed_id}    |                           |
+| /_cat/ml/trained_models             |                           |
+| /_cat/ml/trained_models/{model_id}  |                           |
+| /_cat/nodeattrs                     | 查看nodes资源配置信息接口 |
+| /_cat/nodes                         | 查看nodes负载信息接口     |
+| /_cat/pending_tasks                 | 查看正在挂起的任务接口    |
+| /_cat/plugins                       | 查看插件接口              |
+| /_cat/recovery                      | 查看修复状态接口          |
+| /_cat/recovery/{index}              |                           |
+| /_cat/repositories                  |                           |
+| /_cat/segments                      | 查看lucence的段信息接口   |
+| /_cat/segments/{index}              |                           |
+| /_cat/shards                        | 查看分片信息接口          |
+| /_cat/shards/{index}                |                           |
+| /_cat/snapshots/{repository}        |                           |
+| /_cat/tasks                         |                           |
+| /_cat/templates                     | 查看索引模板              |
+| /_cat/thread_pool                   | 查看线程池接口            |
+| /_cat/thread_pool/{thread_pools}    |                           |
+| /_cat/transforms                    |                           |
+| /_cat/transforms/{transform_id}     |                           |
+
+
+# _cluster命令集
+
+| **描述**                                | **命令**         | **示例**                                    |
+| --------------------------------------------- | ---------------------- | ------------------------------------------------- |
+| **查看集群健康状态接口**                | _cluster/health        | /_cluster/health?level=shards``            |
+| /_cluster/health/test1,test2                  |                        |                                                   |
+| **查看集群状况接口**                    | _cluster/state         | /_cluster/state/_all/foo,bar``             |
+| /_cluster/state/metadata,routing_table?pretty |                        |                                                   |
+| **查看集群统计信息接口**                | _cluster/stats         | /_cluster/stats?human&pretty                      |
+| **查看集群挂起的任务接口**              | _cluster/pending_tasks | /_cluster/pending_tasks                           |
+| **集群重新路由操作**                    | _cluster/reroute       |                                                   |
+| **更新集群设置**                        | _cluster/settings      | /_cluster/settings                                |
+| **节点状态**                            | _nodes/stats           | /_nodes/nodeId1,nodeId2/stats``            |
+| /_nodes/stats                                 |                        |                                                   |
+| **节点信息**                            | _nodes                 | /_nodes/nodeId1,nodeId2/info/jvm,process`` |
+| /_nodes/nodeId1,nodeId2/_all                  |                        |                                                   |
+| **节点的热线程**                        | _nodes/hot_threads     | /_nodes/nodeId1,nodeId2/hot_threads``      |
+| /_nodes/hot_threads                           |                        |                                                   |
