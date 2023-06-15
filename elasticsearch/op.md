@@ -33,6 +33,7 @@
   - [总结](#总结)
 - [设置别名](#设置别名)
 - [将一个索引设置为只读](#将一个索引设置为只读)
+- [修改字段类型流程](#修改字段类型流程)
 - [\_cat命令集](#_cat命令集)
 - [\_cluster命令集](#_cluster命令集)
 
@@ -823,6 +824,61 @@ PUT /my_index/_settings
 {
     "index.blocks.read_only": false
 }
+```
+
+# 修改字段类型流程
+```json
+1、创建新的索引
+PUT /new_index_name
+{
+    "mappings": {
+        "properties": {
+            "field_name": {
+                "type": "new_type"
+            }
+        }
+    }
+}
+
+2、使用 _reindex API 将数据从旧索引复制到新索引：
+PUT /old_index_name/_settings
+{
+    "index.blocks.read_only": true
+}
+
+POST /_reindex
+{
+    "source": {
+        "index": "old_index_name"
+    },
+    "dest": {
+        "index": "new_index_name"
+    }
+}
+3、（可选）如果你使用别名，更新别名指向新的索引：
+POST /_aliases
+{
+  "actions": [
+    {
+      "remove": {
+        "index": "old_index_name",
+        "alias": "your_alias_name"
+      }
+    },
+    {
+      "add": {
+        "index": "new_index_name",
+        "alias": "your_alias_name"
+      }
+    }
+  ]
+}
+4、删除旧索引：
+PUT /old_index_name/_settings
+{
+    "index.blocks.read_only": false
+}
+DELETE /old_index_name
 ```
 
 # _cat命令集
