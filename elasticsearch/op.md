@@ -34,6 +34,9 @@
 - [设置别名](#设置别名)
 - [将一个索引设置为只读](#将一个索引设置为只读)
 - [修改字段类型流程](#修改字段类型流程)
+- [清空索引中的文档](#清空索引中的文档)
+- [设置路由的例子](#设置路由的例子)
+- [创建data stream例子](#创建data-stream例子)
 - [\_cat命令集](#_cat命令集)
 - [\_cluster命令集](#_cluster命令集)
 
@@ -879,6 +882,125 @@ PUT /old_index_name/_settings
     "index.blocks.read_only": false
 }
 DELETE /old_index_name
+```
+
+# 清空索引中的文档
+```json
+POST /my_index/_delete_by_query?conflicts=proceed&pretty
+{
+  "query": {
+    "match_all": {}
+  }
+}
+```
+
+# 设置路由的例子
+不像别的数据库可以设置表级别的分片键。  
+ES需要每次插入、查询文档时，都需要指定分片键的值的
+```
+# 如果希望按title字段分片，则插入文档时，按title字段的具体值去指定路由
+POST my_index/_doc/1?routing=string1
+{"title":"string1"}
+
+# 查询时，需要按具体的值去指定的分片上去查询
+GET my_index/_search?routing=string1
+```
+
+# 创建data stream例子
+```json
+# 日志类型的data stream
+DELETE _ilm/policy/logx_policy_test
+# 创建索引生命周期策略
+PUT _ilm/policy/logx_policy_test
+{
+  "policy": {
+    "phases": {
+      "hot": {
+        "min_age": "1d",
+        "actions": {
+          "set_priority": {
+            "priority": 100
+          },
+          "rollover": {
+            "max_age": "2d",
+            "max_docs": 500000000,
+            "max_size": "50gb"
+          }
+        }
+      },
+      "warm": {
+        "min_age": "1d",
+        "actions": {
+          "set_priority": {
+            "priority": 50
+          },
+          "allocate": {
+            "include": {
+              "data": "warm"
+            }
+          }
+        }
+      },
+      "cold": {
+        "min_age": "1d",
+        "actions": {
+          "set_priority": {
+            "priority": 0
+          },
+          "allocate": {
+            "number_of_replicas": 1,
+            "include": {
+              "data": "cold"
+            }
+          }
+        }
+      },
+      "delete": {
+        "min_age": "7d",
+        "actions": {
+          "delete": {}
+        }
+      }
+    }
+  }
+}
+
+DELETE _index_template/logx-template_test
+# 创建索引模板
+PUT _index_template/logx-template_test
+{
+  "index_patterns": [
+    "logx-*"
+  ],
+  "priority": 1,
+  "data_stream": {},
+  "template": {
+    "settings": {
+      "index": {
+        "number_of_shards": "2",
+        "number_of_replicas": "1",
+        "lifecycle.name": "logx_policy_test"
+      }
+    }
+  }
+}
+
+DELETE /_data_stream/logx-business
+# 创建data_stream
+PUT /_data_stream/logx-business
+
+
+PUT /logx-business/_bulk?refresh
+{"create":{ }}
+{ "@timestamp": "2020-12-08T11:04:05.000Z", "user": { "id": "vlb44hny" }, "message": "Loginattempt failed" }
+{"create":{ }}
+{ "@timestamp": "2020-12-08T12:06:07.000Z", "user": { "id": "8a4f500d" }, "message": "Login successful" }
+{"create":{ }}
+{ "@timestamp": "2020-12-09T13:07:08.000Z", "user": { "id": "l7gk7f82" }, "message": "Logout successful"}
+
+GET logx-business/_mapping
+GET /logx-business/_search
+GET /logx-business/_search?size=10&filter_path=hits.hits
 ```
 
 # _cat命令集
