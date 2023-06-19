@@ -37,6 +37,7 @@
 - [清空索引中的文档](#清空索引中的文档)
 - [设置路由的例子](#设置路由的例子)
 - [创建data stream例子](#创建data-stream例子)
+- [多个条件模糊匹配查询](#多个条件模糊匹配查询)
 - [\_cat命令集](#_cat命令集)
 - [\_cluster命令集](#_cluster命令集)
 
@@ -1001,6 +1002,33 @@ PUT /logx-business/_bulk?refresh
 GET logx-business/_mapping
 GET /logx-business/_search
 GET /logx-business/_search?size=10&filter_path=hits.hits
+```
+
+# 多个条件模糊匹配查询
+```json
+{
+  "query": {
+    "bool": {
+      "filter": {
+        "bool": {
+          "must": [
+            {
+              "wildcard": {
+                "fieldName": "*value1*"  // 第一个模糊条件
+              }
+            },
+            {
+              "wildcard": {
+                "fieldName": "*value2*"  // 第二个模糊条件
+              }
+            },
+            // 添加更多的模糊条件
+          ]
+        }
+      }
+    }
+  }
+}
 ```
 
 # _cat命令集
