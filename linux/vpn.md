@@ -62,3 +62,5 @@ https://sms-activate.org/
 美国地址生成器  https://www.meiguodizhi.com/
 
 
+免费key
+https://freeopenai.xyz/
