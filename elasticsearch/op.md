@@ -16,6 +16,8 @@
 - [给索引添加字段](#给索引添加字段)
 - [索引健康状态修复演示](#索引健康状态修复演示)
 - [查看任务](#查看任务)
+- [取消任务](#取消任务)
+- [释放空间](#释放空间)
 - [使用SQL查询](#使用sql查询)
 - [时区](#时区)
 - [删除字段](#删除字段)
@@ -38,6 +40,7 @@
 - [设置路由的例子](#设置路由的例子)
 - [创建data stream例子](#创建data-stream例子)
 - [多个条件模糊匹配查询](#多个条件模糊匹配查询)
+- [批量删除索引中的文档](#批量删除索引中的文档)
 - [\_cat命令集](#_cat命令集)
 - [\_cluster命令集](#_cluster命令集)
 
@@ -349,6 +352,33 @@ PUT /.kibana_task_manager/_settings
 ```
 GET _tasks/<task_id>
 ```
+
+# 取消任务
+```
+POST _tasks/-DFDapzISfyYVJhuQqyhRw:374987396/_cancel
+```
+
+# 释放空间
+1. 执行合并操作：在Kibana控制台中，使用`forcemerge` API来合并索引的段（segments）。合并操作将减少磁盘上的碎片化，并释放未使用的空间。
+
+   ```shell
+   POST /<index_name>/_forcemerge?max_num_segments=1
+   ```
+
+   在上面的命令中，将`<index_name>`替换为你要释放空间的索引名称。`max_num_segments=1`表示将所有段合并为一个。
+
+   请注意，合并操作可能会对Elasticsearch的性能产生一定影响，特别是对于大型索引。因此，在生产环境中，建议在负载较低的时候执行此操作。
+
+2. 等待合并完成：合并操作可能需要一段时间来完成，具体时间取决于索引的大小和硬件性能。你可以使用以下命令来检查合并操作的进度：
+
+   ```shell
+   GET /<index_name>/_refresh
+   GET /<index_name>/_segments
+   ```
+
+   `/_refresh`命令将刷新索引以获取最新的段信息，`/_segments`命令将返回段的详细信息，包括合并操作的进度。
+
+请注意，在执行任何操作之前，请确保备份你的数据，并根据你的具体需求进行测试和评估。合并操作可能会导致一些I/O和CPU开销，因此在执行此操作时，要确保有足够的资源和适当的时间窗口。
 
 # 使用SQL查询
 
@@ -1025,6 +1055,20 @@ GET /logx-business/_search?size=10&filter_path=hits.hits
             // 添加更多的模糊条件
           ]
         }
+      }
+    }
+  }
+}
+```
+
+# 批量删除索引中的文档
+```
+POST /your-index/_delete_by_query?scroll=5m&slices=5
+{
+  "query": {
+    "range": {
+      "your-timestamp-field": {
+        "lt": "now-2w/w"
       }
     }
   }
