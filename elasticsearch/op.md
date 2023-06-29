@@ -1063,17 +1063,19 @@ GET /logx-business/_search?size=10&filter_path=hits.hits
 
 # 批量删除索引中的文档
 ```
-POST /your-index/_delete_by_query?scroll=5m&slices=5
+POST smartpark-jf/_delete_by_query?scroll=5m&conflicts=proceed&timeout=5m&slices=50
 {
   "query": {
     "range": {
-      "your-timestamp-field": {
-        "lt": "now-2w/w"
+      "@timestamp": {
+        "lt": "2023-06-16T00:00:00Z"
       }
     }
-  }
+  },
+  "size": 10000
 }
 ```
+在SSD上，上面的参数在性能上表现优异，平均每秒删除上万个文档
 
 # _cat命令集
 
