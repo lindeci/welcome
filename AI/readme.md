@@ -68,3 +68,14 @@ https://github.com/PlexPt/awesome-chatgpt-prompts-zh#%E6%AD%A3%E7%BB%8F%E6%8C%87
 # bing 生成图片
 
 [来自 Microsoft 必应的图像创建者 (bing.com)](https://www.bing.com/images/create)
+
+# Hugging Face
+https://huggingface.co  
+Hugging Face 是一个人工智能社区，致力于构建未来。它提供了一个 Hub，可以托管基于 Git 的模型、数据集和空间。它支持 Pytorch、TensorFlow 和 JAX 等多种深度学习框架，并提供了用于计算机视觉、音频和 NLP 任务的数据集。此外，您还可以使用 Hugging Face 构建机器学习演示和其他 Web 应用程序¹。
+
+# Discord
+https://discord.com/channels/920485577911062528/1104995385321197578  
+Discord 是一个通讯应用程序，它允许用户通过语音、视频和文本进行交流。它是一个非常适合游戏玩家、学校俱乐部、全球艺术社区等群体的地方，可以让您和您的朋友轻松交流和聚会¹。Discord 可以在多种设备上使用，包括 Windows、Mac、Linux、iOS 和 Android 等。  
+账户: 541287039
+
+
