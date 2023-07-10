@@ -1,7 +1,9 @@
 - [版本](#版本)
 - [压测](#压测)
 - [online ddl测试](#online-ddl测试)
-- [MRR](#mrr)
+- [MRR演示](#mrr演示)
+- [BKA介绍](#bka介绍)
+- [BKA和MMR的区别](#bka和mmr的区别)
 - [Index Merge](#index-merge)
 - [mysql优化经验](#mysql优化经验)
 - [窗口函数](#窗口函数)
@@ -41,7 +43,9 @@
 - [社区地址](#社区地址)
 - [MYSQL线程](#mysql线程)
 - [explain](#explain)
+- [mvcc](#mvcc)
 - [直方图的生成](#直方图的生成)
+
 
 # 版本
 8.0.26		
@@ -166,7 +170,7 @@ left join performance_schema.threads t2 on t2.PROCESSLIST_ID=p2.ID
 where trx.trx_state!="RUNNING"\G		
 ```
 
-# MRR		
+# MRR演示		
 When MRR is used, the Extra column in EXPLAIN output shows Using MRR.		
 ```sql
 select @@read_rnd_buffer_size;		
@@ -191,12 +195,60 @@ mysql> explain select /*+ MRR(sbtest1)*/ * from sbtest1 where k between 1 and 10
 +----+-------------+---------+------------+-------+---------------+-------+---------+------+------+----------+----------------------------------+		
 |  1 | SIMPLE      | sbtest1 | NULL       | range | idx_k         | idx_k | 4       | NULL |    9 |   100.00 | Using index condition; Using MRR |		
 +----+-------------+---------+------------+-------+---------------+-------+---------+------+------+----------+----------------------------------+		
-		
+```		
 如果走索引，结果集默认按索引排序。如果Using MRR，则按主键排序。		
 https://dev.mysql.com/doc/refman/8.0/en/optimizer-hints.html	
 
+
+
+# MRR介绍
+MySQL 的 Multi-Range Read（MRR）是一种优化读操作的策略。MRR 主要用于改善全表扫描和索引扫描的性能，尤其是在涉及联接操作或排序操作时。
+
+基本上，MRR 可以减少随机磁盘I/O访问，并使得 I/O 访问更趋向于顺序化，这样可以有效地利用操作系统的 I/O 缓存，并提高查询性能。对于大型表和复杂查询，MRR 的效果更为明显。
+
+在传统的联接操作中，MySQL 会遍历驱动表中的每一行，然后根据联接条件去查找其他表中的匹配行。每次查找都可能涉及到磁盘 I/O，如果驱动表的行数很多，就会导致大量的随机磁盘I/O访问。
+
+而使用 MRR 时，MySQL 会首先遍历驱动表并收集所有需要查找的键值，然后按照键值在磁盘上的物理位置排序，最后按照这个顺序去查找其他表中的匹配行。这样就把原本的随机磁盘 I/O 访问变为了顺序磁盘 I/O 访问，大大提高了性能。
+
+需要注意的是，MRR 是在 MySQL 5.6 版本引入的，而且默认是关闭的。你可以通过设置 `optimizer_switch` 系统变量来启用 MRR，例如：
+
+```sql
+SET optimizer_switch='mrr=on,mrr_cost_based=off';
 ```
-		
+
+这里 `mrr` 参数是用来开启 MRR，而 `mrr_cost_based` 参数是用来指定是否根据成本来决定是否使用 MRR。如果设置为 `off`，则无论成本如何都会使用 MRR。
+
+
+# BKA介绍
+Batched Key Access (BKA) 是 MySQL 中一种用于优化联接操作的策略，通常和 Multi-Range Read (MRR) 一起使用以获取更好的性能。BKA 主要优化了 MySQL 在处理联接查询时的 I/O 操作。
+
+在传统的联接操作中，MySQL 会为驱动表中的每一行单独执行联接操作，这可能会导致大量的随机磁盘 I/O 操作，尤其是在处理大型表时。
+
+使用 BKA 后，MySQL 在处理联接操作时会首先从驱动表中读取一批行（一个“批次”），然后将这个批次中的所有行需要联接的键值一起发送到被驱动表。MySQL 在被驱动表中会按照键值在磁盘上的物理位置顺序来获取匹配的行，这样就把随机磁盘 I/O 操作变为了顺序磁盘 I/O 操作。
+
+BKA 的这种批处理方式减少了磁盘 I/O 操作的次数，从而提高了联接查询的性能。尤其是在处理大型表和复杂查询时，BKA 的效果更为明显。
+
+需要注意的是，BKA 是在 MySQL 5.6 版本引入的，而且默认是关闭的。你可以通过设置 `optimizer_switch` 系统变量来启用 BKA，例如：
+
+```sql
+SET optimizer_switch='mrr=on,mrr_cost_based=off,batched_key_access=on';
+```
+
+这里 `mrr` 和 `mrr_cost_based` 参数是用来开启和配置 MRR 的，而 `batched_key_access` 参数是用来开启 BKA 的。将这三个参数都开启可以使 MRR 和 BKA 一起工作，从而获取更好的性能。
+
+# BKA和MMR的区别
+MRR和BKA都是MySQL优化查询的策略，它们都旨在通过更有效地使用I/O操作来提高查询性能。下面是MRR和BKA的主要特性和差异：
+
+| 特性 | MRR（Multi-Range Read） | BKA（Batched Key Access） |
+| --- | --- | --- |
+| **主要目标** | 提高全表扫描和索引扫描的性能 | 优化联接查询的性能 |
+| **工作方式** | 先收集需要读取的键值，然后按照这些键值在磁盘上的物理位置排序，最后按照这个顺序进行读取。| 在处理联接操作时，首先从驱动表中读取一批行，然后将这个批次中的所有行需要联接的键值一起发送到被驱动表。|
+| **优势** | 可以将随机磁盘 I/O 访问变为顺序磁盘 I/O 访问，提高查询性能 | 可以减少磁盘 I/O 操作的次数，提高联接查询的性能 |
+| **最适合的场景** | 全表扫描或索引扫描，尤其是涉及大型表和复杂查询 | 联接查询，尤其是处理大型表和复杂查询 |
+| **开启方式** | `SET optimizer_switch='mrr=on,mrr_cost_based=off';` | `SET optimizer_switch='mrr=on,mrr_cost_based=off,batched_key_access=on';` |
+
+在某些情况下，MRR和BKA可以一起使用以获取更好的性能。比如，在处理联接查询时，可以首先用MRR来优化驱动表的扫描，然后用BKA来优化从驱动表到被驱动表的联接操作。使用这两种策略的组合可以进一步减少随机磁盘 I/O 访问，提高查询性能。
+
 
 # Index Merge		
 In EXPLAIN output, the Index Merge method appears as index_merge in the type column.		
@@ -2576,6 +2628,55 @@ Using where has no direct counterpart in JSON-formatted output; the attached_con
 # explain 聚合查询	
 		
 explain select c2,count(1) tot from ttt having tot<1;		
+
+# 主键范围查询需要每行进行判断
+```sql
+CREATE TABLE `user_test3` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `Id2` varchar(36) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT NULL COMMENT '用户id',
+  `TenantId` varchar(36) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT NULL,
+  PRIMARY KEY (`id`),
+  KEY `idx_tenantid_IsDelete_CreateTime` (`TenantId`)
+) ENGINE=InnoDB AUTO_INCREMENT=851956 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+
+select * from user_test3 limit 10;
++----+--------------------------------------+--------------------------------------+
+| id | Id2                                  | TenantId                             |
++----+--------------------------------------+--------------------------------------+
+|  1 | ed69a3d7-b755-4eba-937f-3ab7003a435c | 009f83ab-ab0d-4c05-b6fd-6d2f5cde874e |
+|  2 | 973a0d94319d4b91a0fc2ecee2bb0487     | 057aaa02ca0246d485f2ed1bcb67a4f2     |
+|  3 | 1bc135dd31e44281a6513deb2002003a     | 06e371f56a0945c0a4a48e80b058fe52     |
+|  4 | 779958aa2e124b799105ecfa3792a366     | 077680e379d14084bc4f876e9af407ff     |
+|  5 | 9f911564e3064040b49f7492c6913b4f     | 07d0974e971e422e9fe5ad1ec3ba2e51     |
+|  6 | 0004da66-59f6-4a23-806f-8aa333ae218a | 0ec541aa-d13b-4d35-b294-3731196ee3ad |
+|  7 | 0006cbd9-f60c-4708-85ce-fd95e9d86a1a | 0ec541aa-d13b-4d35-b294-3731196ee3ad |
+|  8 | 0008396d-31b2-407d-8273-cce21aca4183 | 0ec541aa-d13b-4d35-b294-3731196ee3ad |
+|  9 | 000fe995-3653-45e9-a050-f5aaa2e5ff1d | 0ec541aa-d13b-4d35-b294-3731196ee3ad |
+| 10 | 001be0cf-8eab-4607-b9ff-b691e8cf2879 | 0ec541aa-d13b-4d35-b294-3731196ee3ad |
++----+--------------------------------------+--------------------------------------+
+
+select count(1) from user_test3 force index (primary);
++----------+
+| count(1) |
++----------+
+|   851276 |
++----------+
+1 row in set (0.04 sec)
+
+select count(1) from user_test3 force index (primary) where id>1;
++----------+
+| count(1) |
++----------+
+|   851275 |
++----------+
+1 row in set (0.23 sec)
+```
+即使在聚簇索引中，对于id > 1这样的范围查询，MySQL仍然需要检查每一行来确认它是否满足查询条件。MySQL不能仅仅依赖索引的顺序性就预先知道哪些行满足查询条件，因此它需要一一检查。
+
+为什么需要这样做呢？因为索引树中的数据是有序的，但是对于MySQL来说，它并不能确定id > 1这个条件在哪里结束。也就是说，从id = 1开始的后面的所有记录，都有可能满足条件。因此，MySQL需要扫描并检查这些记录，直到索引树的末端，才能确定哪些记录是满足条件的。
+
+
+
 # mvcc	
 ```		
 https://blog.csdn.net/qq_44787816/article/details/119701813		
