@@ -1,3 +1,5 @@
+
+# 1、日常操作
 ```sh
 创建远程仓库
 1、创建本地仓库
@@ -141,17 +143,19 @@
 27、linux设置git用户名和密码
  进入项目目录
  命令:git config --global credential.helper store
- ```
+```
 
- 28、linux设置账号密码
+# 28、linux设置账号密码
+```
 git config --global user.name lindeci
 git config --global user.password
 git config --global user.email 541287039@qq.com
 
 my class token: 
 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
+```
 
-29、上传大文件
+# 29、上传大文件
 ```
 curl -s https://packagecloud.io/install/repositories/github/git-lfs/script.deb.sh | sudo bash
 apt-get install git-lfs
@@ -172,4 +176,31 @@ git commit -m "Add large file"
 
 # 上传
 git push mysql-server-8.2.0-docker main
+```
+
+# 30、不小心提交敏感信息的处理
+
+1. 创建一个孤立分支，并切换到该分支：
+```bash
+git checkout --orphan latest_branch
+```
+2. 暂存所有文件：
+```bash
+git add -A
+```
+3. 提交所有更改：
+```bash
+git commit -am "First Commit"
+```
+4. 删除主分支 main
+```bash
+git branch -D main
+```
+5. 重命名当前分支为 main
+```bash
+git branch -m main
+```
+6. 强制推送本地分支：
+```bash
+git push -f origin main
 ```
