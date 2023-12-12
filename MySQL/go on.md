@@ -1,0 +1,17 @@
+- [MYSQL B+树索引对相同值的的处理](#mysql-b树索引对相同值的的处理)
+- [TRACE](#trace)
+- [开发连接串配置](#开发连接串配置)
+- [redo log 跟binlog 变化跟踪](#redo-log-跟binlog-变化跟踪)
+- [show engine innodb status中查看锁](#show-engine-innodb-status中查看锁)
+- [面试问题](#面试问题)
+- [MGR实践](#mgr实践)
+- [直方图的生成](#直方图的生成)
+- [mysql router使用](#mysql-router使用)
+- [等待事件表](#等待事件表)
+- [MySQL 性能模式](#mysql-性能模式)
+- [mysql 8 中文手册](#mysql-8-中文手册)
+- [redolog跟binlog写入时机对比](#redolog跟binlog写入时机对比)
+- [TIDB 尝试](#tidb-尝试)
+- [proxysql实践](#proxysql实践)
+
+

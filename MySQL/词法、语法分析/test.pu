@@ -1,0 +1,366 @@
+@startuml SequenceDiagram
+!define MyStyle
+skinparam sequence {
+    ParticipantBorderColor red
+    ParticipantBackgroundColor #FFFFCC
+    ParticipantBorderThickness 2
+}
+skinparam BoxPadding 2
+skinparam ParticipantPadding 2
+
+actor "Actor" as Actor #red
+box "MySQL Server" #LightGreen
+participant "MySQL Server" as f010
+participant "Connection handler" as f011
+end box
+
+box "Parser" #LightGreen
+participant "dispatch_command" as f020
+participant "dispatch_sql_command" as f021
+participant "Parser SQL" as f022
+participant "SQL Parser" as f023
+participant "Bison Parser" as f030
+participant "Lexical Scanner" as f040
+participant "Parse Tree Nodes" as f050
+end box
+
+box "Sql command" #LightGreen
+participant "PT_xxx_xxx_stmt" as f051
+participant "Abstract Syntax Tree" as f060
+participant "SQL Command" as f070
+participant "HA_CREATE_INFO" as f080
+participant "MySQL plugin" as f090
+end box
+
+box "Runtime execution" #LightGreen
+participant "Runtime" as f100
+participant "Sql_cmd_xxx_xxx" as f101
+end box
+
+box "Data Dictionary" #LightGreen
+participant "Data Dictionary" as f110
+end box
+
+Actor -> f010 : DDL QUERY TEXT
+
+note right
+CREATE TABLE\
+test.t1 (a int)
+ENGINE = INNODB;
+end note
+
+f010 -> f010 : pfs_spawn_thread \n (void *)
+f010 -> f011 : handle_connection \n (void *)
+f011 -> f011 : do_command(THD * thd)
+note right
+while (thd_connection_alive(thd)) {
+  if (do_command(thd)) break;
+}
+end note
+f011 -> f020 : dispatch_command(THD * thd,\n const COM_DATA * com_data, \nenum_server_command command)
+note right
+如果 command 类型为 COM_QUERY 则执行 dispatch_sql_command
+end note
+activate f020
+
+f020 -> f021 : dispatch_sql_command(THD * thd,\n Parser_state * parser_state)
+activate f021
+f021 -> f022 : parse_sql(THD * thd,\n Parser_state * parser_state,\n Object_creation_ctx * creation_ctx)
+f022 -> f023 : THD::sql_parser(THD * const this)
+
+
+f023 -> f030 : my_sql_parser_parse(\nTHD * YYTHD, \nParse_tree_root ** parse_tree)
+f030 -> f040 : my_sql_parser_lex(\nMY_SQL_PARSER_STYPE * yacc_yylval,\n POS * yylloc, THD * thd)
+f040 -> f040 : lex_one_token(\nLexer_yystype *yylval, \nTHD *thd)
+f040 --> f030 : yylval, yylloc
+f030 -> f050 : PT_create_table_stmt::PT_create_table_stmt\n(PT_create_table_stmt * const this,\n const POS & pos,\n MEM_ROOT * mem_root,\n bool is_temporary,\n bool only_if_not_exists,\n Table_ident * table_name,\n const Mem_root_array<PT_table_element*> * opt_table_element_list,\n const Mem_root_array<PT_create_table_option*> * opt_create_table_options,\n PT_partition * opt_partitioning,\n On_duplicate on_duplicate,\n PT_query_expression_body * opt_query_expression)
+note right
+create_table_stmt:
+          CREATE opt_temporary TABLE_SYM opt_if_not_exists table_ident
+          "(" table_element_list ')' opt_create_table_options_etc
+          {
+            $$= NEW_PTN PT_create_table_stmt(@$, YYMEM_ROOT, $2, $4, $5,
+                                             $7,
+                                             $9.opt_create_table_options,
+                                             $9.opt_partitioning,
+                                             $9.on_duplicate,
+                                             $9.opt_query_expression);
+          };
+table_element_list:
+          table_element
+          {
+            $$= NEW_PTN Mem_root_array<PT_table_element *>(YYMEM_ROOT);
+            if ($$ == NULL || $$->push_back($1))
+              MYSQL_YYABORT; // OOM
+          }
+        | table_element_list ',' table_element
+          {
+            $$= $1;
+            if ($$->push_back($3))
+              MYSQL_YYABORT; // OOM
+          };
+table_element:
+          column_def            { $$= $1; }
+        | table_constraint_def  { $$= $1; };
+column_def:
+          ident field_def opt_references
+          {
+            $$= NEW_PTN PT_column_def(@$, $1, $2, $3);
+          };
+end note
+f023 -> f051 : LEX::make_sql_cmd(LEX * const this, Parse_tree_root * parse_tree)
+f051 -> f060 : parse_tree->make_cmd(thd)
+f060 -> f060 : contextualize()
+note right
+要用于处理解析树中的PTI_Item节点,
+将它们从解析树节点转化成真正意义上的表达式树节点.
+不同类型的Item节点的构造时机不一样，
+有些是在语法解析（yacc解析）时直接构造，
+有些则是在itemize的时候构造
+end note
+
+f021 -> f021 : query_logger.general_log_write(\nthd, COM_QUERY, \nthd->query().str, qlen)
+f021 -> f100 : mysql_execute_command(thd, true)
+f100 -> f101 : lex->m_sql_cmd->execute(thd)
+note right
+根据lex->sql_command的类型，
+比如是SQLCOM_CREATE_TABLE，
+则m_sql_cmd 对应 
+Sql_cmd_create_table
+end note
+f101 -> f101 : ha_default_handlerton(thd)
+f101 -> f101 : mysql_create_table(thd, \ncreate_table, \n&create_info, &alter_info)
+f101 -> f101 : my_ok(thd)
+f021 -> f021 : lex->set_exec_started()
+f021 -> f021 : thd->query_plan.set_query_plan(\nSQLCOM_END, nullptr, false)
+note right
+Cleanup EXPLAIN info
+end note
+f021 -> f021 : trans_commit_stmt(thd)
+f021 -> f021 : lex->cleanup(true)
+f021 -> f021 : thd->mdl_context.release_transactional_locks()
+f021 -> f021 : binlog_gtid_end_transaction(thd)
+note right
+finalize GTID life-cycle
+end note
+f021 -> f021 : thd->lex->destroy()
+f021 -> f021 : thd->end_statement()
+f021 -> f021 : thd->cleanup_after_query()
+deactivate f021
+f020 -> f020 : thd->send_statement_status()
+f020 -> f020 : thd->rpl_thd_ctx.session_gtids_ctx()\n.notify_after_response_packet(thd)
+f020 -> f020 : log_slow_statement(thd)
+f020 -> f020 : thd->reset_query()
+f020 -> f020 : thd->set_command(COM_SLEEP)
+f020 -> f020 : thd->lex->sql_command = SQLCOM_END
+activate f020
+@enduml
+
+
+
+@startuml SequenceDiagram2
+!define MyStyle
+skinparam sequence {
+    ParticipantBorderColor red
+    ParticipantBackgroundColor #FFFFCC
+    ParticipantBorderThickness 2
+}
+skinparam BoxPadding 2
+skinparam ParticipantPadding 2
+
+actor "Actor" as Actor #red
+
+box "MySQL Server" #LightGreen
+participant "MySQL Server" as f010
+participant "Connection handler" as f020
+participant "dispatch_command" as f030
+participant "dispatch_sql_command" as f040
+end box
+
+box "Sql command" #LightGreen
+participant "……" as f050
+end box
+
+box "protocol" #LightGreen
+participant "protocol" as f060
+participant "Protocol_classic" as f070
+end box
+
+f040 -> f050 : mysql_execute_command(thd, true)
+f050 -> f050 : res = lex->m_sql_cmd->execute(thd)
+f050 -> f050 : execute_inner(thd)
+f050 -> f050 : (unit->execute(thd)
+f050 -> f050 : ExecuteIteratorQuery(thd)
+f050 -> f050 : query_result->send_result_set_metadata(\nthd, *fields, \nProtocol::SEND_NUM_ROWS | Protocol::SEND_EOF)
+f050 -> f060 : res = thd->send_result_metadata(list, flags)
+
+f060 -> f060 : m_protocol->start_result_metadata(\nCountVisibleFields(list), flags,\nvariables.character_set_results)
+f060 -> f070 : m_protocol->start_row()
+f070 -> f070 : m_protocol->send_field_metadata(\n&field,item->charset_for_protocol())
+f070 -> f070 : store_string(field->col_name,\n strlen(field->col_name), cs)
+f070 --> f060 : m_protocol->end_row()
+
+f060 -> f060 : m_root_iterator->Read()
+f060 -> f060 : m_table_iterator->Read()
+f060 -> f060 : table()->file->ha_rnd_next(m_record)
+f060 -> f060 : Handler::rnd_next(uchar *mysql_row)
+f050 -> f050 : query_result->send_data(thd, *fields)
+
+f050 -> f050 : protocol->start_row()
+f050 -> f050 : thd->send_result_set_row(items)
+f050 -> f050 : item->send(m_protocol, &str_buffer)
+f050 -> f070 : field->send_to_protocol(this)
+f070 -> f070 : String *res = val_str(&tmp);\n protocol->store(res)
+f050 -> f050 : protocol->end_row()
+
+f050 -> f050 : query_result->send_eof(thd)
+@enduml
+
+
+
+
+
+@startuml SequenceDiagram3
+!define MyStyle
+skinparam sequence {
+    ParticipantBorderColor red
+    ParticipantBackgroundColor #FFFFCC
+    ParticipantBorderThickness 2
+}
+skinparam BoxPadding 2
+skinparam ParticipantPadding 2
+
+participant "dispatch_command" as f004
+participant "dispatch_sql_command" as f005
+participant "mysql_execute_command" as f006
+participant "Sql_cmd_show::execute(THD *thd)" as f003
+box "MySQL Server" #LightGreen
+participant "Sql_cmd_dml::execute_inner(thd)" as f001
+participant "Sql_cmd_dml::execute(THD *thd)" as f002
+end box
+
+box "Query_expression" #LightGreen
+participant "Query_expression" as f010
+participant "Query_expression::execute(THD *thd)" as f020
+participant "Query_expression::ExecuteIteratorQuery" as f030
+participant "Query_result_send" as f031
+end box
+
+box "Query_result_send" #LightGreen
+participant "Query_result_send" as f031
+end box
+
+box "THD" #LightGreen
+participant "THD" as f040
+end box
+
+f004 -> f005 : dispatch_command(\n thd, &com_data,\n command)
+f005 -> f006 : dispatch_sql_command(\n thd, &parser_state)
+f006 -> f006 : int res = false
+f006 -> f006 : lex = thd->lex
+f006 -> f006 : Query_block *const \n query_block = lex->query_block
+f006 -> f006 : switch (lex->sql_command)
+f006 -> f003 : res = lex->m_sql_cmd->execute(thd)
+f003 -> f002 : Sql_cmd_select::execute(thd)
+f002 -> f001 : execute_inner(thd)
+f001 -> f001 : Query_expression *unit = lex->unit
+f001 -> f001 : unit->optimize(thd,nullptr,true,true)
+f001 -> f020 : unit->execute(thd)
+f020 -> f030 : ExecuteIteratorQuery(thd)
+f030 -> f010 : Query_result *query_result() const { return m_query_result; }
+f010 -> f010 : query_result->send_result_set_metadata(\n thd, *fields, \n Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF)
+f010 -> f040 : res = thd->send_result_metadata(list, flags)
+f040 -> f040 : m_protocol->start_result_metadata(\n CountVisibleFields(list), flags,\n variables.character_set_results)
+f040 -> f040 : m_protocol->start_row()
+f040 -> f040 : m_protocol->send_field_metadata(\n &field,item->charset_for_protocol())
+f040 -> f040 : m_protocol->end_row()
+f030 -> f040 : query_result->send_data(thd, *fields)
+@enduml
+
+
+@startuml SequenceDiagram4
+!define MyStyle
+skinparam sequence {
+    ParticipantBorderColor red
+    ParticipantBackgroundColor #FFFFCC
+    ParticipantBorderThickness 2
+}
+skinparam BoxPadding 2
+skinparam ParticipantPadding 2
+
+
+box "THD" #LightGreen
+participant "THD" as f001
+participant "THD::sql_parser" as f002
+end box
+box "LEX" #LightGreen
+participant "LEX" as f003
+end box
+
+box "PT_show_variables" #LightGreen
+participant "PT_show_variables" as f004
+end box
+
+box "Global" #LightGreen
+participant "build_show_session_variables" as f005
+participant "build_query" as f006
+end box
+
+f001 -> f002 : THD::sql_parser()
+f002 -> f002 : Parse_tree_root *root = nullptr
+f002 -> f002 : my_sql_parser_parse(this, &root)
+f002 -> f003 : lex->make_sql_cmd(root)
+note right
+LEX::make_sql_cmd(Parse_tree_root *parse_tree)
+end note
+f003 -> f004 : m_sql_cmd = parse_tree->make_cmd(thd)
+f004 -> f005 : build_show_session_variables(\n m_pos, thd, lex->wild, m_where)
+f005 -> f005 : static const LEX_CSTRING table_name\n = {STRING_WITH_LEN("session_variables")};
+f005 -> f006 : build_query(pos, thd,\n SQLCOM_SHOW_VARIABLES,\n table_name, wild, where_cond)
+
+
+f006 -> f006 : PTI_expr_with_alias *expr_name
+f006 -> f006 : expr_name = new (thd->mem_root)\n PTI_expr_with_alias(pos, ident_name, pos.cpp, as_name)
+
+f006 -> f006 : PTI_expr_with_alias *expr_value
+f006 -> f006 : expr_value = new (thd->mem_root)\n PTI_expr_with_alias(pos, ident_value, pos.cpp, as_value)
+
+f006 -> f006 : PT_select_item_list *item_list
+f006 -> f006 : item_list = new (thd->mem_root)\n PT_select_item_list(pos)
+f006 -> f006 : item_list->push_back(expr_name)
+f006 -> f006 : item_list->push_back(expr_value)
+
+f006 -> f006 : LEX *lex = thd->lex
+f006 -> f006 : Query_block *current_query_block = lex->current_query_block()
+f006 -> f006 : Parse_context pc(thd, current_query_block);
+note right
+Parse_context::Parse_context(THD *thd_arg, Query_block *sl_arg,
+                             bool show_parse_tree,
+                             Show_parse_tree *parent_show_parent_tree)
+    : Parse_context_base(show_parse_tree, parent_show_parent_tree),
+      thd(thd_arg),
+      mem_root(thd->mem_root),
+      select(sl_arg),
+      m_stack(thd->mem_root) {
+  m_stack.push_back(QueryLevel(thd->mem_root, SC_TOP));
+}
+end note
+f006 -> f006 : pc.finalize_query_expression()
+note right
+bool Parse_context::finalize_query_expression() {
+  QueryLevel ql = m_stack.back();
+  m_stack.pop_back();
+  assert(ql.m_elts.size() == 1);
+  Query_term *top = ql.m_elts.back();
+  top = top->pushdown_limit_order_by();
+  select->master_query_expression()->set_query_term(top);
+  if (top->validate_structure(nullptr)) return true;
+  return false;
+}
+end note
+
+f006 --> f005 : Query_block current_query_block
+f005 --> f004 : Query_block
+f004 --> f003 : &m_sql_cmd
+
+@enduml

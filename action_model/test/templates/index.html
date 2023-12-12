@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>AI For DB</title>
+    <script src="{{ url_for('static', filename='socket.io.js') }}"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f2f2f2;
+            margin: 0;
+            padding: 0;
+        }
+        h1 {
+            text-align: center;
+            margin-top: 30px;
+        }
+        .container {
+            display: flex;
+            justify-content: space-around;
+            align-items: center; /* 水平居中对齐 */
+            margin-top: 20px;
+        }
+        .form-wrapper {
+            width: 45%;
+            background-color: #fff;
+            border-radius: 8px;
+            padding: 20px;
+        }
+        .form-wrapper label {
+            display: block;
+            font-size: 18px;
+            margin-bottom: 10px;
+        }
+        .form-wrapper textarea {
+            width: 100%; /* 使用百分比设置宽度 */
+            resize: vertical; /* 允许垂直拖动调整文本框大小 */
+            font-size: 16px;
+            padding: 8px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+        .form-wrapper input[type="submit"] {
+            display: block; /* 将提交按钮显示为块级元素 */
+            margin: 10px auto; /* 上下边距为10像素，左右居中对齐 */
+            background-color: #007BFF;
+            color: #fff;
+            font-size: 16px;
+            padding: 8px 16px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        .form-wrapper input[type="submit"]:hover {
+            background-color: #0056b3;
+        }
+        .form-wrapper div {
+            display: flex;
+        }
+        .result-wrapper {
+            width: 45%;
+            background-color: #fff;
+            border-radius: 8px;
+            padding: 20px;
+        }
+        .result-wrapper label {
+            display: block;
+            font-size: 18px;
+            margin-bottom: 10px;
+        }
+        .result-wrapper textarea {
+            width: 100%;
+            resize: vertical;
+            font-size: 16px;
+            padding: 8px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+        .result-wrapper input[type="submit"] {
+            display: block; /* 将提交按钮显示为块级元素 */
+            margin: 10px auto; /* 上下边距为10像素，左右居中对齐 */
+            background-color: #007BFF;
+            color: #fff;
+            font-size: 16px;
+            padding: 8px 16px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        .result-wrapper input[type="submit"]:hover {
+            background-color: #0056b3;
+        }
+        /* 新增表格样式 */
+        .random-table {
+            width: 90%;
+            margin: 30px auto;
+            border-collapse: collapse;
+            background-color: #fff;
+            border-radius: 8px;
+        }
+        .random-table th {
+            background-color: #007BFF;
+            color: #fff;
+            font-size: 18px;
+            padding: 12px;
+        }
+        .random-table td {
+            padding: 10px;
+            border: 1px solid #ccc;
+            font-size: 16px;
+            text-align: center;
+        }
+    </style>
+    <script>       
+
+        function submitForm() {
+            console.log('test startRecording');
+            var inputText = document.getElementById("input_text").value;
+
+            var xhr = new XMLHttpRequest();
+            xhr.open("POST", "/query", true);
+            xhr.setRequestHeader("Content-Type", "application/x-www-form-urlencoded");
+            xhr.onreadystatechange = function() {
+                if (xhr.readyState === XMLHttpRequest.DONE) {
+                    if (xhr.status === 200) {
+                        // 请求成功时，将结果更新到右边输入框
+                        document.getElementById("generated_text").value = xhr.responseText;
+                    } else {
+                        // 请求失败时，处理错误
+                        console.error("请求失败：", xhr.status);
+                    }
+                }
+            };
+            console.log(inputText);
+            xhr.send("query_text=" + encodeURIComponent(inputText));
+
+            // 阻止表单的默认提交行为
+            return false;
+        }
+
+        function updateTable() {
+            console.log('test startRecording');
+            // 从右边输入框获取用户输入的查询内容
+            // const queryText = generatedText.value;
+            var generated_text = document.getElementById("generated_text").value;
+            // 使用JavaScript发送POST请求到服务器获取更新后的表格数据
+            fetch("/", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({ query_text: generated_text })
+            })
+            .then(response => response.json())
+            .then(data => {
+                // 根据返回的表格数据更新表格内容
+                console.log("data:", data);
+                updateTableData(data);
+            })
+            .catch(error => console.error("Error:", error));
+
+            // 阻止表单默认提交行为，使右边输入框内容不被清除
+            return false;
+        }
+        // 更新表格内容的函数
+        function updateTableData(tableData) {
+            const dynamicTable = document.getElementById("dynamic-table");
+            let tableHTML = "<tr>";
+            for (const header of tableData.table_headers) {
+                tableHTML += `<th>${header}</th>`;
+            }
+            tableHTML += "</tr>";
+            for (const row of tableData.table_rows) {
+                tableHTML += "<tr>";
+                for (const cell of row) {
+                    tableHTML += `<td>${cell}</td>`;
+                }
+                tableHTML += "</tr>";
+            }
+            dynamicTable.innerHTML = tableHTML;
+        }
+
+        // console.log(document.domain, location.port);
+        var socket = io.connect('https://' + document.domain + ':' + location.port);
+        var mediaRecorder;
+        var chunks = [];
+
+        // var audioCtx = new AudioContext();
+        let isUpdatingWaveform = true; // 添加一个标志位来控制是否更新波形图像
+        
+        function drawWaveform(dataArray, step) {
+            var canvas = document.getElementById('waveform');
+            var canvasCtx = canvas.getContext('2d');
+            var bufferLength = dataArray.length;
+            var sliceWidth = canvas.width / bufferLength;
+            var canvasHeight = 12; // 设置画布高度为30像素，调整这个值来调整背景高度
+            
+            // 设置画布背景色为黄色
+            canvasCtx.fillStyle = 'lightgrey';
+            canvasCtx.fillRect(0, 5, canvas.width, canvasHeight); // 调整背景高度
+            
+            canvasCtx.beginPath();
+            
+            var x = 0;
+            for (var i = 0; i < bufferLength; i += step) { // 使用步进值控制稀疏化
+                var v = dataArray[i] / 128;
+                var y = v * canvas.height / 2;
+                var jitter = 5; // 抖动高度为10个像素
+                y += Math.random() * jitter - jitter / 2; // 在y的基础上增加随机的抖动值
+                
+                // 设置抖动线的颜色为绿色
+                canvasCtx.strokeStyle = 'blue';
+                
+                if (i === 0) {
+                    canvasCtx.moveTo(x, y);
+                } else {
+                    canvasCtx.lineTo(x, y);
+                }
+                
+                x += sliceWidth * step; // 使用步进值控制绘制间隔
+            }
+            
+            canvasCtx.stroke();
+        }
+        
+               
+
+        // 开始录音
+        function startRecording() {
+            isUpdatingWaveform = true;
+            var audioCtx = new AudioContext();
+            navigator.mediaDevices.getUserMedia({ audio: true })
+                .then(function(stream) {
+                    var analyser = audioCtx.createAnalyser();
+                    var source = audioCtx.createMediaStreamSource(stream);
+                    source.connect(analyser);
+
+                    var data = new Uint8Array(analyser.frequencyBinCount);
+
+                    function updateWaveform() {
+                        if (isUpdatingWaveform) { // 检查标志位，如果为 true 才继续更新
+                            requestAnimationFrame(updateWaveform);
+                            analyser.getByteTimeDomainData(data);
+                            drawWaveform(data, 20);
+                        }
+                    }
+
+                    updateWaveform();
+
+                    mediaRecorder = new MediaRecorder(stream);
+                    mediaRecorder.start();
+
+                    mediaRecorder.ondataavailable = function(e) {
+                        chunks.push(e.data);
+                    }
+                })
+                .catch(function(err) {
+                    console.log('The following error occurred: ' + err);
+                });
+        }
+        function stopUpdateWaveform() {
+            cancelAnimationFrame(animationId);
+        }
+        // 停止录音
+        function stopRecording() {
+            mediaRecorder.stop();
+
+            
+            
+
+            mediaRecorder.onstop = function(e) {
+                isUpdatingWaveform = false; // 停止更新波形图像
+
+                var blob = new Blob(chunks, { 'type' : 'audio/wav; codecs=opus' });
+                chunks = [];
+                var audioURL = window.URL.createObjectURL(blob);
+                socket.emit('audio', blob);
+            }
+        }
+
+        socket.on('saved', function(message) {
+             document.getElementById('input_text').value = message;
+        });
+    </script>
+</head>
+<body>
+    <h1>AI For DB</h1>
+    <!-- 动态生成的表格 -->
+    <table id='dynamic-table' class="random-table">
+        <tr>
+            {% for header in table_headers %}
+            <th>{{ header }}</th>
+            {% endfor %}
+        </tr>
+        {% for row in table_rows %}
+        <tr>
+            {% for cell in row %}
+            <td>{{ cell }}</td>
+            {% endfor %}
+        </tr>
+        {% endfor %}
+    </table>
+
+    <div class="container">
+        <div class="form-wrapper">
+            <form>
+                <label for="input_text">自然语言输入</label>
+                <textarea name="input_text" id="input_text" rows="5"></textarea>
+            </form>
+                <div>
+                    <input type="submit" name="输入语音" value="输入语音" onmousedown="startRecording();" onmouseup="stopRecording();">
+                    <canvas id="waveform" width="70" height="20"></canvas>
+                    <input type="submit" name="生成SQL" value="生成SQL" onclick="submitForm();">
+                </div>
+            
+        </div>
+        <div class="result-wrapper">
+            {% if generated_text %}
+                <form onsubmit="return updateTable();">
+                    <label for="generated_text">TEX2SQL</label>
+                    <textarea rows="5" id="generated_text">{{ generated_text }}</textarea>
+                    <input type="submit" value="执行SQL1">
+                </form>
+            {% else %}
+                <form onsubmit="return updateTable();">
+                    <label for="generated_text">TEX2SQL</label>
+                    <textarea rows="5" id="generated_text"></textarea>
+                    <input type="submit" value="执行SQL2">
+                </form>
+            {% endif %}
+        </div>
+    </div>
+</body>
+</html>

@@ -1,0 +1,16 @@
+tickTime=2000
+initLimit=10
+syncLimit=5
+dataDir={{ zk_base_path }}/data
+dataLogDir={{ zk_base_path }}/logs
+clientPort=2181
+autopurge.snapRetainCount=3
+autopurge.purgeInterval=1
+
+maxClientCnxns=60
+standaloneEnabled=true
+admin.enableServer=true
+
+{% for host in groups['node'] %}
+server.{{ loop.index }}={{ hostvars[host].ansible_host }}:2888:3888
+{% endfor %}

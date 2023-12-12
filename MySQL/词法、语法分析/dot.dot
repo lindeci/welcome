@@ -1,0 +1,25 @@
+digraph ClassDiagram {
+  // 定义类
+  class Person {
+    + name: string
+    + age: int
+    - gender: string
+    ~ getAge(): int
+    ~ setAge(age: int): void
+  }
+
+  class Address {
+    + street: string
+    + city: string
+    + state: string
+    + zip: string
+  }
+
+  // 定义类之间的关系
+  Person "1" --> "1" Address : has
+
+  // 类属性和方法的可见性
+  // + 表示 public
+  // - 表示 private
+  // ~ 表示 protected
+}

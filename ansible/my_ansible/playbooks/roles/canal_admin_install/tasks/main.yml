@@ -1,0 +1,25 @@
+---
+# tasks file for playbooks/roles/canal_admin_install
+- name: upload canal_admin
+  synchronize:
+    src: /data/canal.admin-1.1.5.tar.gz
+    dest: /data/
+
+- name: Ensure directory exists
+  ansible.builtin.file:
+    path: "{{ canal_admin_base_path }}"
+    state: directory
+
+- name: unarchive canal_admin
+  ansible.builtin.unarchive:
+    src: /data/canal.admin-1.1.5.tar.gz
+    dest: "{{ canal_admin_base_path }}"
+    remote_src: yes
+
+- name: Generate application.yml
+  ansible.builtin.template:
+    src: application.yml.j2
+    dest: "{{ canal_admin_base_path }}/conf/application.yml"
+
+- name: start canal_admin
+  ansible.builtin.shell: "sh /data/canal_admin/bin/startup.sh"

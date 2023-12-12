@@ -1,0 +1,12 @@
+# register ip
+canal.register.ip = {{ hostvars[inventory_hostname]['ansible_host'] }}
+
+# canal admin config
+canal.admin.manager = {{ hostvars[groups['canal_admin'][0]]['ansible_host'] }}:8089
+canal.admin.port = 11110
+canal.admin.user = admin
+canal.admin.passwd = 4ACFE3202A5FF5CF467898FC58AAB1D615029441
+# admin auto register
+canal.admin.register.auto = true
+canal.admin.register.cluster = {{ canal_admin_register_cluster }}
+canal.admin.register.name = {{ canal_admin_register_name }}

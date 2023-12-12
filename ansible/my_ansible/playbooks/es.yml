@@ -1,0 +1,7 @@
+---
+- name: install es
+  hosts: es
+  remote_user: root
+  gather_facts: false
+  roles:
+    - es_install

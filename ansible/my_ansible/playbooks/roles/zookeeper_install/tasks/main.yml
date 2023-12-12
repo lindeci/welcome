@@ -1,0 +1,43 @@
+---
+# tasks file for playbooks/roles/zookeeper_install
+- name: upload zookeeper
+  synchronize:
+    src: /data/apache-zookeeper-3.7.1-bin.tar.gz
+    dest: /data/
+
+- name: unarchive zookeeper
+  ansible.builtin.unarchive:
+    src: /data/apache-zookeeper-3.7.1-bin.tar.gz
+    dest: /data
+    remote_src: yes
+
+- name: Ensure directory exists
+  ansible.builtin.file:
+    path: /data/apache-zookeeper-3.7.1-bin/data
+    state: directory
+
+- name: Generate myid
+  ansible.builtin.template:
+    src: myid.j2
+    dest: /data/apache-zookeeper-3.7.1-bin/data/myid
+
+- name: Generate zoo.cfg
+  ansible.builtin.template:
+    src: zoo.cfg.j2
+    dest: /data/apache-zookeeper-3.7.1-bin/conf/zoo.cfg
+
+- name: Install Java on Debian-based systems
+  ansible.builtin.apt:
+    name: default-jdk
+    state: present
+  when: ansible_os_family == "Debian"
+
+- name: Install Java on RHEL-based systems
+  ansible.builtin.yum:
+    name: java-1.8.0-openjdk
+    state: present
+  when: ansible_os_family == "RedHat"
+
+- name: start zookeeper
+  ansible.builtin.command:
+    cmd: "{{ zk_base_path }}/bin/zkServer.sh start"

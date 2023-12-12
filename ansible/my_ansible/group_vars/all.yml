@@ -1,0 +1,12 @@
+es_base_path: /data/elasticsearch-7.17.0
+kibana_base_path: /data/kibana-7.17.0-linux-x86_64
+zk_base_path: /data/apache-zookeeper-3.7.1-bin
+canal_admin_base_path: /data/canal_admin
+canal_server_base_path: /data/canal_server
+
+canal_mysql_address: 172.21.251.218:3305
+canal_mysql_user: canal
+canal_mysql_pwd: canal
+canal_mysql_database: canal_manager
+canal_admin_register_cluster: canal-cluster-1
+canal_admin_register_name: canal-server-1

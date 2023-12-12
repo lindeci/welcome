@@ -1,0 +1,102 @@
+---
+
+# tasks file for roles/es_beginning
+- name: copy the init_es_machine.sh
+  copy:
+    src: "{{ role_path }}/files/init_es_machine.sh"
+    dest: /data/
+
+- name: init machine
+  shell: "sh /data/init_es_machine.sh"
+
+- name: create es user
+  shell: "getent group es || groupadd es && id -u es &>/dev/null || useradd es -g es"
+  
+- name: create es directory
+  shell: "mkdir -p {{ es_base_path }}"
+
+- name: change es mode
+  shell: "chmod 755 {{ es_base_path }}"
+
+- name: change es7 owner
+  shell: "chown es:es {{ es_base_path }}"
+
+- name: Ensure rsync is installed
+  package:
+    name: rsync
+    state: present
+  become: yes
+
+- name: upload es
+  copy:
+    src: /data/elasticsearch-7.17.0-linux-x86_64.tar.gz
+    dest: /data
+
+- name: install es packet
+  shell: "cd /data && tar xvf elasticsearch-7.17.0-linux-x86_64.tar.gz"
+
+- name: copy the es config file
+  copy:
+    src: ../templates/elasticsearch.yml.j2
+    dest: "{{ es_base_path }}/config/elasticsearch.yml"
+
+- name: replace elasticsearch.yml es_ip
+  replace:
+    dest: "{{ es_base_path }}/config/elasticsearch.yml"
+    regexp: 'wait_for_change_es_ip'
+    replace: "{{ groups['node'] | map('extract', hostvars, 'ansible_ssh_host') | join('\",\"') }}"
+
+- name: replace elasticsearch.yml node_name
+  replace:
+    dest: "{{ es_base_path }}/config/elasticsearch.yml"
+    regexp: 'wait_for_change_es_node_name'
+    replace: "{{ inventory_hostname }}"
+
+- name: replace elasticsearch.yml esdir
+  replace:
+    dest: "{{ es_base_path }}/config/elasticsearch.yml"
+    regexp: 'wait_for_change_esdir'
+    replace: "/data/elasticsearch-7.17.0"
+
+- name: replace elasticsearch.yml master_nodes
+  replace:
+    dest: "{{ es_base_path }}/config/elasticsearch.yml"
+    regexp: 'wait_for_change_es_master_nodes'
+    replace: "{{ ansible_play_hosts | join('\",\"') }}"
+
+- name: elasticsearch-certutil ca only run on node_01
+  shell: "cd {{ es_base_path }} && bin/elasticsearch-certutil ca --days 10950 --pass '' --out elastic-stack-ca.p12"
+  when: inventory_hostname == 'node_01'
+  
+- name: elasticsearch-certutil cert only run on node_01
+  shell: "cd {{ es_base_path }} && bin/elasticsearch-certutil cert --ca elastic-stack-ca.p12 --days 10950 --pass '' --ca-pass '' --out elastic-certificates.p12"
+  when: inventory_hostname == 'node_01'
+
+- name: fetch elastic-certificates.p12 to ansible machine
+  fetch:
+    src: "{{ es_base_path }}/elastic-certificates.p12"
+    dest: "{{ role_path }}/files/"
+    flat: yes
+  when: inventory_hostname == 'node_01'
+
+- name: copy the elastic-certificates.p12 file
+  copy:
+    src: "{{ role_path }}/files/elastic-certificates.p12"
+    dest: "{{ es_base_path }}/config/elastic-certificates.p12"
+
+- name: chown -R es:es es_base_path
+  shell: "chown -R es:es {{ es_base_path }}"
+
+- name: start es
+  shell: "su - es -c '{{ es_base_path }}/bin/elasticsearch -d'"
+
+- name: generate es passwd
+  shell: "sleep 20 && su - es -c'{{ es_base_path }}/bin/elasticsearch-setup-passwords auto --batch > {{ es_base_path }}/passwords.txt'"
+  when: inventory_hostname == 'node_01'
+
+- name: fetch passwords.txt
+  fetch:
+    src: "{{ es_base_path }}/passwords.txt"
+    dest: "{{ role_path }}/files/"
+    flat: yes
+  when: inventory_hostname == 'node_01'

@@ -1,0 +1,208 @@
+@startuml
+
+class Parse_tree_root {
+  public:
+    POS m_pos;
+}
+
+class PT_table_ddl_stmt_base{
+  protected:
+    Alter_info m_alter_info;
+}
+
+class PT_create_table_stmt {
+  bool is_temporary;
+  bool only_if_not_exists;
+  Table_ident *table_name;
+  const Mem_root_array<PT_table_element *> *opt_table_element_list;
+  const Mem_root_array<PT_create_table_option *> *opt_create_table_options;
+  PT_partition *opt_partitioning;
+  On_duplicate on_duplicate;
+  PT_query_expression_body *opt_query_expression;
+  Table_ident *opt_like_clause;
+
+  HA_CREATE_INFO m_create_info;
+}
+
+Parse_tree_root <|-- PT_table_ddl_stmt_base
+PT_table_ddl_stmt_base <|-- PT_create_table_stmt
+
+class PT_table_element {}
+
+class Parse_tree_node_tmpl_1<Table_ddl_parse_context> {
+- bool contextualized;
++ POS m_pos;
++ typedef Context context_t;
+}
+
+Parse_tree_node_tmpl_1 <|-- PT_table_element
+
+class PT_column_def {
+- const LEX_STRING field_ident;
+- PT_field_def_base *field_def;
+- PT_table_constraint_def *opt_column_constraint;
+- const char *opt_place;
+}
+
+PT_table_element <|-- PT_column_def
+PT_create_table_stmt *-- PT_table_element
+
+class PT_field_def_base {
++ enum_field_types type;
++ ulong type_flags;
++ const char *length;
++ const char *dec;
++ const CHARSET_INFO *charset;
++ bool has_explicit_collation;
++ uint uint_geom_type;
++ List<String> *interval_list;
++ alter_info_flags_t alter_info_flags;
++ LEX_CSTRING comment;
++ Item *default_value;
++ Item *on_update_value;
++ Value_generator *gcol_info;
++ Value_generator *default_val_info;
++ std::optional<unsigned int> m_srid;
++ Sql_check_constraint_spec_list *check_const_spec_list;
+# PT_type *type_node;
+- typedef ulonglong alter_info_flags_t;
+}
+class Parse_tree_node_tmpl_3<Parse_context>{
+- bool contextualized;
++ POS m_pos;
++ typedef Context context_t;
+}
+Parse_tree_node_tmpl_3 <|-- PT_field_def_base
+class PT_field_def {
+- Mem_root_array<PT_column_attr_base*> *opt_attrs;
+}
+PT_field_def --|> PT_field_def_base
+PT_field_def_base --* PT_column_def
+
+class PT_primary_key_column_attr {}
+class PT_column_attr_base {}
+PT_primary_key_column_attr --|> PT_column_attr_base
+PT_primary_key_column_attr --* PT_field_def
+class Parse_tree_node_tmpl_2<Column_parse_context> {
+- bool contextualized;
++ POS m_pos;
++ typedef Context context_t;
+}
+PT_column_attr_base --|> Parse_tree_node_tmpl_2
+
+
+struct Parse_context_base {
+    std::unique_ptr<Show_parse_tree> m_show_parse_tree;
+}
+struct Parse_context {
+    THD * const thd;
+    MEM_ROOT *mem_root;
+    Query_block *select;
+    mem_root_deque<QueryLevel> m_stack;
+}
+struct Table_ddl_parse_context {
+    HA_CREATE_INFO * const create_info;
+    Alter_info * const alter_info;
+    KEY_CREATE_INFO * const key_create_info;
+}
+Parse_context_base <|-- Parse_context
+Parse_context <|-- Table_ddl_parse_context
+Parse_tree_node_tmpl_1 *-- Table_ddl_parse_context
+
+struct QueryLevel {
+    Surrounding_context m_type;
+    mem_root_deque<Query_term*> m_elts;
+    bool m_has_order;
+}
+QueryLevel --* Parse_context
+
+enum Surrounding_context {
+  SC_TOP,
+  SC_QUERY_SPECIFICATION,
+  SC_TABLE_VALUE_CONSTRUCTOR,
+  SC_QUERY_EXPRESSION,
+  SC_SUBQUERY,
+  SC_UNION_DISTINCT,
+  SC_UNION_ALL,
+  SC_INTERSECT_DISTINCT,
+  SC_INTERSECT_ALL,
+  SC_EXCEPT_DISTINCT,
+  SC_EXCEPT_ALL
+}
+Surrounding_context --* QueryLevel
+
+struct HA_CREATE_INFO {
+    const CHARSET_INFO *table_charset;
+    const CHARSET_INFO *default_table_charset;
+    bool schema_read_only;
+    LEX_STRING connect_string;
+    const char *password;
+    const char *tablespace;
+    LEX_STRING comment;
+    LEX_STRING compress;
+    LEX_STRING encrypt_type;
+    LEX_CSTRING secondary_engine;
+    bool secondary_load;
+    const char *data_file_name;
+    const char *index_file_name;
+    const char *alias;
+    ulonglong max_rows;
+    ulonglong min_rows;
+    ulonglong auto_increment_value;
+    ulong table_options;
+    ulong avg_row_length;
+    uint64_t used_fields;
+    uint32_t key_block_size;
+    uint stats_sample_pages;
+    enum_stats_auto_recalc stats_auto_recalc;
+    SQL_I_List<Table_ref> merge_list;
+    handlerton *db_type;
+    row_type row_type;
+    uint null_bits;
+    uint options;
+    uint merge_insert_method;
+    ha_storage_media storage_media;
+    bool m_hidden;
+    bool m_transactional_ddl;
+    LEX_CSTRING engine_attribute;
+    LEX_CSTRING secondary_engine_attribute;
+    ulonglong m_implicit_tablespace_autoextend_size;
+    bool m_implicit_tablespace_autoextend_size_change;
+}
+
+class Alter_info {
+  public:
+    Mem_root_array<Alter_drop const*> drop_list;
+    Mem_root_array<Alter_column const*> alter_list;
+    Mem_root_array<Key_spec*> key_list;
+    Mem_root_array<Alter_rename_key const*> alter_rename_key_list;
+    Mem_root_array<Alter_index_visibility const*> alter_index_visibility_list;
+    Mem_root_array<Alter_constraint_enforcement const*> alter_constraint_enforcement_list;
+    Sql_check_constraint_spec_list check_constraint_spec_list;
+    List<Create_field> create_list;
+    std::vector<std::function<bool(Create_field*, Alter_info*)>> cf_appliers;
+    ulonglong flags;
+    Alter_info::enum_enable_or_disable keys_onoff;
+    List<String> partition_names;
+    uint num_parts;
+    Alter_info::enum_alter_table_algorithm requested_algorithm;
+    Alter_info::enum_alter_table_lock requested_lock;
+    Alter_info::enum_with_validation with_validation;
+    LEX_CSTRING new_db_name;
+    LEX_CSTRING new_table_name;
+}
+class KEY_CREATE_INFO {
+  public:
+    ha_key_alg algorithm;
+    bool is_algorithm_explicit;
+    ulong block_size;
+    LEX_CSTRING parser_name;
+    LEX_CSTRING comment;
+    bool is_visible;
+    LEX_CSTRING m_engine_attribute;
+    LEX_CSTRING m_secondary_engine_attribute;
+}
+HA_CREATE_INFO --* Table_ddl_parse_context
+Alter_info --* Table_ddl_parse_context
+KEY_CREATE_INFO --* Table_ddl_parse_context
+@enduml

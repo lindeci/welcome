@@ -1,0 +1,25 @@
+---
+# tasks file for playbooks/roles/canal_server_install
+- name: upload canal_server
+  synchronize:
+    src: /data/canal.deployer-1.1.5.tar.gz
+    dest: /data/
+
+- name: Ensure directory exists
+  ansible.builtin.file:
+    path: "{{ canal_server_base_path }}"
+    state: directory
+
+- name: unarchive canal_server
+  ansible.builtin.unarchive:
+    src: /data/canal.deployer-1.1.5.tar.gz
+    dest: "{{ canal_server_base_path }}"
+    remote_src: yes
+
+- name: Generate canal_local.properties
+  ansible.builtin.template:
+    src: canal_local.properties.j2
+    dest: "{{ canal_server_base_path }}/conf/canal_local.properties"
+
+- name: start canal_server
+  ansible.builtin.shell: "sh {{ canal_server_base_path }}/bin/startup.sh local > /tmp/canal_server.log"

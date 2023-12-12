@@ -1,0 +1,14 @@
+{% set master_hosts_list = [] %}
+{% for host in groups['es'] %}
+  {% if 'master' in hostvars[host]['role'] %}
+    {% set _ = master_hosts_list.append(hostvars[host]['ansible_host']) %}
+  {% endif %}
+{% endfor %}
+
+server.port: 5601
+server.host: "{{ hostvars[inventory_hostname]['ansible_host'] }}"
+server.publicBaseUrl: "http://{{ hostvars[inventory_hostname]['ansible_host'] }}:5601"
+elasticsearch.hosts: ["http://{{ master_hosts_list|join(':9200\",\"http://') }}:9200"]
+elasticsearch.username: "elastic"
+elasticsearch.password: "wait_for_change_es_pwd"
+i18n.locale: "zh-CN"

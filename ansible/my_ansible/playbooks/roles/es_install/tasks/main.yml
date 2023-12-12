@@ -1,0 +1,78 @@
+- name: create es user
+  shell: "getent group es || groupadd es && id -u es &>/dev/null || useradd es -g es"
+  
+- name: create es directory
+  shell: "mkdir -p {{ es_base_path }}"
+
+- name: change es mode
+  shell: "chmod 755 {{ es_base_path }}"
+
+- name: change es7 owner
+  shell: "chown es:es {{ es_base_path }}"
+
+- name: Ensure rsync is installed
+  package:
+    name: rsync
+    state: present
+  become: yes
+  
+- name: upload the init_es_machine.sh
+  synchronize:
+    src: "{{ role_path }}/files/init_es_machine.sh"
+    dest: /data/
+
+- name: init machine
+  shell: "sh /data/init_es_machine.sh"
+
+- name: upload es
+  synchronize:
+    src: /data/elasticsearch-7.17.0-linux-x86_64.tar.gz
+    dest: /data
+
+- name: unarchive es packet
+  ansible.builtin.unarchive:
+    src: /data/elasticsearch-7.17.0-linux-x86_64.tar.gz
+    dest: /data
+    remote_src: yes
+
+- name: generate the es config file
+  ansible.builtin.template:
+    src: elasticsearch.yml.j2
+    dest: "{{ es_base_path }}/config/elasticsearch.yml"
+
+- name: elasticsearch-certutil ca
+  shell: "cd {{ es_base_path }} && bin/elasticsearch-certutil ca --days 10950 --pass '' --out elastic-stack-ca.p12"
+  when: inventory_hostname == groups['es'][0]
+  
+- name: elasticsearch-certutil cert
+  shell: "cd {{ es_base_path }} && bin/elasticsearch-certutil cert --ca elastic-stack-ca.p12 --days 10950 --pass '' --ca-pass '' --out elastic-certificates.p12"
+  when: inventory_hostname == groups['es'][0]
+
+- name: fetch elastic-certificates.p12 to ansible machine
+  fetch:
+    src: "{{ es_base_path }}/elastic-certificates.p12"
+    dest: "{{ role_path }}/files/"
+    flat: yes
+  when: inventory_hostname == groups['es'][0]
+
+- name: copy the elastic-certificates.p12 file
+  synchronize:
+    src: "{{ role_path }}/files/elastic-certificates.p12"
+    dest: "{{ es_base_path }}/config/elastic-certificates.p12"
+
+- name: chown -R es:es es_base_path
+  shell: "chown -R es:es {{ es_base_path }}"
+
+- name: start es
+  shell: "su - es -c '{{ es_base_path }}/bin/elasticsearch -d'"
+
+- name: generate es passwd
+  shell: "sleep 20 && su - es -c'{{ es_base_path }}/bin/elasticsearch-setup-passwords auto --batch > {{ es_base_path }}/passwords.txt'"
+  when: inventory_hostname == groups['es'][0]
+
+- name: fetch passwords.txt
+  fetch:
+    src: "{{ es_base_path }}/passwords.txt"
+    dest: "{{ role_path }}/files/"
+    flat: yes
+  when: inventory_hostname == groups['es'][0]

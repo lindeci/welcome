@@ -1,0 +1,7 @@
+- name: install canal_admin
+  hosts: canal_admin
+  become: true
+  gather_facts: true
+  roles:
+    - canal_admin_install
+

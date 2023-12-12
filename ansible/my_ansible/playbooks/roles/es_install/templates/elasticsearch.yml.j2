@@ -1,0 +1,34 @@
+{% set master_hosts_list = [] %}
+{% for host in groups['es'] %}
+  {% if 'master' in hostvars[host]['role'] %}
+    {% set _ = master_hosts_list.append(host) %}
+  {% endif %}
+{% endfor %}
+{% set master_value = false %}
+{% set data_value = false %}
+{% if 'master' in hostvars[inventory_hostname]['role'] %}
+  {% set master_value = true %}
+{% endif %}
+{% if 'data' in hostvars[inventory_hostname]['role'] %}
+  {% set data_value = true %}
+{% endif %}
+
+cluster.name: es-cluster
+node.name: {{ inventory_hostname }}
+node.master: {{ master_value | lower }}
+node.data: {{ master_value | lower }}
+node.ingest: {{ data_value | lower }}
+path.data: {{ es_base_path }}/data
+path.logs: {{ es_base_path }}/logs
+bootstrap.memory_lock: true
+network.host: 0.0.0.0
+http.port: 9200
+discovery.seed_hosts: ["{{ groups['es'] | map('extract', hostvars, 'ansible_host') | join('\",\"') }}"]
+cluster.initial_master_nodes: ["{{ master_hosts_list|join('\",\"') }}"]
+xpack.security.enabled: true
+xpack.security.transport.ssl.enabled: true
+xpack.security.transport.ssl.verification_mode: certificate
+xpack.security.transport.ssl.client_authentication: required
+xpack.security.transport.ssl.keystore.path: elastic-certificates.p12
+xpack.security.transport.ssl.truststore.path: elastic-certificates.p12
+xpack.security.audit.enabled: true

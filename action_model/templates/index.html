@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Audio Recorder</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
+</head>
+<body>
+    <button onclick="startRecording()">开始录音</button>
+    <button onclick="stopRecording()">停止录音</button>
+    <p id="status"></p>
+    <canvas id="waveform" width="600" height="200"></canvas>
+
+    <script>
+        var socket = io.connect('https://' + document.domain + ':' + location.port);
+        var mediaRecorder;
+        var chunks = [];
+
+        var audioCtx = new AudioContext();
+        var canvas = document.getElementById('waveform');
+        var canvasCtx = canvas.getContext('2d');
+
+        function drawWaveform(dataArray) {
+            var bufferLength = dataArray.length;
+            var sliceWidth = canvas.width / bufferLength;
+
+            canvasCtx.clearRect(0, 0, canvas.width, canvas.height);
+            canvasCtx.beginPath();
+
+            var x = 0;
+            for (var i = 0; i < bufferLength; i++) {
+                var v = dataArray[i] / 128;
+                var y = v * canvas.height/2;
+
+                if (i === 0) {
+                    canvasCtx.moveTo(x, y);
+                } else {
+                    canvasCtx.lineTo(x, y);
+                }
+
+                x += sliceWidth;
+            }
+
+            canvasCtx.stroke();
+        }
+
+        function startRecording() {
+            navigator.mediaDevices.getUserMedia({ audio: true })
+                .then(function(stream) {
+                    var analyser = audioCtx.createAnalyser();
+                    var source = audioCtx.createMediaStreamSource(stream);
+                    source.connect(analyser);
+
+                    var data = new Uint8Array(analyser.frequencyBinCount);
+
+                    function updateWaveform() {
+                        requestAnimationFrame(updateWaveform);
+                        analyser.getByteTimeDomainData(data);
+                        drawWaveform(data);
+                    }
+
+                    updateWaveform();
+
+                    mediaRecorder = new MediaRecorder(stream);
+                    mediaRecorder.start();
+
+                    mediaRecorder.ondataavailable = function(e) {
+                        chunks.push(e.data);
+                    }
+                })
+                .catch(function(err) {
+                    console.log('The following error occurred: ' + err);
+                });
+        }
+
+        function stopRecording() {
+            mediaRecorder.stop();
+
+            mediaRecorder.onstop = function(e) {
+                var blob = new Blob(chunks, { 'type' : 'audio/wav; codecs=opus' });
+                chunks = [];
+                var audioURL = window.URL.createObjectURL(blob);
+                socket.emit('audio', blob);
+            }
+        }
+
+        socket.on('saved', function(message) {
+            document.getElementById('status').innerText = message;
+        });
+    </script>
+</body>
+</html>

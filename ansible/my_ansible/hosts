@@ -1,0 +1,22 @@
+[es]
+master_01 ansible_host=172.1.1.65 role=master
+master_02 ansible_host=172.1.1.62 role=master
+master_03 ansible_host=172.1.1.36 role=master
+data_01 ansible_host=172.1.1.60 role=data
+data_02 ansible_host=172.1.1.11 role=data
+data_03 ansible_host=172.1.1.28 role=data
+
+[kibana]
+kibana_mc01 ansible_host=172.1.1.65
+
+[canal_admin]
+canal_admin01 ansible_host=172.1.1.218
+
+[canal_server]
+canal_server01 ansible_host=172.1.1.218
+canal_server02 ansible_host=172.1.1.247
+
+[zookeeper]
+node_01 ansible_host=172.1.1.218
+node_02 ansible_host=172.1.1.247
+node_03 ansible_host=172.1.1.248

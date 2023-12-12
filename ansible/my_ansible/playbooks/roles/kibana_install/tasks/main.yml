@@ -1,0 +1,34 @@
+---
+# tasks file for roles/kibana_install
+- name: upload kibana
+  synchronize:
+    src: /data/kibana-7.17.0-linux-x86_64.tar.gz
+    dest: /data
+
+- name: install kibana packet
+  ansible.builtin.unarchive:
+    src: /data/kibana-7.17.0-linux-x86_64.tar.gz
+    dest: /data
+    remote_src: yes
+
+- name: generate the kibana config file
+  ansible.builtin.template:
+    src: ../templates/kibana.yml.j2
+    dest: "{{ kibana_base_path }}/config/kibana.yml"
+
+- name: get es passwd
+  shell: cat "{{ role_path }}/../es_install/files/passwords.txt" | grep 'PASSWORD elastic = ' | awk '{print $4}'
+  register: es_pwd
+  delegate_to: localhost
+ 
+- name: replace kibana.yml es_pwd
+  replace:
+    dest: "{{ kibana_base_path }}/config/kibana.yml"
+    regexp: 'wait_for_change_es_pwd'
+    replace: "{{ es_pwd.stdout }}"
+
+- name: chown -R es:es kibana_base_path
+  shell: "chown -R es:es {{ kibana_base_path }}"
+
+- name: start es
+  shell: "su - es -c 'nohup {{ kibana_base_path }}/bin/kibana > {{ kibana_base_path }}/nohup.out 2>&1 &'"

@@ -1,0 +1,7 @@
+- name: install zookeeper
+  hosts: zookeeper
+  become: true
+  gather_facts: true
+  roles:
+    - zookeeper_install
+

@@ -1,0 +1,295 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ template "mysql.fullname" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app: {{ template "mysql.fullname" . }}
+    chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
+    release: "{{ .Release.Name }}"
+    heritage: "{{ .Release.Service }}"
+{{- with .Values.deploymentAnnotations }}
+  annotations:
+{{ toYaml . | indent 4 }}
+{{- end }}
+# 
+# 这段代码的含义如下：
+# {{- with .Values.deploymentAnnotations }}：这是一个控制结构，表示如果 .Values.deploymentAnnotations 存在且非空，则执行 with 语句块中的内容。在这个语句块中，. 代表 .Values.deploymentAnnotations 的值。
+# annotations:：这是一个 YAML 键，表示接下来的内容将是一些注解（annotations）。
+# {{ toYaml . | indent 4 }}：这是一个管道操作。首先，toYaml . 将 .（即 .Values.deploymentAnnotations 的值）转换为 YAML 格式的字符串。然后，indent 4 将这个字符串的每一行都缩进 4 个空格。
+# {{- end }}：这表示 with 语句块的结束。
+#
+spec:
+  strategy:
+{{ toYaml .Values.strategy | indent 4 }}
+  selector:
+    matchLabels:
+      app: {{ template "mysql.fullname" . }}
+      release: {{ .Release.Name }}
+  template:
+    metadata:
+      labels:
+        app: {{ template "mysql.fullname" . }}
+        release: {{ .Release.Name }}
+{{- with .Values.podLabels }}
+{{ toYaml . | indent 8 }}
+{{- end }}
+# 这段代码的含义如下：
+# spec:  # 规格定义开始
+#   strategy:  # 更新策略
+# {{ toYaml .Values.strategy | indent 4 }}  # 将 .Values.strategy 的值转换为 YAML 格式，并缩进 4 个空格
+#   selector:  # 选择器，用于选择要管理的 Pod
+#     matchLabels:  # 匹配标签，只有标签匹配的 Pod 才会被选中
+#       app: {{ template "mysql.fullname" . }}  # app 标签的值为 "mysql.fullname" 模板的渲染结果
+#       release: {{ .Release.Name }}  # release 标签的值为 Helm release 的名称
+#   template:  # Pod 模板，新创建的 Pod 将基于此模板
+#     metadata:  # 元数据
+#       labels:  # 标签，将被添加到 Pod 上
+#         app: {{ template "mysql.fullname" . }}  # app 标签的值为 "mysql.fullname" 模板的渲染结果
+#         release: {{ .Release.Name }}  # release 标签的值为 Helm release 的名称
+# {{- with .Values.podLabels }}  
+# {{ toYaml . | indent 8 }}  # 如果 .Values.podLabels 存在且非空，则将其值转换为 YAML 格式，并缩进 8 个空格
+# {{- end }}  
+
+
+{{- with .Values.podAnnotations }}
+      annotations:
+{{ toYaml . | indent 8 }}
+{{- end }}
+    spec:
+      {{- if .Values.schedulerName }}
+      schedulerName: "{{ .Values.schedulerName }}"
+      {{- end }}
+      {{- if .Values.imagePullSecrets }}
+      imagePullSecrets:
+{{ toYaml .Values.imagePullSecrets | indent 8 }}
+      {{- end }}
+      {{- if .Values.priorityClassName }}
+      priorityClassName: "{{ .Values.priorityClassName }}"
+      {{- end }}
+      {{- if .Values.securityContext.enabled }}
+      securityContext:
+        fsGroup: {{ .Values.securityContext.fsGroup }}
+        runAsUser: {{ .Values.securityContext.runAsUser }}
+      {{- end }}
+      serviceAccountName: {{ template "mysql.serviceAccountName" . }}
+      initContainers:
+      - name: "remove-lost-found"
+        image: "{{ .Values.busybox.image}}:{{ .Values.busybox.tag }}"
+        imagePullPolicy: {{ .Values.imagePullPolicy | quote }}
+        resources:
+{{ toYaml .Values.initContainer.resources | indent 10 }}
+        command:  ["rm", "-fr", "/var/lib/mysql/lost+found"]
+        volumeMounts:
+        - name: data
+          mountPath: /var/lib/mysql
+          {{- if .Values.persistence.subPath }}
+          subPath: {{ .Values.persistence.subPath }}
+          {{- end }}
+      {{- if .Values.extraInitContainers }}
+{{ tpl .Values.extraInitContainers . | indent 6 }}
+      {{- end }}
+# 这段代码意思
+# {{- if .Values.extraInitContainers }}  # 如果 .Values.extraInitContainers 存在且非空，则执行 if 语句块中的内容
+# {{ tpl .Values.extraInitContainers . | indent 6 }}  # 将 .Values.extraInitContainers 的值作为模板，使用当前上下文渲染该模板，然后将渲染结果转换为 YAML 格式，并缩进 6 个空格
+# {{- end }}  # 结束 if 语句块
+
+      {{- if .Values.nodeSelector }}
+      nodeSelector:
+{{ toYaml .Values.nodeSelector | indent 8 }}
+      {{- end }}
+      {{- if .Values.affinity }}
+      affinity:
+{{ toYaml .Values.affinity | indent 8 }}
+      {{- end }}
+      {{- if .Values.tolerations }}
+      tolerations:
+{{ toYaml .Values.tolerations | indent 8 }}
+      {{- end }}
+      containers:
+      - name: {{ template "mysql.fullname" . }}
+        image: "{{ .Values.image }}:{{ .Values.imageTag }}"
+        imagePullPolicy: {{ .Values.imagePullPolicy | quote }}
+
+        {{- with .Values.args }}
+# 容器的启动参数
+        args:
+        {{- range . }}
+          - {{ . | quote }}
+        {{- end }}
+        {{- end }}
+# 这段代码意思
+# {{- with .Values.args }}  # 如果 .Values.args 存在且非空，则执行 with 语句块中的内容
+#         args:  # args 字段，用于定义容器的命令行参数
+#         {{- range . }}  # 遍历 .Values.args 的每一个元素
+#           - {{ . | quote }}  # 将当前元素转换为字符串，并添加引号
+#         {{- end }}  # 结束 range 语句块
+# {{- end }}  # 结束 with 语句块
+
+        resources:
+{{ toYaml .Values.resources | indent 10 }}
+        env:
+        {{- if .Values.mysqlAllowEmptyPassword }}
+        - name: MYSQL_ALLOW_EMPTY_PASSWORD
+          value: "true"
+        {{- end }}
+        {{- if not (and .Values.allowEmptyRootPassword (not .Values.mysqlRootPassword)) }}
+        - name: MYSQL_ROOT_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: {{ template "mysql.secretName" . }}
+              key: mysql-root-password
+              {{- if .Values.mysqlAllowEmptyPassword }}
+              optional: true
+              {{- end }}
+        {{- end }}
+        {{- if not (and .Values.allowEmptyRootPassword (not .Values.mysqlPassword)) }}
+        - name: MYSQL_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: {{ template "mysql.secretName" . }}
+              key: mysql-password
+              {{- if or .Values.mysqlAllowEmptyPassword (empty .Values.mysqlUser) }}
+              optional: true
+              {{- end }}
+        {{- end }}
+        - name: MYSQL_USER
+          value: {{ default "" .Values.mysqlUser | quote }}
+        - name: MYSQL_DATABASE
+          value: {{ default "" .Values.mysqlDatabase | quote }}
+        {{- if .Values.timezone }}
+        - name: TZ
+          value: {{ .Values.timezone }}
+        {{- end }}
+        {{- if .Values.extraEnvVars }}
+{{ tpl .Values.extraEnvVars . | indent 8 }}
+        {{- end }}
+        ports:
+        - name: mysql
+          containerPort: 3306
+# livenessProbe 用于确定何时重启容器。在 Kubernetes 中，有三种类型的探针：livenessProbe、Readiness Probe、Startup Probe
+        livenessProbe:
+          exec:
+            command:
+            {{- if .Values.mysqlAllowEmptyPassword }}
+            - mysqladmin
+            - ping
+            {{- else }}
+            - sh
+            - -c
+            - "mysqladmin ping -u root -p${MYSQL_ROOT_PASSWORD}"
+            {{- end }}
+          initialDelaySeconds: {{ .Values.livenessProbe.initialDelaySeconds }}
+          periodSeconds: {{ .Values.livenessProbe.periodSeconds }}
+          timeoutSeconds: {{ .Values.livenessProbe.timeoutSeconds }}
+          successThreshold: {{ .Values.livenessProbe.successThreshold }}
+          failureThreshold: {{ .Values.livenessProbe.failureThreshold }}
+# readinessProbe 是用于确定容器何时准备好开始接受流量
+        readinessProbe:
+          exec:
+            command:
+            {{- if .Values.mysqlAllowEmptyPassword }}
+            - mysqladmin
+            - ping
+            {{- else }}
+            - sh
+            - -c
+            - "mysqladmin ping -u root -p${MYSQL_ROOT_PASSWORD}"
+            {{- end }}
+          initialDelaySeconds: {{ .Values.readinessProbe.initialDelaySeconds }}
+          periodSeconds: {{ .Values.readinessProbe.periodSeconds }}
+          timeoutSeconds: {{ .Values.readinessProbe.timeoutSeconds }}
+          successThreshold: {{ .Values.readinessProbe.successThreshold }}
+          failureThreshold: {{ .Values.readinessProbe.failureThreshold }}
+        volumeMounts:
+        - name: data
+          mountPath: /var/lib/mysql
+          {{- if .Values.persistence.subPath }}
+          subPath: {{ .Values.persistence.subPath }}
+          {{- end }}
+        {{- if .Values.configurationFiles }}
+        {{- range $key, $val := .Values.configurationFiles }}
+        - name: configurations
+          mountPath: {{ $.Values.configurationFilesPath }}{{ $key }}
+          subPath: {{ $key }}
+        {{- end -}}
+        {{- end }}
+        {{- if .Values.initializationFiles }}
+        - name: migrations
+          mountPath: /docker-entrypoint-initdb.d
+        {{- end }}
+        {{- if .Values.ssl.enabled }}
+        - name: certificates
+          mountPath: /ssl
+        {{- end }}
+        {{- if .Values.extraVolumeMounts }}
+{{ tpl .Values.extraVolumeMounts . | indent 8 }}
+        {{- end }}
+      {{- if .Values.metrics.enabled }}
+      - name: metrics
+        image: "{{ .Values.metrics.image }}:{{ .Values.metrics.imageTag }}"
+        imagePullPolicy: {{ .Values.metrics.imagePullPolicy | quote }}
+        {{- if .Values.mysqlAllowEmptyPassword }}
+        command:
+        - 'sh'
+        - '-c'
+        - 'DATA_SOURCE_NAME="root@(localhost:3306)/" /bin/mysqld_exporter'
+        {{- else }}
+        env:
+        - name: MYSQL_ROOT_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: {{ template "mysql.secretName" . }}
+              key: mysql-root-password
+        command:
+        - 'sh'
+        - '-c'
+        - 'DATA_SOURCE_NAME="root:$MYSQL_ROOT_PASSWORD@(localhost:3306)/" /bin/mysqld_exporter'
+        {{- end }}
+        {{- range $f := .Values.metrics.flags }}
+        - {{ $f | quote }}
+        {{- end }}
+        ports:
+        - name: metrics
+          containerPort: 9104
+        livenessProbe:
+          httpGet:
+            path: /
+            port: metrics
+          initialDelaySeconds: {{ .Values.metrics.livenessProbe.initialDelaySeconds }}
+          timeoutSeconds: {{ .Values.metrics.livenessProbe.timeoutSeconds }}
+        readinessProbe:
+          httpGet:
+            path: /
+            port: metrics
+          initialDelaySeconds: {{ .Values.metrics.readinessProbe.initialDelaySeconds }}
+          timeoutSeconds: {{ .Values.metrics.readinessProbe.timeoutSeconds }}
+        resources:
+{{ toYaml .Values.metrics.resources | indent 10 }}
+      {{- end }}
+      volumes:
+      {{- if .Values.configurationFiles }}
+      - name: configurations
+        configMap:
+          name: {{ template "mysql.fullname" . }}-configuration
+      {{- end }}
+      {{- if .Values.initializationFiles }}
+      - name: migrations
+        configMap:
+          name: {{ template "mysql.fullname" . }}-initialization
+      {{- end }}
+      {{- if .Values.ssl.enabled }}
+      - name: certificates
+        secret:
+          secretName: {{ .Values.ssl.secret }}
+      {{- end }}
+      - name: data
+      {{- if .Values.persistence.enabled }}
+        persistentVolumeClaim:
+          claimName: {{ .Values.persistence.existingClaim | default (include "mysql.fullname" .) }}
+      {{- else }}
+        emptyDir: {}
+      {{- end -}}
+      {{- if .Values.extraVolumes }}
+{{ tpl .Values.extraVolumes . | indent 6 }}
+      {{- end }}

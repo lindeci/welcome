@@ -1,0 +1,7 @@
+---
+- name: install kibana
+  hosts: kibana
+  remote_user: root
+  gather_facts: false
+  roles:
+    - kibana_install

@@ -1,0 +1,1178 @@
+@startuml
+
+class Parse_tree_root {
++ POS 	m_pos
+}
+
+class PT_create_table_stmt {
++ PT_create_table_stmt (const POS &pos, \n MEM_ROOT *mem_root, bool is_temporary, \n bool only_if_not_exists, Table_ident *table_name, \n const Mem_root_array< PT_table_element * > *opt_table_element_list, \n const Mem_root_array< PT_create_table_option * > *opt_create_table_options,\n PT_partition *opt_partitioning, On_duplicate on_duplicate, \n PT_query_expression_body *opt_query_expression)
++ PT_create_table_stmt (const POS &pos, MEM_ROOT *mem_root, bool is_temporary, \n bool only_if_not_exists, Table_ident *table_name, Table_ident *opt_like_clause)
++ Sql_cmd * 	make_cmd (THD *thd) override
+
+- bool 	is_temporary
+- bool 	only_if_not_exists
+- Table_ident * 	table_name
+- const Mem_root_array< PT_table_element * > * 	opt_table_element_list
+- const Mem_root_array< PT_create_table_option * > * 	opt_create_table_options
+- PT_partition * 	opt_partitioning
+- On_duplicate 	on_duplicate
+- PT_query_expression_body * 	opt_query_expression
+- Table_ident * 	opt_like_clause
+- HA_CREATE_INFO 	m_create_info
+}
+
+class Table_ident{
++ LEX_CSTRING 	db 
++ LEX_CSTRING 	table
++ Query_expression * 	sel
++ Table_function * 	table_function
+}
+
+class LEX_CSTRING{
++ char * 	str
++ size_t 	length
+}
+
+class Query_expression {
++ uint8 	uncacheable
++ enum_clean_state 	cleaned 
++ ha_rows 	select_limit_cnt
++ ha_rows 	offset_limit_cnt
++ Item_subselect * 	item 
++ PT_with_clause * 	m_with_clause
++ Table_ref * 	derived_table
++ Query_block * 	first_recursive
++ table_map 	m_lateral_deps
++ bool 	m_reject_multiple_rows {false}
++ ha_rows 	send_records
+- Query_expression * 	next
+- Query_expression ** 	prev
+- Query_block * 	master
+- Query_block * 	slave 
+- Query_term * 	m_query_term {nullptr}
+- enum_parsing_context 	explain_marker 
+- bool 	prepared 
+- bool 	optimized 
+- bool 	executed 
+- Query_result * 	m_query_result 
+- unique_ptr_destroy_only< RowIterator > 	m_root_iterator 
+- AccessPath * 	m_root_access_path = nullptr
+- Mem_root_array< MaterializePathParameters::QueryBlock > 	m_query_blocks_to_materialize
+- mem_root_deque< Item * > 	types
+}
+
+class PT_table_ddl_stmt_base {
+# Alter_info 	m_alter_info
+}
+
+class Query_block {
++ size_t 	m_added_non_hidden_fields {0}
++ mem_root_deque< Item * > 	fields 
++ List< Window > 	m_windows
++ List< Item_func_match > * 	ftfunc_list
++ List< Item_func_match > 	ftfunc_list_alloc {}
++ mem_root_deque< mem_root_deque< Item * > * > * 	row_value_list {nullptr}
++ mem_root_deque< Table_ref * > 	sj_nests
++ SQL_I_List< Table_ref > 	m_table_list {}
++ SQL_I_List< ORDER > 	order_list {}
++ Group_list_ptrs * 	order_list_ptrs {nullptr}
++ SQL_I_List< ORDER > 	group_list {}
++ Group_list_ptrs * 	group_list_ptrs {nullptr}
++ Prealloced_array< Item_rollup_group_item *, 4 > 	rollup_group_items
++ Prealloced_array< Item_rollup_sum_switcher *, 4 > 	rollup_sums
++ Opt_hints_qb * 	opt_hints_qb {nullptr}
++ char * 	db {nullptr}
++ Table_ref * 	recursive_reference {nullptr}
++ LEX * 	parent_lex {nullptr}
++ table_map 	select_list_tables {0} 
++ table_map 	outer_join {0}
++ Name_resolution_context 	context {}
++ Name_resolution_context * 	first_context
++ Pointer to first object in list of Name res 
++ JOIN * 	join {nullptr}
++ mem_root_deque< Table_ref * > 	m_table_nest
++ mem_root_deque< Table_ref * > * 	m_current_table_nest
++ Table_ref * 	embedding {nullptr}
++ Table_ref * 	leaf_tables {nullptr} 
++ Table_ref * 	end_lateral_table {nullptr}
++ Item * 	select_limit {nullptr} 
++ Item * 	offset_limit {nullptr}
++ Item_sum * 	inner_sum_func_list {nullptr}
++ Ref_item_array 	base_ref_items
++ uint 	select_number {0} 
++ Item::cond_result 	cond_value {Item::COND_UNDEF} 
++ Item::cond_result 	having_value {Item::COND_UNDEF}
++ enum_parsing_context 	parsing_place {CTX_NONE}
++ uint 	in_sum_expr {0}
++ Resolve_place 	resolve_place
++ uint 	select_n_where_fields {0} 
++ uint 	select_n_having_items {0} 
++ uint 	saved_cond_count {0}
++ uint 	cond_count {0}
++ uint 	between_count {0} 
++ uint 	max_equal_elems {0}
++ uint 	n_sum_items {0}
++ uint 	n_child_sum_items {0}
++ uint 	n_scalar_subqueries {0}
++ uint 	materialized_derived_table_count {0}
++ uint 	partitioned_table_count {0}
++ uint 	with_wild {0}
++ uint 	leaf_table_count {0}
++ uint 	derived_table_count {0}
++ uint 	table_func_count {0}
++ int 	nest_level {0}
++ olap_type 	olap {UNSPECIFIED_OLAP_TYPE}
++ enum_condition_context 	condition_context {enum_condition_context::ANDS}
++ bool 	is_table_value_constructor {false} 
++ sub_select_type 	linkage {UNSPECIFIED_TYPE}
++ uint8 	uncacheable {0}
++ bool 	first_execution {true}
++ bool 	sj_pullout_done {false}
++ bool 	m_was_implicitly_grouped {false}
++ bool 	skip_local_transforms {false}
++ bool 	is_item_list_lookup {false} 
++ bool 	having_fix_field {false}
++ bool 	group_fix_field {false}
++ bool 	with_sum_func {false}
++ bool 	subquery_in_having {false}
++ bool 	m_use_select_limit {false}
++ bool 	m_internal_limit {false}
++ bool 	exclude_from_table_unique_test {false}
++ bool 	no_table_names_allowed {false} 
++ uint 	hidden_items_from_optimization {0}
++ Table_ref * 	resolve_nest
+
+- Mem_root_array< Item_exists_subselect * > * 	sj_candidates {nullptr} 
+- int 	hidden_order_field_count {0}
+- Query_block * 	next {nullptr} 
+- Query_expression * 	master {nullptr}
+- Query_expression * 	slave {nullptr}
+- Query_block * 	link_next {nullptr}
+- Query_block ** 	link_prev {nullptr}
+- Query_result * 	m_query_result {nullptr} 
+- ulonglong 	m_base_options {0} 
+- ulonglong 	m_active_options {0} 
+- Item * 	m_where_cond 
+- Item * 	m_having_cond
+- int 	hidden_group_field_count
+- bool 	has_sj_nests {false}
+- bool 	has_aj_nests {false}
+- bool 	m_right_joins {false}
+- bool 	allow_merge_derived {true}
+- bool 	m_agg_func_used {false}
+- bool 	m_json_agg_func_used {false} 
+- bool 	m_empty_query {false}
+- {static} const char * 	type_str [static_cast< int >(enum_explain_type::EXPLAIN_total)]
+}
+note left
+SELECT name FROM employees WHERE department = 'HR' AND age > 30
+UNION
+SELECT name FROM contractors WHERE department = 'HR' AND age > 30;
+
+
+Query_term : department = 'HR' , age > 30
+Query_expression : two select SQL
+Query_Block : all SQL
+Sql_cmd_XXXX : SQL command for execute SQL
+end note
+
+class Alter_info {
++ Mem_root_array< const Alter_drop * > 	drop_list 
++ Mem_root_array< const Alter_column * > 	alter_list 
++ Mem_root_array< Key_spec * > 	key_list 
++ Mem_root_array< const Alter_rename_key * > 	alter_rename_key_list
++ Mem_root_array< const Alter_index_visibility * > 	alter_index_visibility_list
++ Mem_root_array< const Alter_constraint_enforcement * > 	alter_constraint_enforcement_list
++ Sql_check_constraint_spec_list 	check_constraint_spec_list
++ List< Create_field > 	create_list
++ std::vector< CreateFieldApplier > 	cf_appliers
++ ulonglong 	flags
++ enum_enable_or_disable 	keys_onoff
++ List< String > 	partition_names
++ uint 	num_parts
++ enum_alter_table_algorithm 	requested_algorithm
++ enum_alter_table_lock 	requested_lock
++ enum_with_validation 	with_validation
++ LEX_CSTRING 	new_db_name
++ LEX_CSTRING 	new_table_name
+}
+
+class Item {
++ Item * 	next_free
++ DTCollation 	collation
++ Item_name_string 	item_name
++ Item_name_string 	orig_name
++ uint32 	max_length
++ item_marker 	marker
++ Item_result 	cmp_context、
++ bool 	fixed
++ uint8 	decimals
++ bool 	null_value
++ bool 	unsigned_flag
++ bool 	m_is_window_function
++ bool 	hidden {false}
++ bool 	m_in_check_constraint_exec_ctx {false}
+
+# String 	str_value
+# uint8 	m_accum_properties
+
+# {static} constexpr uint8 	PROP_SUBQUERY = 0x01
+# {static} constexpr uint8 	PROP_STORED_PROGRAM = 0x02
+# {static} constexpr uint8 	PROP_AGGREGATION = 0x04
+# {static} constexpr uint8 	PROP_WINDOW_FUNCTION = 0x08
+# {static} constexpr uint8 	PROP_ROLLUP_EXPR = 0x10
+# {static} constexpr uint8 	PROP_GROUPING_FUNC = 0x20
+
+- m_ref_count {0}
+- bool 	m_abandoned {false}
+- const bool 	is_parser_item
+- int8 	is_expensive_cache
+- uint8 	m_data_type
+- bool 	m_nullable
+enum enum_field_types {
+  MYSQL_TYPE_DECIMAL,
+  MYSQL_TYPE_TINY,
+  MYSQL_TYPE_SHORT,
+  MYSQL_TYPE_LONG,
+  MYSQL_TYPE_FLOAT,
+  MYSQL_TYPE_DOUBLE,
+  MYSQL_TYPE_NULL,
+  MYSQL_TYPE_TIMESTAMP,
+  MYSQL_TYPE_LONGLONG,
+  MYSQL_TYPE_INT24,
+  MYSQL_TYPE_DATE,
+  MYSQL_TYPE_TIME,
+  MYSQL_TYPE_DATETIME,
+  MYSQL_TYPE_YEAR,
+  MYSQL_TYPE_NEWDATE, /**< Internal to MySQL. Not used in protocol */
+  MYSQL_TYPE_VARCHAR,
+  MYSQL_TYPE_BIT,
+  MYSQL_TYPE_TIMESTAMP2,
+  MYSQL_TYPE_DATETIME2,   /**< Internal to MySQL. Not used in protocol */
+  MYSQL_TYPE_TIME2,       /**< Internal to MySQL. Not used in protocol */
+  MYSQL_TYPE_TYPED_ARRAY, /**< Used for replication only */
+  MYSQL_TYPE_INVALID = 243,
+  MYSQL_TYPE_BOOL = 244, /**< Currently just a placeholder */
+  MYSQL_TYPE_JSON = 245,
+  MYSQL_TYPE_NEWDECIMAL = 246,
+  MYSQL_TYPE_ENUM = 247,
+  MYSQL_TYPE_SET = 248,
+  MYSQL_TYPE_TINY_BLOB = 249,
+  MYSQL_TYPE_MEDIUM_BLOB = 250,
+  MYSQL_TYPE_LONG_BLOB = 251,
+  MYSQL_TYPE_BLOB = 252,
+  MYSQL_TYPE_VAR_STRING = 253,
+  MYSQL_TYPE_STRING = 254,
+  MYSQL_TYPE_GEOMETRY = 255
+};
+}
+
+class Parse_tree_node_tmpl< Context > {
++ POS 	m_pos
+- bool 	contextualized = false
+}
+
+class POS {
+  Symbol_location cpp;
+  // token location in the preprocessed buffer
+  Symbol_location raw;
+  // token location in the raw buffer
+}
+
+class Symbol_location {
+  const char *start = nullptr;
+  const char *end = nullptr;
+}
+
+class Table_function {
+TABLE * 	table
+bool 	inited
+}
+
+class PT_table_element {}
+class Table_ddl_node {}
+class Mem_root_array {}
+class Mem_root_array_YY {
+# MEM_ROOT * 	m_root
+# Element_type * 	m_array
+# size_t 	m_size
+# size_t 	m_capacity
+# {static} constexpr bool 	has_trivial_destructor
++ void pop_back()
++ bool push_back(...)
+}
+class PT_create_table_option {}
+class PT_ddl_table_option {}
+class Table_ddl_node {}
+class Query_term {
+# Query_term_set_op * 	m_parent {nullptr}
+# Query_result * 	m_setop_query_result {nullptr}
+# bool 	m_owning_operand {false}
+# Table_ref * 	m_result_table {nullptr}
+# mem_root_deque< Item * > * 	m_fields {nullptr}
+- uint 	m_curr_id
+}
+class mem_root_deque {
+- Block * 	m_blocks = nullptr
+- size_t 	m_begin_idx = 0 
+- size_t 	m_end_idx = 0
+- size_t 	m_capacity = 0
+- MEM_ROOT * 	m_root
+- size_t 	m_generation = 0
+- {static} constexpr size_t 	block_elements = FindElementsPerBlock<Element_type>()
++ iterator end()
++ iterator begin()
++ void pop_back()
++ void pop_front()
++ bool push_back(const Element_type &element)
++ bool push_back(Element_type &&element)
++ bool push_front(const Element_type &element)
++ bool push_front(Element_type &&element)
+}
+
+
+Parse_tree_node_tmpl <|-- Item
+Parse_tree_node_tmpl *-- POS
+POS *-- Symbol_location
+
+Parse_tree_root <|-- PT_table_ddl_stmt_base
+PT_table_ddl_stmt_base <|-- PT_create_table_stmt
+PT_table_ddl_stmt_base *-- Alter_info
+Parse_tree_root *-- POS
+PT_create_table_stmt *-- Table_ident
+Table_ident *-- LEX_CSTRING
+Table_ident *-- Query_expression
+Table_ident *-- Table_function
+Parse_tree_node_tmpl -- Table_ddl_node
+Table_ddl_node <|-- PT_table_element
+PT_create_table_stmt o–- PT_table_element
+Mem_root_array_YY <|-- Mem_root_array
+PT_create_table_stmt *-- Mem_root_array
+PT_ddl_table_option <|-- PT_create_table_option
+Parse_tree_node_tmpl <|-- PT_create_table_option
+PT_create_table_stmt o–- PT_create_table_option
+Query_expression *-- Query_term
+Query_expression *-- mem_root_deque
+Query_term <|-- Query_block
+Query_expression *--*  Query_block
+
+
+
+class Protocol {
+- Protocol * 	m_previous_protocol = nullptr
+- {static} constexpr uint16_t 	kClassicProtocolDefaultPort {3306}
+- {static}  constexpr uint16_t 	kXProtocolDefaultPort {33060}
+
+}
+class Protocol_callback {}
+class Protocol_classic {
++ bool 	bad_packet
+# THD * 	m_thd
+# String * 	packet
+# String 	convert
+# uint 	field_pos
+# bool 	send_metadata
+# enum enum_field_types * 	field_types
+# uint 	count
+# uint 	field_count
+# uint 	sending_flags
+# ulong 	input_packet_length
+# uchar * 	input_raw_packet
+# const CHARSET_INFO * 	result_cs
+- ulong 	m_client_capabilities
+
++ send_eof(uint server_status, uint statement_warn_count)
++ send_field_metadata(Send_field *field,const CHARSET_INFO *item_charset)
++ send_ok(uint server_status, uint statement_warn_count,\n   ulonglong affected_rows, ulonglong last_insert_id,const char *message)
++ store_field(const Field *field)
++ store_string(const char *from, size_t length,const CHARSET_INFO *cs)
+}
+class Protocol_local {}
+class Protocol_text {}
+class Protocol_binary {}
+
+Protocol <|-- Protocol_callback
+Protocol <|-- Protocol_classic
+Protocol <|-- Protocol_local
+Protocol_classic <|-- Protocol_text
+Protocol_classic <|-- Protocol_binary
+
+
+class Parse_context_base {
++ std::unique_ptr< Show_parse_tree > 	m_show_parse_tree = nullptr
+}
+class Parse_context {
++ THD *const 	thd
++ MEM_ROOT * 	mem_root
++ Query_block * 	select
++ mem_root_deque< QueryLevel > 	m_stack
+}
+class Column_parse_context {
++ const bool 	is_generated
++ std::vector< CreateFieldApplier > 	cf_appliers
+}
+class Table_ddl_parse_context {
++ HA_CREATE_INFO *const 	create_info
++ Alter_info *const 	alter_info
++ KEY_CREATE_INFO *const 	key_create_info
+}
+
+Parse_context_base <|-- Parse_context
+Parse_context <|-- Column_parse_context
+Parse_context <|-- Table_ddl_parse_context
+Parse_context *--  Query_block
+
+
+class LEX {
++ Query_expression * 	unit 
++ Query_block * 	query_block 
++ Query_block * 	all_query_blocks_list
++ bool 	is_explain_analyze = false
++ bool 	using_hypergraph_optimizer = false
++ LEX_STRING 	name 
++ char * 	help_arg 
++ char * 	to_log 
++ const char * 	x509_subject 
++ const char * 	x509_issuer 
++ const char * 	ssl_cipher 
++ String * 	wild 
++ Query_result * 	result 
++ LEX_STRING 	binlog_stmt_arg
++ LEX_STRING 	ident 
++ LEX_USER * 	grant_user 
++ LEX_ALTER 	alter_password 
++ enum_alter_user_attribute 	alter_user_attribute 
++ LEX_STRING 	alter_user_comment_text 
++ LEX_GRANT_AS 	grant_as 
++ THD * 	thd 
++ Opt_hints_global * 	opt_hints_global 
++ Plugins_array 	plugins 
++ Table_ref * 	insert_table
++ Table_ref * 	insert_table_leaf
++ LEX_STRING 	create_view_query_block 
++ partition_info * 	part_info 
++ LEX_USER * 	definer 
++ List< LEX_USER > 	users_list 
++ List< LEX_COLUMN > 	columns 
++ List< LEX_CSTRING > 	dynamic_privileges 
++ List< LEX_USER > * 	default_roles 
++ ulonglong 	bulk_insert_row_cnt 
++ List< Item > 	purge_value_list 
++ List< Item > 	kill_value_list 
++ List< set_var_base > 	var_list 
++ List< Item_func_set_user_var > 	set_var_list 
++ List< Item_param > 	param_list 
++ List< Name_resolution_context > 	context_stack
++ Item_sum * 	in_sum_func 
++ udf_func 	udf 
++ HA_CHECK_OPT 	check_opt 
++ HA_CREATE_INFO * 	create_info 
++ KEY_CREATE_INFO 	key_create_info 
++ LEX_MASTER_INFO 	mi 
++ LEX_SLAVE_CONNECTION 	slave_connection 
++ Server_options 	server_options 
++ USER_RESOURCES 	mqh 
++ LEX_RESET_SLAVE 	reset_slave_info 
++ ulong 	type 
++ nesting_map 	allow_sum_func
++ nesting_map 	m_deny_window_func
++ bool 	m_subquery_to_derived_is_impossible
++ Sql_cmd * 	m_sql_cmd
++ bool 	expr_allows_subselect
++ uint 	reparse_common_table_expr_at 
++ bool 	reparse_derived_table_condition {false} 
++ std::vector< uint > 	reparse_derived_table_params_at 
++ enum SSL_type 	ssl_type 
++ enum enum_duplicates 	duplicates 
++ enum enum_tx_isolation 	tx_isolation 
++ enum enum_var_type 	option_type 
++ enum_view_create_mode 	create_view_mode 
++ my_thread_id 	show_profile_query_id 
++ uint 	profile_options 
++ uint 	grant 
++ uint 	grant_tot_col 
++ bool 	grant_privilege
++ uint 	slave_thd_opt 
++ uint 	start_transaction_opt 
++ int 	select_number 
++ uint8 	create_view_algorithm
++ uint8 	create_view_check
++ uint8 	context_analysis_only
++ bool 	drop_if_exists
++ bool 	grant_if_exists
++ bool 	ignore_unknown_user
++ bool 	drop_temporary 
++ bool 	autocommit 
++ bool 	verbose 
++ bool 	no_write_to_binlog
++ bool 	m_extended_show 
++ enum enum_yes_no_unknown tx_chain 	tx_release 
++ bool 	safe_to_cache_query 
++ st_parsing_options 	parsing_options 
++ Alter_info * 	alter_info 
++ LEX_CSTRING 	prepared_stmt_name 
++ LEX_STRING 	prepared_stmt_code 
++ bool 	prepared_stmt_code_is_varref 
++ List< LEX_STRING > 	prepared_stmt_params 
++ sp_head * 	sphead 
++ sp_name * 	spname 
++ bool 	sp_lex_in_use 
++ bool 	all_privileges 
++ bool 	contains_plaintext_password 
++ enum_keep_diagnostics 	keep_diagnostics 
++ uint32 	next_binlog_file_nr 
++ st_sp_chistics 	sp_chistics 
++ Event_parse_data * 	event_parse_data 
++ bool 	only_view 
++ uint8 	create_view_suid 
++ const char * 	stmt_definition_begin 
++ const char * 	stmt_definition_end
++ bool 	use_only_table_context 
++ bool 	is_lex_started 
++ bool 	in_update_value_clause
++ class Explain_format * 	explain_format
++ ulong 	max_execution_time
++ bool 	binlog_need_explicit_defaults_ts
++ bool 	will_contextualize
++ dd::info_schema::Table_statistics 	m_IS_table_stats
++ dd::info_schema::Tablespace_statistics 	m_IS_tablespace_stats
+
+- Query_block * 	m_current_query_block 
+- std::map< Item_field *, Field * > * 	insert_update_values_map 
+- bool 	m_has_udf {false}
+- bool 	ignore
+- bool 	m_broken
+- bool 	m_exec_started
+- bool 	m_exec_completed
+- sp_pcontext * 	sp_current_parsing_ctx
+- ulonglong 	m_statement_options {0}
+- Secondary_engine_execution_context * 	m_secondary_engine_context {nullptr}
+- bool 	m_is_replication_deprecated_syntax_used {false}
+- bool 	m_was_replication_command_executed {false} 
+- bool 	rewrite_required {false}
+}
+
+class Query_result{
++ ha_rows 	estimated_rowcount
++ double 	estimated_cost
+# Query_expression * 	unit
+}
+
+LEX *-- Query_result
+Query_block *-- LEX
+
+class Sql_cmd_select {}
+class Sql_cmd_dml {
+# LEX * 	lex
+# Query_result * 	result
+# bool 	m_empty_query
+# bool 	m_lazy_result
+}
+class Sql_cmd {
+- Prepared_statement * 	m_owner
+- bool 	m_part_of_sp
+- bool 	m_prepared
+- bool 	m_secondary_engine_enabled {true} 
+- bool 	m_prepared_with_optional_transform {false}
+- const handlerton * 	m_secondary_engine {nullptr}
++ virtual bool 	execute (THD *thd)=0
++ virtual bool 	prepare (THD *)
+}
+Sql_cmd <|-- Sql_cmd_dml
+Sql_cmd_dml <|-- Sql_cmd_select
+Sql_cmd_dml *-- Query_result
+PT_create_table_stmt *-- Sql_cmd
+Query_expression *--* Query_result
+
+
+
+class THD {
++ MEM_ROOT * 	mem_root {nullptr}
++ System_variables 	variables
++ Parser_state * 	m_parser_state
++ Thd_mem_cnt 	m_mem_cnt
++ MDL_context 	mdl_context
++ enum enum_mark_columns 	mark_used_columns 
++ ulong 	want_privilege 
++ LEX * 	lex 
++ Relay_log_info * 	rli_fake 
++ Relay_log_info * 	rli_slave 
++ bool 	tx_commit_pending 
++ NET_SERVER 	m_net_server_extension
++ collation_unordered_map< std::string, unique_ptr_with_deleter< user_var_entry > >\n 	user_vars {system_charset_info, key_memory_user_var_entry}
++ struct rand_struct 	rand 
++ struct System_variables 	variables 
++ struct System_status_var 	status_var 
++ struct System_status_var * 	copy_status_var_ptr 
++ struct System_status_var * 	initial_status_var 
++ bool 	status_var_aggregated 
++ std::vector< char > 	m_connection_attributes 
++ double 	m_current_query_cost 
++ ulonglong 	m_current_query_partial_plans
++ THR_LOCK_INFO 	lock_info
++ mysql_mutex_t 	LOCK_thd_data
++ mysql_mutex_t 	LOCK_thd_query
++ mysql_mutex_t 	LOCK_thd_sysvar
++ bool 	for_debug_only_is_set_persist_options {false} 
++ mysql_mutex_t 	LOCK_thd_protocol
++ mysql_mutex_t 	LOCK_thd_security_ctx
++ Prepared_statement_map 	stmt_map
++ const char * 	thread_stack
++ Security_context 	m_main_security_ctx
++ Security_context * 	m_security_ctx 
++ List< Security_context > 	m_view_ctx_list 
++ bool 	m_disable_password_validation 
++ std::unique_ptr< Protocol_text > 	protocol_text 
++ std::unique_ptr< Protocol_binary > 	protocol_binary 
++ class THD::Query_plan 	query_plan 
++ const char * 	where 
++ ulong 	max_client_packet_length 
++ collation_unordered_map< std::string, unique_ptr_my_free< Table_ref > >\n 	handler_tables_hash 
++ malloc_unordered_map< std::string, User_level_lock * > 	ull_hash 
++ uint 	dbug_sentry 
++ bool 	is_killable 
++ mysql_mutex_t 	LOCK_current_cond
++ std::atomic< mysql_mutex_t * > 	current_mutex
++ std::atomic< mysql_cond_t * > 	current_cond
++ mysql_cond_t 	COND_thr_lock 
++ uint32 	unmasked_server_id 
++ uint32 	server_id 
++ uint32 	file_id 
++ uint16 	peer_port 
++ struct timeval 	start_time 
++ struct timeval 	user_time 
++ ulonglong 	start_utime
++ thr_lock_type 	update_lock_default
++ thr_lock_type 	insert_lock_default
++ uint 	in_sub_stmt 
++ uint 	fill_status_recursion_level
++ uint 	fill_variables_recursion_level
++ rpl_event_coordinates 	binlog_next_event_pos
++ uchar * 	binlog_row_event_extra_data 
++ struct THD_timer_info * 	timer
++ struct THD_timer_info * 	timer_cache
++ Global_read_lock 	global_read_lock 
++ Vio * 	active_vio = {nullptr} 
++ Vio * 	clone_vio = {nullptr} 
++ Item_change_list 	change_list 
++ Query_arena * 	stmt_arena 
++ table_map 	table_map_for_update 
++ bool 	arg_of_last_insert_id_function 
++ ulonglong 	first_successful_insert_id_in_prev_stmt 
++ ulonglong 	first_successful_insert_id_in_prev_stmt_for_binlog 
++ ulonglong 	first_successful_insert_id_in_cur_stmt 
++ bool 	stmt_depends_on_first_successful_insert_id_in_prev_stmt 
++ Discrete_intervals_list 	auto_inc_intervals_in_cur_stmt_for_binlog 
++ Discrete_intervals_list 	auto_inc_intervals_forced 
++ ulonglong 	previous_found_rows 
++ ulonglong 	current_found_rows
++ bool 	is_operating_gtid_table_implicitly 
++ bool 	is_operating_substatement_implicitly 
++ ha_rows 	num_truncated_fields 
++ const CHARSET_INFO * 	db_charset 
++ std::unique_ptr< PROFILING > 	profiling 
++ PSI_stage_progress * 	m_stage_progress_psi
++ sql_digest_state * 	m_digest 
++ unsigned char * 	m_token_array
++ sql_digest_state 	m_digest_state 
++ PSI_statement_locker * 	m_statement_psi 
++ PSI_statement_locker_state 	m_statement_state 
++ PSI_transaction_locker * 	m_transaction_psi 
++ PSI_transaction_locker_state 	m_transaction_state 
++ PSI_idle_locker * 	m_idle_psi 
++ PSI_idle_locker_state 	m_idle_state 
++ bool 	m_server_idle 
++ query_id_t 	query_id 
++ ulong 	statement_id_counter 
++ ulong 	rand_saved_seed1 
++ ulong 	rand_saved_seed2 
++ my_thread_t 	real_id 
++ uint 	tmp_table 
++ uint 	server_status 
++ uint 	open_options 
++ enum enum_thread_type 	system_thread 
++ enum_tx_isolation 	tx_isolation 
++ bool 	tx_read_only 
++ int 	tx_priority 
++ int 	thd_tx_priority 
++ enum_check_fields 	check_for_truncated_fields 
++ Prealloced_array< Binlog_user_var_event *, 2 > 	user_var_events 
++ MEM_ROOT * 	user_var_events_alloc 
++ THD * 	next_to_commit
++ bool 	binlog_need_explicit_defaults_ts
++ enum THD::Commit_error 	commit_error 
++ enum durability_properties 	durability_property 
++ std::atomic< killed_state > 	killed 
++ bool 	running_explain_analyze = false
++ dd::DD_kill_immunizer * 	kill_immunizer
++ char 	scramble [SCRAMBLE_LENGTH+1] 
++ bool 	slave_thread 
++ uchar 	password 
++ bool 	transaction_rollback_request
++ bool 	is_fatal_sub_stmt_error
++ bool 	query_start_usec_used 
++ bool 	rand_used 
++ bool 	time_zone_used 
++ bool 	in_lock_tables 
++ bool 	is_slave_error 
++ bool 	thread_specific_used
++ bool 	charset_is_system_charset
++ bool 	charset_is_collation_connection 
++ bool 	charset_is_character_set_filesystem 
++ bool 	enable_slow_log 
++ bool 	derived_tables_processing 
++ bool 	parsing_system_view 
++ sp_rcontext * 	sp_runtime_ctx 
++ sp_cache * 	sp_proc_cache 
++ sp_cache * 	sp_func_cache 
++ uint 	query_name_consts
++ union {
+   bool   bool_value 
+   long   long_value 
+   ulong   ulong_value 
+   ulonglong   ulonglong_value 
+   double   double_value 
+} 	sys_var_tmp
++ struct {
+   bool   do_union 
+   bool   unioned_events 
+   bool   unioned_events_trans 
+   query_id_t   first_query_id 
+} 	binlog_evt_union 
++ Locked_tables_list 	locked_tables_list 
++ partition_info * 	work_part_info 
++ Plugin_array 	audit_class_plugins
++ Prealloced_array< unsigned long, 11 > 	audit_class_mask
++ bool 	m_enable_plugins 
++ bool 	m_audited 
++ Gtid 	owned_gtid
++ rpl_sid 	owned_sid
++ Se_GTID_flagset 	m_se_gtid_flags 
++ Rpl_thd_context 	rpl_thd_ctx 
++ bool 	skip_gtid_rollback 
++ bool 	is_commit_in_middle_of_statement 
++ bool 	has_gtid_consistency_violation 
++ thd_scheduler 	scheduler 
++ Opt_trace_context 	opt_trace
++ Session_tracker 	session_tracker 
++ Session_sysvar_resource_manager 	session_sysvar_res_mgr 
++ bool 	duplicate_slave_id 
++ XID 	debug_binlog_xid_last 
++ Transactional_ddl_context 	m_transactional_ddl {this} 
++ bool 	m_inside_system_variable_global_update
++ PS_PARAM * 	bind_parameter_values
++ unsigned long 	bind_parameter_values_count 
++ mysql_mutex_t 	LOCK_group_replication_connection_mutex 
++ mysql_cond_t 	COND_group_replication_connection_cond_var 
++ const char * 	current_key_name 
++ ulonglong 	conn_mem_alloc_number 
++ bool 	is_mem_cnt_error_issued
++ {static} const char *const 	DEFAULT_WHERE = "field list" 
++ {static} const int 	OWNED_SIDNO_GTID_SET = -1 
++ {static} const int 	OWNED_SIDNO_ANONYMOUS = -2
+
+- std::unique_ptr< LEX > 	main_lex 
+- std::unique_ptr< dd::cache::Dictionary_client > 	m_dd_client 
+- LEX_CSTRING 	m_query_string 
+- String 	m_normalized_query 
+- std::atomic< bool > 	m_safe_to_display 
+- LEX_CSTRING 	m_catalog 
+- LEX_CSTRING 	m_db 
+- resourcegroups::Resource_group_ctx 	m_resource_group_ctx
+- String 	m_rewritten_query
+- mysql_mutex_t 	LOCK_query_plan
+- Protocol * 	m_protocol
+- SSL_handle 	m_SSL = {nullptr} 
+- PSI_stage_key 	m_current_stage_key 
+- const char * 	m_proc_info 
+- bool 	m_is_low_level_commit_ordering_enabled = false
+- enum enum_server_command 	m_command
+- bool 	m_is_admin_conn 
+- ulonglong 	m_lock_usec
+- Prealloced_array< Ha_data, PREALLOC_NUM_HA > 	ha_data
+- bool 	skip_readonly_check 
+- bool 	skip_transaction_read_only_check 
+- binlog_filter_state 	m_binlog_filter_state
+- enum_binlog_format 	current_stmt_binlog_format
+- uint32 	binlog_unsafe_warning_flags
+- uint 	binlog_table_maps 
+- List< char > * 	binlog_accessed_db_names 
+- NET 	net 
+- String 	packet 
+- std::unique_ptr< Transaction_ctx > 	m_transaction 
+- Attachable_trx * 	m_attachable_trx 
+- longlong 	m_row_count_func 
+- ha_rows 	m_sent_row_count
+- ha_rows 	m_examined_row_count
+- USER_CONN * 	m_user_connect
+- my_thread_id 	m_thread_id
+- bool 	m_is_fatal_error
+- enum_thd_life_cycle_stages 	m_thd_life_cycle_stage
+- std::atomic< PSI_thread * > 	m_psi
+- Internal_error_handler * 	m_internal_handler
+- MEM_ROOT 	main_mem_root 
+- Diagnostics_area 	main_da 
+- Diagnostics_area 	m_parser_da 
+- Diagnostics_area 	m_query_rewrite_plugin_da 
+- Diagnostics_area * 	m_query_rewrite_plugin_da_ptr 
+- Diagnostics_area * 	m_stmt_da 
+- bool 	m_binlog_invoker
+- LEX_CSTRING 	m_invoker_user
+- LEX_CSTRING 	m_invoker_host 
+- Cost_model_server 	m_cost_model
+- bool 	is_a_srv_session_thd
+- const st_plugin_int * 	m_plugin {nullptr} 
+- bool 	m_is_plugin_fake_ddl
+- uint 	tmp_table_seq_id
+- bool 	waiting_for_disk_space = false 
+- Secondary_engine_optimization 	m_secondary_engine_optimization
+- std::atomic< bool > 	m_is_system_user
+- std::atomic< bool > 	m_is_connection_admin
+- std::unordered_map< unsigned int, void * > 	external_store_
+- Event_reference_caching_cache * 	events_cache_ {nullptr} 
+- Event_tracking_data_stack 	event_tracking_data_ 
+- bool 	audit_plugins_present 
+- const char * 	m_trans_log_file
+- char * 	m_trans_fixed_log_file 
+- my_off_t 	m_trans_end_pos
+}
+LEX *--* THD
+Protocol_classic *-- THD
+
+class MDL_context_owner {}
+class Query_arena {
++ MEM_ROOT * 	mem_root
++ bool 	is_repreparing {false}
+- Item * 	m_item_list
+- enum_state 	state
+}
+class Open_tables_state {
++ TABLE * 	open_tables
++ TABLE * 	temporary_tables
++ MYSQL_LOCK * 	lock
++ MYSQL_LOCK * 	extra_lock 
++ enum enum_locked_tables_mode 	locked_tables_mode
++ uint 	state_flags
+- Prealloced_array< Reprepare_observer *, 4 > 	m_reprepare_observers
+}
+
+MDL_context_owner <|-- THD
+Query_arena <|-- THD
+Open_tables_state <|-- THD
+
+@enduml
+
+@startuml
+class Parse_context_base {
++ std::unique_ptr< Show_parse_tree > 	m_show_parse_tree = nullptr
+}
+class Parse_context {
++ THD *const 	thd
++ MEM_ROOT * 	mem_root
++ Query_block * 	select
++ mem_root_deque< QueryLevel > 	m_stack
+}
+class Column_parse_context {
++ const bool 	is_generated
++ std::vector< CreateFieldApplier > 	cf_appliers
+}
+class Table_ddl_parse_context {
++ HA_CREATE_INFO *const 	create_info
++ Alter_info *const 	alter_info
++ KEY_CREATE_INFO *const 	key_create_info
+}
+
+Parse_context_base <|-- Parse_context
+Parse_context <|-- Column_parse_context
+Parse_context <|-- Table_ddl_parse_context
+@enduml
+
+
+@startuml
+class Parse_context_base {
++ std::unique_ptr< Show_parse_tree > 	m_show_parse_tree = nullptr
+}
+class Parse_context {
++ THD *const 	thd
++ MEM_ROOT * 	mem_root
++ Query_block * 	select
++ mem_root_deque< QueryLevel > 	m_stack
+}
+class Column_parse_context {
++ const bool 	is_generated
++ std::vector< CreateFieldApplier > 	cf_appliers
+}
+class Table_ddl_parse_context {
++ HA_CREATE_INFO *const 	create_info
++ Alter_info *const 	alter_info
++ KEY_CREATE_INFO *const 	key_create_info
+}
+class QueryLevel{
++ Surrounding_context 	m_type
++ mem_root_deque< Query_term * > 	m_elts
++ bool 	m_has_order {false}
+
+enum Surrounding_context{
+    SC_TOP 	
+    SC_QUERY_SPECIFICATION 	
+    SC_TABLE_VALUE_CONSTRUCTOR 	
+    SC_QUERY_EXPRESSION 	
+    SC_SUBQUERY 	
+    SC_UNION_DISTINCT 	
+    SC_UNION_ALL 	
+    SC_INTERSECT_DISTINCT 	
+    SC_INTERSECT_ALL 	
+    SC_EXCEPT_DISTINCT 	
+    SC_EXCEPT_ALL}
+}
+abstract class Query_term {
+# Query_term_set_op * 	m_parent {nullptr}
+# Query_result * 	m_setop_query_result {nullptr}
+# bool 	m_owning_operand {false}
+# Table_ref * 	m_result_table {nullptr}
+# mem_root_deque< Item * > * 	m_fields {nullptr}
+- uint 	m_curr_id
+}
+class Query_term_set_op {
++ mem_root_deque< Query_term * > 	m_children
++ int64_t 	m_last_distinct
++ int64_t 	m_first_distinct
++ bool 	m_is_materialized {true}
+}
+class Query_result{
++ ha_rows 	estimated_rowcount
++ double 	estimated_cost
+# Query_expression * 	unit
+}
+class Query_expression {
++ uint8 	uncacheable
++ enum_clean_state 	cleaned 
++ ha_rows 	select_limit_cnt
++ ha_rows 	offset_limit_cnt
++ Item_subselect * 	item 
++ PT_with_clause * 	m_with_clause
++ Table_ref * 	derived_table
++ Query_block * 	first_recursive
++ table_map 	m_lateral_deps
++ bool 	m_reject_multiple_rows {false}
++ ha_rows 	send_records
+- Query_expression * 	next
+- Query_expression ** 	prev
+- Query_block * 	master
+- Query_block * 	slave 
+- Query_term * 	m_query_term {nullptr}
+- enum_parsing_context 	explain_marker 
+- bool 	prepared 
+- bool 	optimized 
+- bool 	executed 
+- Query_result * 	m_query_result 
+- unique_ptr_destroy_only< RowIterator > 	m_root_iterator 
+- AccessPath * 	m_root_access_path = nullptr
+- mem_root_deque< Item * > 	types
+}
+class Query_block{
++ size_t 	m_added_non_hidden_fields {0}
++ mem_root_deque< Item * > 	fields 
++ List< Window > 	m_windows
++ List< Item_func_match > * 	ftfunc_list
++ List< Item_func_match > 	ftfunc_list_alloc {}
++ mem_root_deque< mem_root_deque< Item * > * > * 	row_value_list {nullptr}
++ SQL_I_List< Table_ref > 	m_table_list {}
++ SQL_I_List< ORDER > 	order_list {}
++ Group_list_ptrs * 	order_list_ptrs {nullptr}
++ SQL_I_List< ORDER > 	group_list {}
++ Group_list_ptrs * 	group_list_ptrs {nullptr}
++ char * 	db {nullptr}
++ LEX * 	parent_lex {nullptr}
++ table_map 	select_list_tables {0} 
++ table_map 	outer_join {0}
++ Pointer to first object in list of Name res 
++ JOIN * 	join {nullptr}
++ Item * 	select_limit {nullptr} 
++ Item * 	offset_limit {nullptr}
++ enum_parsing_context 	parsing_place {CTX_NONE}
++ uint 	select_n_where_fields {0} 
++ uint 	select_n_having_items {0}
+- Query_block * 	next {nullptr} 
+- Query_expression * 	master {nullptr}
+- Query_expression * 	slave {nullptr}
+- Query_result * 	m_query_result {nullptr}
+- bool 	m_right_joins {false}
+- bool 	allow_merge_derived {true}
+- bool 	m_agg_func_used {false}
+- bool 	m_json_agg_func_used {false} 
+- bool 	m_empty_query {false}
+- {static} const char * 	type_str [static_cast< int >(enum_explain_type::EXPLAIN_total)]
+}
+
+Parse_context_base <|-- Parse_context
+Parse_context <|-- Column_parse_context
+Parse_context <|-- Table_ddl_parse_context
+Parse_context *-- Query_block
+Parse_context *-- QueryLevel
+QueryLevel *-- Query_term
+Query_term <|-- Query_term_set_op
+Query_term *-- Query_term_set_op
+Query_term *-- Query_result
+Query_result *-- Query_expression
+Query_term <|-- Query_block
+
+class Parse_tree_root {
++ POS 	m_pos
+}
+class POS {
+  Symbol_location cpp;
+  Symbol_location raw;
+}
+class PT_select_stmt {
+- enum_sql_command 	m_sql_command
+- PT_query_expression_body * 	m_qe
+- PT_into_destination * 	m_into
+- onst bool 	m_has_trailing_locking_clauses
+enum enum_sql_command {
+  SQLCOM_SELECT 	
+  SQLCOM_CREATE_TABLE 	
+  SQLCOM_CREATE_INDEX }
+
+}
+
+Parse_tree_root *-- POS
+Parse_tree_root <|-- PT_select_stmt
+
+class Parse_tree_node_tmpl< Context > {
++ POS 	m_pos
+- bool 	contextualized = false
++ virtual 	~Parse_tree_node_tmpl ()=default
++ bool 	is_contextualized () const
++ virtual bool 	contextualize (Context *pc) final
+}
+class PT_query_expression_body {
++ PT_query_expression_body (const POS &pos)
++ virtual bool 	is_set_operation () const =0
++ virtual bool 	can_absorb_order_and_limit (bool order, bool limit) const =0
++ virtual bool 	has_into_clause () const =0
++ virtual bool 	has_trailing_into_clause () const =0
++ virtual bool 	is_table_value_constructor () const =0
++ virtual PT_insert_values_list * 	get_row_value_list () const =0
+}
+class PT_query_expression {
++ PT_query_expression_body * 	m_body
++ PT_order * 	m_order
++ PT_limit_clause * 	m_limit
++ PT_with_clause * 	m_with_clause
+}
+class PT_union {}
+class PT_set_operation {
+# PT_query_expression_body * 	m_lhs
+# bool 	m_is_distinct
+# PT_query_expression_body * 	m_rhs
+# PT_into_destination * 	m_into {nullptr}
+# const bool 	m_is_rhs_in_parentheses
+}
+class PT_query_primary  {}
+class PT_query_specification {
+- PT_hint_list * 	opt_hints
+- Query_options 	options
+- PT_item_list * 	item_list
+- PT_into_destination * 	opt_into1
+- const bool 	m_is_from_clause_implicit
+- Mem_root_array_YY< PT_table_reference * > 	from_clause
+- Item * 	opt_where_clause
+- PT_group * 	opt_group_clause
+- Item * 	opt_having_clause
+- PT_window_list * 	opt_window_clause
+}
+class PT_explicit_table {}
+class PT_item_list {
++ mem_root_deque< Item * > 	value
+}
+class PT_select_item_list {}
+
+Parse_tree_node_tmpl <|-- PT_query_expression_body
+PT_select_stmt *-- PT_query_expression_body
+Parse_tree_node_tmpl *-- POS
+PT_query_expression_body <|-- PT_query_expression
+PT_query_expression_body --* PT_query_expression
+PT_query_expression_body <|-- PT_set_operation
+PT_query_expression_body --* PT_set_operation
+PT_set_operation <|-- PT_union
+PT_query_expression_body <|-- PT_query_primary
+PT_query_primary <|-- PT_query_specification
+PT_query_specification <|-- PT_explicit_table
+Parse_tree_node_tmpl <|-- PT_item_list
+PT_item_list <|-- PT_select_item_list
+PT_query_specification *-- PT_item_list
+
+class MEM_ROOT {}
+Parse_context *-- MEM_ROOT
+
+class Item {
++ Item * 	next_free
++ DTCollation 	collation
++ Item_name_string 	item_name
++ Item_name_string 	orig_name
++ uint32 	max_length
++ item_marker 	marker
++ Item_result 	cmp_context、
++ bool 	fixed
++ uint8 	decimals
++ bool 	null_value
++ bool 	unsigned_flag
++ bool 	m_is_window_function
++ bool 	hidden {false}
++ bool 	m_in_check_constraint_exec_ctx {false}
+
+# String 	str_value
+# uint8 	m_accum_properties
+
+- m_ref_count {0}
+- bool 	m_abandoned {false}
+- const bool 	is_parser_item
+- int8 	is_expensive_cache
+- uint8 	m_data_type
+- bool 	m_nullable
+- enum enum_field_types {
+  MYSQL_TYPE_DECIMAL,
+  MYSQL_TYPE_TINY,
+  MYSQL_TYPE_SHORT,
+  MYSQL_TYPE_LONG,
+  MYSQL_TYPE_FLOAT
+};
+}
+class Item_aggregate_type           {}
+class Item_basic_constant {}
+class Item_ident {}
+class Item_ident_for_show {}
+class Item_metadata_copy {}
+class Item_name_const {}
+class Item_param {}
+class Item_result_field {}
+class Item_row {}
+class Item_sp_variable {}
+class Item_user_var_as_out_param {}
+class Parse_tree_item              {}
+
+Item --* PT_item_list
+Item --* PT_query_specification
+Item <|-- Item_aggregate_type
+Item <|-- Item_basic_constant
+Item <|-- Item_ident
+Item <|-- Item_ident_for_show
+Item <|-- Item_metadata_copy
+Item <|-- Item_name_const
+Item <|-- Item_param
+Item <|-- Item_result_field
+Item <|-- Item_row
+Item <|-- Item_sp_variable
+Item <|-- Item_user_var_as_out_param
+Item <|-- Parse_tree_item
+
+class Parse_tree_item{}
+
+class PTI_expr_with_alias{
+- Item * 	expr 
+- Symbol_location 	expr_loc 
+- LEX_CSTRING 	alias
+}
+Parse_tree_item <|-- PTI_expr_with_alias
+@enduml

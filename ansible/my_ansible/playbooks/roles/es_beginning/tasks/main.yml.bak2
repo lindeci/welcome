@@ -1,0 +1,15 @@
+- name: Concatenate group values into a string
+  debug:
+    msg: "{{ ansible_play_hosts | join(',') }}"
+
+- name: Concatenate group values into a string2
+  debug:
+    msg: ansible_play_hosts:{{ ansible_play_hosts }} | inventory_hostname:{{ inventory_hostname }} | group_names:{{ group_names }} | hostvars[inventory_hostname]['ansible_ssh_host']:{{ hostvars[inventory_hostname]['ansible_ssh_host'] }}
+
+- name: Get ansible_ssh_host values and concatenate into a string2
+  debug:
+    msg: "{{ groups['node'] | map('extract', hostvars, 'ansible_ssh_host') | join('\",\"') }}"
+
+- name: Get ansible_ssh_host values and concatenate into a string3
+  debug:
+    msg: "{{ groups['kibana'] | map('extract', hostvars, 'ansible_ssh_host') | join('\",\"') }}"
