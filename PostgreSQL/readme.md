@@ -456,6 +456,9 @@ ALTER USER readonly_user SET default_transaction_read_only = ON;
 ALTER USER readonly_user WITH login;
 GRANT USAGE ON SCHEMA public TO readonly_user;
 GRANT SELECT ON ALL TABLES IN SCHEMA public TO readonly_user;
+
+# 授权序列
+GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO readonly_user;
 ```
 
 # 修改用户密码

@@ -7,14 +7,18 @@ cd $curdir
 
 rm -rf /root/.ssh/id_rsa /root/.ssh/id_rsa.pub /root/.ssh/known_hosts
 
-expect -c "
-spawn ssh-keygen
+if [ ! -f /root/.ssh/id_rsa.pub ]; then
+    rm -rf /root/.ssh/id_rsa /root/.ssh/id_rsa.pub /root/.ssh/known_hosts
 
-expect {
-\"Enter file in which to save the key (/root/.ssh/id_rsa):\" {send \"\r\"; exp_continue}
-\"Enter passphrase (empty for no passphrase):\" {send \"\r\"; exp_continue}
-\"Enter same passphrase again:\" {send \"\r\"; exp_continue}
-}"  #免交互执行ssh-keygen
+    expect -c "
+    spawn ssh-keygen
+
+    expect {
+    \"Enter file in which to save the key (/root/.ssh/id_rsa):\" {send \"\r\"; exp_continue}
+    \"Enter passphrase (empty for no passphrase):\" {send \"\r\"; exp_continue}
+    \"Enter same passphrase again:\" {send \"\r\"; exp_continue}
+    }"  #免交互执行ssh-keygen
+fi
 
 
 ipcount=`cat ip_passwd_list|wc -l`

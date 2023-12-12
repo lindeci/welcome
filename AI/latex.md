@@ -44,6 +44,18 @@ sudo apt-get install texlive-latex-base latex-cjk-all texlive-latex-extra texmak
         }
     ]
 ```
+可能需要安装的依赖
+```sh
+vi /etc/apt/sources.list
+# 添加
+deb http://mirrors.aliyun.com/ubuntu/ focal main restricted universe multiverse
+deb-src http://mirrors.aliyun.com/ubuntu/ focal main restricted universe multiverse
+# 执行
+apt-get update
+apt install python3-pip
+python3 -m pip install Pygments
+```
+
 
 1. 公式用\begin{equation} 和 \end{equation}作为开头和结尾，这样会产生公式并标注（1）序号
 
