@@ -460,11 +460,16 @@ GRANT SELECT ON ALL TABLES IN SCHEMA public TO readonly_user;
 # 授权序列
 GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO readonly_user;
 ```
-# 监控权限
+
+# 授权监控权限
 ```sql
 CREATE USER postgres_exporter WITH PASSWORD '123';
 GRANT pg_read_all_settings, pg_read_all_stats TO postgres_exporter;
 ALTER USER postgres_exporter SET SEARCH_PATH TO postgres_exporter,pg_catalog;
+```
+# 修改库的OWNER
+```sql
+ALTER DATABASE db_test OWNER TO my_user;
 ```
 
 # 修改用户密码
