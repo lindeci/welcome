@@ -1712,6 +1712,39 @@ done
 
 #EOF
 ```
+重写
+```sh
+#!/bin/bash
+instance_ip=1.1.1.9
+begin_time=$(TZ='UTC+0'  date -d"-60 seconds" '+%Y-%m-%dT%H:%M:%S')
+end_time=$(TZ='UTC+0'  date -d"seconds" '+%Y-%m-%dT%H:%M:%S')
+#ES的地址串
+ES_url=172.1.1.3:9200
+#ES的用户密码
+ES_user=elastic:xxxxx
+#项目列表
+project_list=("qiandong" "evoc1-diving" "evoc1-promotion")
+#索引名字
+#index_name=ingress-nginx
+index_name=logs-prod-ingress-nginx
+
+for project in "${project_list[@]}"
+do
+  #计算4xx的个数
+  warnings_total=`curl -s -X POST "$ES_url/_sql?format=json" -u$ES_user -H "Content-Type: application/json" -d '{"query": "SELECT COUNT(*) as cnt FROM \"'$index'\" WHERE (status between 400 and 599 or upstream_status between 400 and 599) and \"@timestamp\" between '\'$begin_time\'' and '\'$end_time\'' and proxy_upstream_name like '\'$project%\''"}' | jq -r '.rows[0] | @tsv'` 
+  #计算总数
+  total=`curl -s -X POST "$ES_url/_sql?format=json" -u$ES_user -H "Content-Type: application/json" -d '{"query": "SELECT COUNT(*) as cnt FROM \"'$index'\" WHERE \"@timestamp\" between '\'$begin_time\'' and '\'$end_time\'' and proxy_upstream_name like '\'$project%\''"}' | jq -r '.rows[0] | @tsv'`
+  #计算占比
+  if [ "$total" -eq 0 ]; then
+    percent=0
+  else
+    percent=$(echo "scale=2; $warnings_total / $total * 100" | bc)
+  fi
+  
+  # 发送邮件告警，发送的内容有 $project $warnings_total $total $percent
+  echo $project $warnings_total $total $percent
+done
+```
 
 ELASTICSEARCH NGINX LOGS 这个grafana模板很炫
 
