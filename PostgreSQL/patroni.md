@@ -10,6 +10,8 @@
 - [Patroni是如何工作的](#patroni是如何工作的)
 - [Pending restart 列的介绍](#pending-restart-列的介绍)
 	- [添加空密码用户](#添加空密码用户)
+- [高可用切换](#高可用切换)
+	- [手工切换](#手工切换)
 
 # 安装etcd
 
@@ -385,3 +387,9 @@ patronictl -c /etc/patroni.yml list
 groupadd postgres
 useradd -d /home/postgres postgres -g postgres
 echo "postgres ALL=(ALL) NOPASSWD: ALL" | sudo tee -a /etc/sudoers.d/postgres
+
+# 高可用切换
+## 手工切换
+```sh
+patronictl -c /etc/patroni.yml switchover pgsql
+```
