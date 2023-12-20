@@ -59,5 +59,7 @@
         "label",
         "\"pdflatex\": [\"pdflatex\", \"--shell-escape\", \"-synctex=1\", \"-interaction=nonstopmode\", \"-file-line-error\"]"
     ],
-    "plantuml.server": "https://www.plantuml.com/plantuml"
+    //"plantuml.server": "https://www.plantuml.com/plantuml"
+    "plantuml.server": "http://172.17.0.1:8080",
+    "plantuml.render": "PlantUMLServer"
 }

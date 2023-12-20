@@ -49,3 +49,14 @@
 
 
 https://plantuml.com/zh/sequence-diagram
+```sh
+plantuml 的安装
+
+apt install default-jdk
+apt install graphviz graphviz-dev
+# 本地渲染服务
+docker run -d -p 8080:8080 plantuml/plantuml-server:jetty
+# 然后在 /data/welcome/.vscode/settings.json 中配置
+"plantuml.server": "http://容器的IP:8080",
+"plantuml.render": "PlantUMLServer"
+```

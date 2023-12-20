@@ -391,5 +391,9 @@ echo "postgres ALL=(ALL) NOPASSWD: ALL" | sudo tee -a /etc/sudoers.d/postgres
 # 高可用切换
 ## 手工切换
 ```sh
+# 要求主库存活
 patronictl -c /etc/patroni.yml switchover pgsql
+
+# 不要求主库存活，强制切换
+patronictl -c /etc/patroni.yml failover  pgsql
 ```

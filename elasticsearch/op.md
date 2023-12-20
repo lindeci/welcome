@@ -69,11 +69,12 @@
 - [权限讲解](#权限讲解)
   - [Elasticsearch 权限说明](#elasticsearch-权限说明)
 - [命令行授权](#命令行授权)
+- [别名操作](#别名操作)
 - [\_cat命令集](#_cat命令集)
 - [\_cluster命令集](#_cluster命令集)
 - [问题处理](#问题处理)
   - [1、TOO\_MANY\_REQUESTS/12/disk usage exceeded flood-stage watermark](#1too_many_requests12disk-usage-exceeded-flood-stage-watermark)
-  - [2、](#2)
+  - [2、扩容磁盘空间](#2扩容磁盘空间)
 
 
 # 网上资料
@@ -1809,6 +1810,24 @@ PUT /_security/user/iot
   "password" : "iot@123",
   "roles" : [ "iot" ],
   "full_name" : "iot"
+}
+```
+
+# 别名操作
+```
+# 查看别名关联哪些索引
+POST /_aliases
+{
+  "actions" : [
+    { "remove" : { "index" : "xx_xx_tenant_v1.0", "alias" : "xx_xx_tenant" } }
+  ]
+}
+# 删除别名跟索引的关联
+POST /_aliases
+{
+  "actions" : [
+    { "remove" : { "index" : "xx_xx_tenant_v1.1", "alias" : "xx_xx_tenant" } }
+  ]
 }
 ```
 

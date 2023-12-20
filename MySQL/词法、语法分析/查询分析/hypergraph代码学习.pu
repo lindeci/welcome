@@ -1,0 +1,233 @@
+@startuml hypergraph
+entity hypergraph::NodeMap {
++    type = unsigned long
+}
+note left
+  64 位的长整型，
+  其中 61 位每位表示一个 node
+end note
+
+struct hypergraph::Hyperedge {
++    hypergraph::NodeMap left;
++    hypergraph::NodeMap right;
+}
+
+struct hypergraph::Node {
++    std::vector<unsigned int> complex_edges;
++    std::vector<unsigned int> simple_edges;
++    hypergraph::NodeMap simple_neighborhood;
++    static const int Size;
+-    char padding[8];
+}
+note right
+  两个 std::vector 占 2*(8*3)=48 位，
+  hypergraph::NodeMap 占用 8 位，
+  static const int 占用 4 位，
+  char padding[8] 为了使该结构体占用64位
+end note
+
+hypergraph::NodeMap *-- hypergraph::Hyperedge::left
+hypergraph::NodeMap *-- hypergraph::Hyperedge::right
+hypergraph::NodeMap *-- hypergraph::Node::simple_neighborhood
+
+struct hypergraph::Hypergraph {
++    Mem_root_array<hypergraph::Node> nodes;
++    Mem_root_array<hypergraph::Hyperedge> edges;
+
++    Hypergraph(MEM_ROOT *);
++    void AddNode(void);
++    void AddEdge(hypergraph::NodeMap, hypergraph::NodeMap);
++    void ModifyEdge(unsigned int, hypergraph::NodeMap, hypergraph::NodeMap);
+-    void AttachEdgeToNodes(size_t, size_t, hypergraph::NodeMap, hypergraph::NodeMap);
+}
+
+hypergraph::Hypergraph::nodes --* hypergraph::Node
+hypergraph::Hypergraph::edges --* hypergraph::Hyperedge
+
+struct JoinHypergraph {
++    hypergraph::Hypergraph graph;
++    SecondaryEngineCostingFlags secondary_engine_costing_flags;
++    std::array<int, 61> table_num_to_node_num;
++    Mem_root_array<JoinHypergraph::Node> nodes;
++    Mem_root_array<JoinPredicate> edges;
++    Mem_root_array<Predicate> predicates;
++    unsigned int num_where_predicates;
++    OverflowBitset materializable_predicates;
++    mem_root_unordered_map<Item*, int, std::hash<Item*>, std::equal_to<Item*>> sargable_join_predicates;
++    bool has_reordered_left_joins;
++    table_map tables_inner_to_outer_or_anti;
+
+-    const Query_block *m_query_block;
+
++    JoinHypergraph(MEM_ROOT *, const Query_block *);
++    const Query_block * query_block(void) const;
++    const JOIN * join(void) const;
+}
+
+struct JoinPredicate {
+    RelationalExpression *expr;
+    double selectivity;
+    size_t estimated_bytes_per_row;
+    FunctionalDependencySet functional_dependencies;
+    Mem_root_array<int> functional_dependencies_idx;
+    int ordering_idx_needed_for_semijoin_rewrite;
+    Item **semijoin_group;
+    int semijoin_group_size;
+}
+JoinHypergraph::edges --* JoinPredicate
+
+struct Predicate {
+    Item *condition;
+    hypergraph::NodeMap used_nodes;
+    hypergraph::NodeMap total_eligibility_set;
+    double selectivity;
+    bool was_join_condition;
+    int source_multiple_equality_idx;
+    FunctionalDependencySet functional_dependencies;
+    Mem_root_array<int> functional_dependencies_idx;
+    Mem_root_array<ContainedSubquery> contained_subqueries;
+}
+JoinHypergraph::predicates --* Predicate
+
+struct JoinHypergraph::Node {
+    TABLE *table;
+    Mem_root_array<Item*> join_conditions_pushable_to_this;
+    Mem_root_array<SargablePredicate> sargable_predicates;
+    const CompanionSet *companion_set;
+}
+
+struct SargablePredicate {
++    int predicate_index;
++    Field *field;
++    Item *other_side;
++    bool can_evaluate;
+}
+note right of SargablePredicate
+Sargable 是一个 SQL 术语，
+它表示一个查询条件（或谓词）可以利用索引来加速查询的执行。
+这个术语是由 Search ARGument ABLE 的缩写而来的。
+end note
+
+note right of SargablePredicate::other_side
+The predicate is assumed to be <field> = <other_side>
+end note
+
+class CompanionSet {
+-    Mem_root_array<CompanionSet::EqualTerm> m_equal_terms;
++    CompanionSet(void);
++    CompanionSet(THD *);
++    CompanionSet(const CompanionSet &);
++    CompanionSet & operator=(const CompanionSet &);
++    void AddEquijoinCondition(THD *, const Item_func_eq &);
++    table_map GetEqualityMap(const Field &) const;
++    std::string ToString(void) const;
+-    typedef Mem_root_array<Field const*> FieldArray;
+}
+note left of CompanionSet
+假设我们有三个表：A、B和C。
+表A和表B通过内连接关联，
+表B和表C也通过内连接关联。
+在这种情况下，我们可以说
+A、B和C形成了一个"companion set"。
+end note
+
+note right of CompanionSet::m_equal_terms
+举例：
+     如果我们有个查询：
+     SELECT ... FROM t1, t2, t3 WHERE t1.x=t2.x AND t2.x=t3.x AND t2.y=t3.y
+     那么 m_equal_terms will contain:
+     {{t1.x, t2.x, t3.x}, {t2.y, t3.y}}
+end note
+
+struct CompanionSet::EqualTerm {
++    CompanionSet::FieldArray *fields;
++    table_map tables;
+}
+note right
+using FieldArray = Mem_root_array<const Field *>;
+表示 The fields that are equal to each other.
+
+using table_map = uint64_t;
+表示 A map of all tables in 'fields'.
+end note
+
+JoinHypergraph::graph --* hypergraph::Hypergraph
+JoinHypergraph::edges --* Mem_root_array
+JoinHypergraph::nodes --* JoinHypergraph::Node
+JoinHypergraph::Node::sargable_predicates --* SargablePredicate
+JoinHypergraph::Node::companion_set --* CompanionSet
+CompanionSet::m_equal_terms --* CompanionSet::EqualTerm
+
+
+
+
+class Mem_root_array<Item*> {
++    Mem_root_array(void);
++    Mem_root_array(MEM_ROOT *);
++    Mem_root_array(Mem_root_array<Item*> &&);
++    Mem_root_array(MEM_ROOT *, size_t);
++    Mem_root_array(MEM_ROOT *, size_t, const value_type &);
++    Mem_root_array(MEM_ROOT *, const_iterator, const_iterator);
++    Mem_root_array(MEM_ROOT *, const Mem_root_array<Item*> &);
++    Mem_root_array(std::initializer_list<Item*>);
++    Mem_root_array(const Mem_root_array<Item*> &);
++    Mem_root_array<Item*> & operator=(Mem_root_array<Item*> &&);
++    Mem_root_array<Item*> & operator=(const Mem_root_array<Item*> &);
++    ~Mem_root_array();
+
++    typedef Element_type value_type;
++    typedef Mem_root_array_YY<Item*>::const_iterator const_iterator;
+}
+
+class Mem_root_array_YY<Item*> {
+#    MEM_ROOT *m_root;
+#    Item **m_array;
+#    size_t m_size;
+#    size_t m_capacity;
+
++    void init(MEM_ROOT *);
++    void init_empty_const(void);
++    Item ** data(void);
++    Item * const * data(void) const;
++    Item *& at(size_t);
++    Item * const& at(size_t) const;
++    Item *& operator[](size_t);
++    Item * const& operator[](size_t) const;
++    Item *& back(void);
++    Item * const& back(void) const;
++    Item ** begin(void);
++    Item * const * begin(void) const;
++    Item ** end(void);
++    Item * const * end(void) const;
++    const_iterator cbegin(void) const;
++    const_iterator cend(void) const;
++    void clear(void);
++    void chop(size_t);
++    bool reserve(size_t);
++    bool push_back(Item * const&);
++    bool push_back(Item *&&);
++    bool push_front(Item * const&);
++    bool push_front(Item *&&);
++    void pop_back(void);
++    void resize(size_t, const value_type &);
++    void resize(size_t);
++    iterator erase(const_iterator, const_iterator);
++    iterator erase(const_iterator);
++    iterator erase(size_t);
++    iterator erase(iterator);
++    iterator insert(const_iterator, Item * const&);
++    size_t erase_value(const value_type &);
++    size_t capacity(void) const;
++    size_t element_size(void) const;
++    bool empty(void) const;
++    size_t size(void) const;
++    bool emplace_back<Item*>(Item *&&);
++    bool emplace_back<Item* const&>(Item * const&);
+
++    typedef Item * const *const_iterator;
++    typedef Element_type value_type;
++    typedef Item **iterator;
+}
+
+Mem_root_array --|> Mem_root_array_YY
+@enduml 
