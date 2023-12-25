@@ -113,6 +113,10 @@
 - [客户端对中文的显示不对齐](#客户端对中文的显示不对齐)
 - [only\_full\_group\_by](#only_full_group_by)
 - [通过用户限制 SQL 对资源使用](#通过用户限制-sql-对资源使用)
+- [innodb\_table\_stats 和 Innodb\_index\_stats](#innodb_table_stats-和-innodb_index_stats)
+  - [innodb\_table\_stats](#innodb_table_stats)
+  - [innodb\_index\_stats](#innodb_index_stats)
+  - [ANALYZE TABLE](#analyze-table)
 
 # 版本
 
@@ -4089,3 +4093,80 @@ MAX_UPDATES_PER_HOUR 10
 MAX_CONNECTIONS_PER_HOUR 5
 MAX_USER_CONNECTIONS 2;
 ```
+
+# innodb_table_stats 和 Innodb_index_stats
+## innodb_table_stats
+```sql
+select * from innodb_table_stats limit 5;     
++---------------+----------------------+---------------------+--------+----------------------+--------------------------+
+| database_name | table_name           | last_update         | n_rows | clustered_index_size | sum_of_other_index_sizes |
++---------------+----------------------+---------------------+--------+----------------------+--------------------------+
+| myelink       | sys_device           | 2022-12-26 10:17:40 |      0 |                    1 |                        0 |
+| myelink       | sys_dictionary       | 2022-12-29 13:49:11 |     46 |                    1 |                        1 |
+| myelink       | sys_workflow         | 2022-12-26 10:17:41 |     73 |                   97 |                        0 |
+| myelink       | sys_workflow_history | 2023-05-30 13:44:29 |      2 |                    1 |                        0 |
+| myelink       | sys_workflow_line    | 2023-05-29 16:25:11 |     40 |                    1 |                        0 |
++---------------+----------------------+---------------------+--------+----------------------+--------------------------+
+database_name：记录相应数据库的名称
+table_name：记录相应的表名，分区名或子分区名
+last_update：记录最后一次更新统计信息的时间
+n_rows：估算的表中包含的行数
+cluster_index_size：聚簇索引中的页数（单位page）
+sum_of_other_index_sizes：其它索引的总页数（单位page）
+```
+
+## innodb_index_stats
+```sql
+select * from innodb_index_stats limit 5;
++---------------+----------------+------------+---------------------+--------------+------------+-------------+-----------------------------------+
+| database_name | table_name     | index_name | last_update         | stat_name    | stat_value | sample_size | stat_description                  |
++---------------+----------------+------------+---------------------+--------------+------------+-------------+-----------------------------------+
+| myelink       | sys_device     | PRIMARY    | 2022-12-26 10:17:40 | n_diff_pfx01 |          0 |           1 | Id                                |
+| myelink       | sys_device     | PRIMARY    | 2022-12-26 10:17:40 | n_leaf_pages |          1 |        NULL | Number of leaf pages in the index |
+| myelink       | sys_device     | PRIMARY    | 2022-12-26 10:17:40 | size         |          1 |        NULL | Number of pages in the index      |
+| myelink       | sys_dictionary | KeyValue   | 2022-12-29 13:49:11 | n_diff_pfx01 |         10 |           1 | DictionaryKey                     |
+| myelink       | sys_dictionary | KeyValue   | 2022-12-29 13:49:11 | n_diff_pfx02 |         46 |           1 | DictionaryKey,DictionaryValue     |
++---------------+----------------+------------+---------------------+--------------+------------+-------------+-----------------------------------+
+
+其它
+
+| myelink       | hangfire_job_history | JobId_CreateTime_Index | 2022-10-13 19:32:10 | n_diff_pfx01 |         25 |          13 | JobId                             |
+| myelink       | hangfire_job_history | JobId_CreateTime_Index | 2022-10-13 19:32:10 | n_diff_pfx02 |     162282 |          20 | JobId,CreateTime                  |
+| myelink       | hangfire_job_history | JobId_CreateTime_Index | 2022-10-13 19:32:10 | n_diff_pfx03 |     154800 |          20 | JobId,CreateTime,Id               |
+| myelink       | hangfire_job_history | JobId_CreateTime_Index | 2022-10-13 19:32:10 | n_leaf_pages |       1290 |        NULL | Number of leaf pages in the index |
+| myelink       | hangfire_job_history | JobId_CreateTime_Index | 2022-10-13 19:32:10 | size         |       1513 |        NULL | Number of pages in the index      |
+
+database_name：记录相应数据库的名称
+table_name：记录相应的表名，分区名或子分区名
+index_name：索引名称
+last_update：记录最后一次更新统计信息的时间
+stat_name：记录统计信息的名称，其值在stat_value列中报告
+stat_value：stat_name列中命名的统计信息的值
+sample_size：stat_value列中提供的估值页面的采样页数
+stats_description：stat_name列中统计信息的描述信息
+
+n_diff_pfxNN:索引中前NN列的基数，因此对于多列的索引，就会对应多行来显示，stat_description列包含了该统计信息对应的列。例如上面示例中索引a的统计信息n_diff_pfx01对应列，即统计即基数值为1是对应这一列的，n_diff_pfx02对应列（列a，b），也就是统计的基数值5是对应两个列的。
+n_leaf_pages:索引中的叶子页总数。可将其与n_diff_pfxNN统计信息的样本大小进行比较，从而确定索引的采样比例。比如索引a，n_leaf_pages为1，n_diff_pfxNN对应sample_size为1，则采样比例为100%。
+size:索引中总页数，包含非叶子页。
+
+
+个人对于 JobId,CreateTime,Id 的 stat_value 值为什么比 JobId,CreateTime 的 stat_value 值低，一直很疑惑
+ANALYZE TABLE 91iot_db_dqh.hangfire_job_history;
+| 91iot_db_dqh  | hangfire_job_history | JobId_CreateTime_Index | 2023-12-25 13:56:59 | n_diff_pfx01 |         25 |          13 | JobId                             |
+| 91iot_db_dqh  | hangfire_job_history | JobId_CreateTime_Index | 2023-12-25 13:56:59 | n_diff_pfx02 |     164668 |          20 | JobId,CreateTime                  |
+| 91iot_db_dqh  | hangfire_job_history | JobId_CreateTime_Index | 2023-12-25 13:56:59 | n_diff_pfx03 |     174408 |          20 | JobId,CreateTime,Id               |
+| 91iot_db_dqh  | hangfire_job_history | JobId_CreateTime_Index | 2023-12-25 13:56:59 | n_leaf_pages |       1290 |        NULL | Number of leaf pages in the index |
+| 91iot_db_dqh  | hangfire_job_history | JobId_CreateTime_Index | 2023-12-25 13:56:59 | size         |       1513 |        NULL | Number of pages in the index      |
+这个时候的 stat_value 值符合预期
+```
+
+## ANALYZE TABLE
+`ANALYZE TABLE`是MySQL中的一个命令，主要用于收集表的统计信息，包括索引的分布信息¹²³⁴⁵。查询优化器会使用这些统计信息来生成最佳的查询计划³。
+
+以下是`ANALYZE TABLE`的一些主要功能¹²⁴⁵：
+
+- 收集索引的分布信息：`ANALYZE TABLE`会统计索引的值（主键、唯一键、外键等）的分布情况，并记录分布情况¹⁵。
+- 更新统计信息：`ANALYZE TABLE`可以更新表的统计信息，这对于查询优化器生成最佳查询计划非常重要³。
+- 支持多种存储引擎：`ANALYZE TABLE`支持InnoDB、NDB、MyISAM等存储引擎，但不支持视图²⁵。
+
+需要注意的是，执行`ANALYZE TABLE`时，会对表加上读锁¹⁵。在分析期间，只能读取表中的记录，不能更新和插入记录¹。此外，`ANALYZE TABLE`的操作会记录到binlog¹⁵。

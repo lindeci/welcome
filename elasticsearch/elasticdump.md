@@ -42,3 +42,14 @@ docker run --rm -ti -v /opt/data:/tmp/data elasticdump/elasticsearch-dump \
 --output= /tmp/data/ \
 --type=data
 
+
+# 导出数据
+```
+# 如果 ES 开启 https
+export NODE_TLS_REJECT_UNAUTHORIZED='0'
+# 导出映射
+elasticdump   --input=https://elastic:elastic@172.1.1.2:9200/test_user   --output=/tmp/test_user.json   --type=mapping
+# 导出数据
+elasticdump   --input=https://elastic:elastic@172.1.1.2:9200/test_user   --output=/tmp/test_user.json   --type=data
+
+```

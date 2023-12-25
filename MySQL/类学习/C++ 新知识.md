@@ -36,6 +36,8 @@
 - [virtual + final](#virtual--final)
 - [单向链表中的双指针](#单向链表中的双指针)
 - [GDB 调试 MySQL](#gdb-调试-mysql)
+- [左值、右值、完美转发](#左值右值完美转发)
+  - [举例介绍](#举例介绍)
 
 # 前置声明
 - 在类 A 的头文件中进行了类 B 的前置声明，这允许在类 A 中使用 ClassB 的指针或引用，但并不允许直接调用类 B 的函数成员。这是因为前置声明只表明这个名称是一个有效的类型，但不提供关于类的具体信息。
@@ -689,3 +691,79 @@ b sql_lex.cc:5041
 
 run --user=mysql --datadir=/data/mysql-server-8.2.0/build/runtime_output_directory/../../data --socket=/data/mysql-server-8.2.0/build/runtime_output_directory/../../data/mysql.sock.lock
 ```
+# 左值、右值、完美转发
+简单来说，左值是指可以取地址的、具有持久性的对象，而右值是指不能取地址的、临时生成的对象。
+
+```cpp
+template <typename T>
+void forward_to_print(T &&arg) {
+    print(std::forward<T>(arg));
+}
+
+std::string str = "Hello, world!";
+forward_to_print(str);  // 传入左值
+forward_to_print("Hello, world!");  // 传入右值
+```
+std::forward的工作原理是这样的：如果参数是一个左值引用，std::forward将返回一个左值引用；如果参数是一个右值引用，std::forward将返回一个右值引用。这样，无论输入的参数是左值还是右值，std::forward都能保证参数的原始性质在传递过程中得以保留。
+
+## 举例介绍
+
+左值是指可以用内置的&运算符取地址的表达式，例如变量、数组元素、字符串字面量等。右值是指不能用内置的&运算符取地址的表达式，例如临时变量、函数返回值、算术表达式等。完美转发是指在函数参数传递时，保持原来参数的类型和值属性不变，即不改变参数的左值或右值性质。
+
+如果不使用完美转发，那么函数不能正确地将参数转发给print函数。例如，假设有以下代码：
+
+```c++
+#include <iostream>
+#include <type_traits>
+
+template<typename T>
+void print(T &&t) {
+    std::cout << "Left value" << std::endl;
+}
+
+template<typename T>
+void print(T &t) {
+    std::cout << "Right value" << std::endl;
+}
+
+int main() {
+    int x = 10;
+    print(x); // 调用print函数时，x是一个右值
+    print(x); // 调用print函数时，x仍然是一个右值
+}
+
+// 结果：
+// Right value
+// Right value
+```
+
+在这个例子中，如果不使用完美转发，那么第一次调用print函数时，x会被转换为一个左值引用，并传递给print函数；第二次调用print函数时，x仍然是一个右值，并传递给print函数。这样就会导致编译错误或者输出错误的结果。
+
+为了避免这种情况，我们可以使用std::forward<T>来实现完美转发。std::forward<T>是一个模板函数，它可以根据参数的类型自动选择合适的转换方式。例如：
+
+```c++
+#include <iostream>
+#include <type_traits>
+
+template<typename T>
+void print(T &&t) {
+    std::cout << "Left value" << std::endl;
+}
+
+template<typename T>
+void print(T &t) {
+    std::cout << "Right value" << std::endl;
+}
+
+int main() {
+    int x = 10;
+    print(std::forward<int>(x)); // 调用print函数时，x被转换为一个左值引用
+    print(std::forward<int>(x)); // 调用print函数时，x仍然被转换为一个左值引用
+}
+
+// 结果：
+// Left value
+// Left value
+```
+
+在这个例子中，我们使用std::forward<int>来将x作为一个左值引用传递给print函数。这样就可以保证每次调用print函数时都得到正确的结果。

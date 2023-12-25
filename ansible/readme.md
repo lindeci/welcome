@@ -34,6 +34,7 @@
   - [setup 模块](#setup-模块)
 - [role 中常用的系统变量](#role-中常用的系统变量)
 - [制作 ansible 镜像](#制作-ansible-镜像)
+- [创建role](#创建role)
 - [路径变量](#路径变量)
 - [role 脚本案例](#role-脚本案例)
   - [hosts](#hosts-1)
@@ -44,6 +45,7 @@
   - [其中 init\_es\_machine.sh](#其中-init_es_machinesh)
   - [其中 elasticsearch.yml.j2](#其中-elasticsearchymlj2)
   - [kibana 安装](#kibana-安装)
+- [日常操作](#日常操作)
 
 # 官网
 https://docs.ansible.com/ansible/latest/getting_started/index.html
@@ -1263,4 +1265,23 @@ elasticsearch.hosts: ["http://wait_for_change_es_ip:9200"]
 elasticsearch.username: "elastic"
 elasticsearch.password: "wait_for_change_es_pwd"
 i18n.locale: "zh-CN"
+```
+
+# 日常操作
+```sh
+ansible -i hosts es -m ansible.posix.synchronize -a 'src=elasticsearch-analysis-ik-7.17.0.zip dest=/data/elasticsearch-7.17.0'
+
+# 在目标机器的 es 用户下执行
+ansible -i hosts es -b --become-user=es -m shell -a '/data/elasticsearch-7.17.0/bin/elasticsearch-plugin install -b file:///data/elasticsearch-analysis-ik-7.17.0.zip'
+
+ansible -i hosts es -m shell -a '/data/elasticsearch-7.17.0/bin/elasticsearch-plugin remove analysis-ik --purge'
+
+ansible -i hosts es -m lineinfile -a 'path=/data/elasticsearch-7.17.0/config/elasticsearch.yml line="xpack.security.http.ssl.enabled: true"'
+ansible -i hosts es -m lineinfile -a 'path=/data/elasticsearch-7.17.0/config/elasticsearch.yml line="xpack.security.http.ssl.keystore.path: elastic-certificates.p12"'
+ansible -i hosts es -m lineinfile -a 'path=/data/elasticsearch-7.17.0/config/elasticsearch.yml line="xpack.security.http.ssl.truststore.path: elastic-certificates.p12"'
+
+ansible -i hosts es -b --become-user=es -m shell -a "ps -ef | grep 'elasticsearch-7.17.0'| grep -v grep | grep java"
+ansible -i hosts es -b --become-user=es -m shell -a "kill \$(ps -ef | grep 'elasticsearch-7.17.0'| grep -v grep | grep java | awk '{print \$2}')"
+ansible -i hosts es -b --become-user=es -m shell -a "ps -ef | grep 'elasticsearch-7.17.0'| grep -v grep | grep java"
+# 该命令不知道为何执行不成功  ansible -i hosts es -b --become-user=es -m shell -a "/data/elasticsearch-7.17.0/bin/elasticsearch -d"
 ```
