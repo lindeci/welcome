@@ -12,6 +12,7 @@
 - [把镜像上传到 harbor](#把镜像上传到-harbor)
 - [docker 的centos镜像](#docker-的centos镜像)
 - [把容器中的文件拷贝到宿主机](#把容器中的文件拷贝到宿主机)
+- [打包新镜像](#打包新镜像)
 
 # Docker 镜像怎么转换为 Containerd 镜像
 Docker 镜像和 Containerd 镜像实际上是相同的，因为它们都遵循 OCI 镜像规范。这意味着您可以使用相同的镜像在 Docker 和 Containerd 中运行容器。您不需要将 Docker 镜像转换为 Containerd 镜像，只需将镜像推送到容器仓库，然后在使用 Containerd 的系统上拉取镜像即可。
@@ -363,3 +364,12 @@ docker run -it -v /data/ldc_docker:/data -w /data centos:7.9.2009 bash
 ```
 
 # 把容器中的文件拷贝到宿主机
+```sh
+# 把容器中的文件拷贝到宿主机的路径 /tmp/
+docker cp 629162e4e891:/data/test.log /tmp/
+```
+
+# 打包新镜像
+```sh
+docker commit -a "lindeci" -m "new apache" 629162e4e891 mysql-debug-docker:8.0.0_01
+```

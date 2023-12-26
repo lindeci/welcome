@@ -465,6 +465,7 @@ cd ../bin
 
 # 查看主题
 ./kafka-topics.sh --list --bootstrap-server 172.1.1.19:9092,172.1.1.20:9092,172.1.1.21:9092
+# 可以添加鉴权参数 --command-config /home/kafka/config/kafka_client_producer_jaas.conf
 
 # 删除主题
 ./kafka-topics.sh --delete --topic example --zookeeper tdsql_test_zk:2118,tdsq2_test_zk:2118,tdsq2_test_zk:2118/kafka
@@ -479,10 +480,10 @@ cd ../bin
 ./kafka-console-consumer.sh --bootstrap-server 172.1.1.19:9092,172.1.1.20:9092,172.1.1.21:9092 --topic example
 
 # 查看最后几条记录
-#            使用 kafka-run-class 命令来获取 topic 的最大 offset 和最小 offset
+# 使用 kafka-run-class 命令来获取 topic 的最大 offset 和最小 offset
 ./kafka-run-class.sh kafka.tools.GetOffsetShell --broker-list 172.1.1.19:9092,172.1.1.20:9092,172.1.1.21:9092 --topic example --time -2
 ./kafka-run-class.sh kafka.tools.GetOffsetShell --broker-list 172.1.1.19:9092,172.1.1.20:9092,172.1.1.21:9092 --topic example --time -1
-#            使用kafka-console-consumer 命令来查看指定分区的最后几条记录
+# 使用kafka-console-consumer 命令来查看指定分区的最后几条记录
 ./kafka-console-consumer.sh --bootstrap-server 172.1.1.19:9092,172.1.1.20:9092,172.1.1.21:9092 --topic example --partition 0 --offset 4
 
 # 查看记录条数
@@ -498,8 +499,10 @@ kafka-consumer-groups.sh --bootstrap-server 172.21.227.19:9092,172.21.227.20:909
 
 # kafka查看第N条记录
 # 获取最小和最大的偏移量
-kafka-run-class kafka.tools.GetOffsetShell --broker-list localhost:9092 --topic test-topic --time -1 # 返回每个分区的最大偏移量
-kafka-run-class kafka.tools.GetOffsetShell --broker-list localhost:9092 --topic test-topic --time -2 # 返回每个分区的最小偏移量
+kafka-run-class kafka.tools.GetOffsetShell --broker-list localhost:9092 --topic test-topic --time -1 
+# 返回每个分区的最大偏移量
+kafka-run-class kafka.tools.GetOffsetShell --broker-list localhost:9092 --topic test-topic --time -2 
+# 返回每个分区的最小偏移量
 # 从特定偏移量开始消费
 kafka-console-consumer --bootstrap-server localhost:9092 --topic test-topic --partition 0 --offset 60 --max-messages 1
 
