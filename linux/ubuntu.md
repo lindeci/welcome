@@ -9,6 +9,7 @@
 - [ubuntu docker 终端输入不支持中文](#ubuntu-docker-终端输入不支持中文)
 - [下载 rsync 所有依赖包](#下载-rsync-所有依赖包)
 - [安装 deb 包](#安装-deb-包)
+- [修改 apt 地址](#修改-apt-地址)
 
 # 查看系统版本
 ```sh
@@ -108,4 +109,18 @@ apt-get download $(apt-rdepends rsync | grep -v "^ " | sed 's/debconf-2.0/debcon
 # 安装 deb 包
 ```sh
 dpkg -i rsync_3.2.7-0ubuntu0.22.04.2_amd64.deb
+```
+
+# 修改 apt 地址
+```sh
+cp /etc/apt/sources.list /etc/apt/sources.list.bak
+gedit /etc/apt/sources.list
+
+deb http://mirrors.aliyun.com/ubuntu/ bionic main restricted universe multiverse
+deb http://mirrors.aliyun.com/ubuntu/ bionic-security main restricted universe multiverse
+deb http://mirrors.aliyun.com/ubuntu/ bionic-updates main restricted universe multiverse
+deb http://mirrors.aliyun.com/ubuntu/ bionic-proposed main restricted universe multiverse
+deb http://mirrors.aliyun.com/ubuntu/ bionic-backports main restricted universe multiverse
+
+apt update
 ```
