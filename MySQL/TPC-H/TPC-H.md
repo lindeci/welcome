@@ -47,6 +47,7 @@ vim tpcd.h # 添加新的宏定义
 ```sh
 make
 ./dbgen -s 100 # 参数-s的作用是指定生成测试数据的仓库数
+# ./dbgen -s 1 产生 1G 的数据量
 ```
 ```sql
 vi load.ddl 
@@ -109,4 +110,54 @@ for sql in "${sqls[@]}"
 do
     mysql -h$host -P$port -u$user -p$password -D$db  -e "$sql"
 done
+```
+
+```sql
+create index i_s_nationkey on supplier (s_nationkey);
+create index i_ps_partkey on partsupp (ps_partkey);
+create index i_ps_suppkey on partsupp (ps_suppkey);
+create index i_c_nationkey on customer (c_nationkey);
+create index i_o_custkey on orders (o_custkey);
+create index i_o_orderdate on orders (o_orderdate);
+create index i_l_orderkey on lineitem (l_orderkey);
+create index i_l_partkey on lineitem (l_partkey);
+create index i_l_suppkey on lineitem (l_suppkey);
+create index i_l_partkey_suppkey on lineitem (l_partkey, l_suppkey);
+create index i_l_shipdate on lineitem (l_shipdate);
+create index i_l_commitdate on lineitem (l_commitdate);
+create index i_l_receiptdate on lineitem (l_receiptdate);
+create index i_n_regionkey on nation (n_regionkey);
+analyze table supplier  ;
+analyze table part      ;
+analyze table partsupp  ;
+analyze table customer  ;
+analyze table orders    ;
+analyze table lineitem  ;
+analyze table nation    ;
+analyze table region    ;
+```
+
+```sql
+CREATE INDEX I_S_NATIONKEY ON SUPPLIER (S_NATIONKEY);
+CREATE INDEX I_PS_PARTKEY ON PARTSUPP (PS_PARTKEY);
+CREATE INDEX I_PS_SUPPKEY ON PARTSUPP (PS_SUPPKEY);
+CREATE INDEX I_C_NATIONKEY ON CUSTOMER (C_NATIONKEY);
+CREATE INDEX I_O_CUSTKEY ON ORDERS (O_CUSTKEY);
+CREATE INDEX I_O_ORDERDATE ON ORDERS (O_ORDERDATE);
+CREATE INDEX I_L_ORDERKEY ON LINEITEM (L_ORDERKEY);
+CREATE INDEX I_L_PARTKEY ON LINEITEM (L_PARTKEY);
+CREATE INDEX I_L_SUPPKEY ON LINEITEM (L_SUPPKEY);
+CREATE INDEX I_L_PARTKEY_SUPPKEY ON LINEITEM (L_PARTKEY, L_SUPPKEY);
+CREATE INDEX I_L_SHIPDATE ON LINEITEM (L_SHIPDATE);
+CREATE INDEX I_L_COMMITDATE ON LINEITEM (L_COMMITDATE);
+CREATE INDEX I_L_RECEIPTDATE ON LINEITEM (L_RECEIPTDATE);
+CREATE INDEX I_N_REGIONKEY ON NATION (N_REGIONKEY);
+ANALYZE TABLE SUPPLIER  ;
+ANALYZE TABLE PART      ;
+ANALYZE TABLE PARTSUPP  ;
+ANALYZE TABLE CUSTOMER  ;
+ANALYZE TABLE ORDERS    ;
+ANALYZE TABLE LINEITEM  ;
+ANALYZE TABLE NATION    ;
+ANALYZE TABLE REGION    ;
 ```

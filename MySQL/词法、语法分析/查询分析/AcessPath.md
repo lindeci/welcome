@@ -4,6 +4,8 @@
 - [RowIterator](#rowiterator)
 - [OverflowBitset](#overflowbitset)
 - [OverflowBitset::Ext](#overflowbitsetext)
+- [AccessPath::u 的 hash\_join](#accesspathu-的-hash_join)
+  - [JoinPredicate](#joinpredicate)
 
 # AccessPath
 ```cpp
@@ -321,5 +323,30 @@ class OverflowBitset {
 struct OverflowBitset::Ext {
     size_t m_num_blocks;
     uint64_t m_bits[1];
+}
+```
+
+# AccessPath::u 的 hash_join
+```cpp
+struct {
+      AccessPath *outer, *inner;
+      const JoinPredicate *join_predicate;
+      bool allow_spill_to_disk;
+      bool store_rowids;  // Whether we are below a weedout or not.
+      bool rewrite_semi_to_inner;
+      table_map tables_to_get_rowid_for;
+    } hash_join;
+```
+## JoinPredicate
+```cpp
+struct JoinPredicate {
+    RelationalExpression *expr;
+    double selectivity;
+    size_t estimated_bytes_per_row;
+    FunctionalDependencySet functional_dependencies;
+    Mem_root_array<int> functional_dependencies_idx;
+    int ordering_idx_needed_for_semijoin_rewrite;
+    Item **semijoin_group;
+    int semijoin_group_size;
 }
 ```

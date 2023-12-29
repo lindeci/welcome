@@ -956,6 +956,30 @@ PUT my_index
       }
   }
 }
+// 或者
+POST /_aliases
+{
+  "actions": [
+    {
+      "add": {
+        "index": "a1",
+        "alias": "a"
+      }
+    },
+    {
+      "add": {
+        "index": "b1",
+        "alias": "b"
+      }
+    },
+    {
+      "add": {
+        "index": "c1",
+        "alias": "c"
+      }
+    }
+  ]
+}
 ```
 
 `is_write_index`：举例来说，假设你有两个索引，logs_2023_06 和 logs_2023_07，你可以设置一个别名 logs_write，并将 is_write_index 设置为 true 对于最新的索引 logs_2023_07。这样，当你通过 logs_write 别名写入数据时，数据将被写入到 logs_2023_07 索引。

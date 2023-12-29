@@ -20,6 +20,7 @@
     - [验证DNS缓存是否被刷新](#验证dns缓存是否被刷新)
     - [调整A记录的TTL](#调整a记录的ttl)
     - [dig](#dig)
+- [GTM](#gtm)
 
 # 主要概念
 主机名  
@@ -225,3 +226,11 @@ DNS反向解析
 $ dig -x 8.8.8.8 +short    
 google-public-dns-a.google.com.
 ```
+
+# GTM
+阿里产品
+
+[产品原理](https://help.aliyun.com/document_detail/189591.html?spm=a2c4g.189593.0.0.6d472829L8IIqm)
+
+![Alt text](pic/dns_03.png)
+
