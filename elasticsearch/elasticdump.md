@@ -183,6 +183,7 @@ elasticdump \
 
 # multielasticdump
 ```
+export NODE_TLS_REJECT_UNAUTHORIZED='0'
 # 导出
 multielasticdump   --direction=dump   --match='^protocol_v1.1$'  --input=https://elastic:elastic@172.1.1.2:9200   --ignoreType=''   --output=/tmp --includeType='data,mapping,analyzer,alias,settings,template'
 # 导入
