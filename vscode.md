@@ -46,6 +46,7 @@
 | 12   | GitHub Copilot                                 | 由 OpenAI 提供的 AI 代码助手，可以生成代码片段、自动补全等功能。收费 $10/月 |
 | 13   | CodeGeeX                                       | 提供多种语言的代码片段和代码模板                             |
 | 14   | Makefile Tools                                 | 提供 Makefile 的支持，可以自动构建项目                       |
+| 15   | Graphviz Preview                               | dot文件的图形展示 
 
 
 https://plantuml.com/zh/sequence-diagram
