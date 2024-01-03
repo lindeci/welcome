@@ -256,25 +256,6 @@ ContainedSubquery::path --* AccessPath
 
 RelationalExpression::properties_for_join_conditions --* CachedPropertiesForPredicate
 
-struct JoinHypergraph {
-  public:
-    hypergraph::Hypergraph graph;
-    SecondaryEngineCostingFlags secondary_engine_costing_flags;
-    std::array<int, 61> table_num_to_node_num;
-    Mem_root_array<JoinHypergraph::Node> nodes;
-    Mem_root_array<JoinPredicate> edges;
-    Mem_root_array<Predicate> predicates;
-    unsigned int num_where_predicates;
-    OverflowBitset materializable_predicates;
-    mem_root_unordered_map<Item*, int, std::hash<Item*>, std::equal_to<Item*> > sargable_join_predicates;
-    bool has_reordered_left_joins;
-    table_map tables_inner_to_outer_or_anti;
-  private:
-    const Query_block *m_query_block;
-}
-
-JoinHypergraph::graph --* hypergraph::Hypergraph
-
 entity hypergraph::NodeMap {
 +    type = unsigned long
 }
@@ -341,14 +322,14 @@ struct JoinHypergraph {
 }
 
 struct JoinPredicate {
-    RelationalExpression *expr;
-    double selectivity;
-    size_t estimated_bytes_per_row;
-    FunctionalDependencySet functional_dependencies;
-    Mem_root_array<int> functional_dependencies_idx;
-    int ordering_idx_needed_for_semijoin_rewrite;
-    Item **semijoin_group;
-    int semijoin_group_size;
++    RelationalExpression *expr;
++    double selectivity;
++    size_t estimated_bytes_per_row;
++    FunctionalDependencySet functional_dependencies;
++    Mem_root_array<int> functional_dependencies_idx;
++    int ordering_idx_needed_for_semijoin_rewrite;
++    Item **semijoin_group;
++    int semijoin_group_size;
 }
 JoinHypergraph::edges --* JoinPredicate
 
@@ -467,4 +448,6 @@ class Mem_root_array_YY<Item*> {
 }
 
 Mem_root_array --|> Mem_root_array_YY
+
+JoinPredicate::expr --* RelationalExpression
 @enduml 
