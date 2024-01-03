@@ -1,0 +1,72 @@
+@startuml SequenceDiagram
+!define MyStyle
+skinparam sequence {
+    ParticipantBorderColor red
+    ParticipantBackgroundColor #FFFFCC
+    ParticipantBorderThickness 2
+}
+skinparam BoxPadding 2
+skinparam ParticipantPadding 2
+
+box "MySQL Server" #LightGreen
+participant "mysql_execute_command" as f040
+participant "Sql_cmd_dml" as f050
+participant "Query_expression" as f070
+participant "Query_block" as f080
+participant "JOIN" as f090
+participant "QueryPlan" as f100
+participant "Hypergraph" as f120
+participant "None" as f130
+end box
+
+f040 --> f050
+f050 --> f050 : execute(Sql_cmd_dml,THD)
+f050 --> f070 : execute_inner(Sql_cmd_dml,THD)
+f070 --> f080 : optimize(Query_expression\n,THD,TABLE,bool,bool)
+f080 --> f090 : optimize(Query_block\n,THD,bool)
+f090 --> f100 : optimize(JOIN,bool)
+note right
+    -# Logical transformations:
+      - Outer to inner joins transformation.
+      - Equality/constant propagation.
+      - Partition pruning.
+      - COUNT(*), MIN(), MAX() constant substitution in case of implicit grouping.
+      - ORDER BY optimization.
+    -# Perform cost-based optimization of table order and access path
+       selection. See JOIN::make_join_plan()
+    -# Post-join order optimization:
+       - Create optimal table conditions from the where clause and the join conditions.
+       - Inject outer-join guarding conditions.
+       - Adjust data access methods after determining table condition (several times.)
+       - Optimize ORDER BY/DISTINCT.
+    -# Code generation
+       - Set data access functions.
+       - Try to optimize away sorting/distinct.
+       - Setup temporary table usage for grouping and/or sorting.
+end note
+f100 --> f100 : FindBestQueryPlan(\nTHD,Query_block,trace)
+f100 --> f100 : FindBestQueryPlanInner(THD,\nQuery_block,bool,int,trace)
+note right
+    1. All joined tables, including join predicates.
+    2. WHERE predicates (we push these down into #1 where allowed)
+    3. GROUP BY (it is sometimes possible to push this down into #1,
+       but we don't have the functionality to do so).
+    4. HAVING.
+    5. Window functions.
+    6. DISTINCT.
+    7. ORDER BY.
+    8. LIMIT.
+    9. SQL_BUFFER_RESULT (a MySQL extension).
+end note 
+f100 --> f120 : MakeJoinHypergraph(\nTHD,trace,JoinHypergraph,bool)
+f120 --> f120 : MakeJoinGraphFromRelationalExpression(THD,\nRelationalExpression,trace,JoinHypergraph)
+note left
+  Convert a join rooted at “expr” into a join hypergraph that encapsulates
+  the constraints given by the relational expressions (e.g. inner joins are
+  more freely reorderable than outer joins).
+
+  The function in itself only does some bookkeeping around node bitmaps,
+  and then defers the actual conflict detection logic to
+  FindHyperedgeAndJoinConflicts().
+end note
+@enduml
