@@ -62,3 +62,13 @@ digraph G {
   t2 -> e2 [arrowhead=none,label=""]
   e2 -> t3 [label="((t1.N_REGIONKEY + t2.N_REGIONKEY) = t3.N_REGIONKEY) (1)",arrowhead=none]
 }
+
+digraph G {  
+            CUSTOMER -> ORDERS [label="(CUSTOMER.C_CUSTKEY = ORDERS.O_CUSTKEY) (6.76e-06)",arrowhead=none]
+            LINEITEM -> ORDERS [label="(LINEITEM.L_ORDERKEY = ORDERS.O_ORDERKEY) (6.69e-07)",arrowhead=none]
+            SUPPLIER -> LINEITEM [label="(LINEITEM.L_SUPPKEY = SUPPLIER.S_SUPPKEY) (0.0001)",arrowhead=none]
+            NATION -> SUPPLIER [label="(NATION.N_NATIONKEY = SUPPLIER.S_NATIONKEY) (0.04)",arrowhead=none]
+            REGION -> NATION [label="(NATION.N_REGIONKEY = REGION.R_REGIONKEY) (0.2)",arrowhead=none]
+            SUPPLIER -> CUSTOMER [label="(CUSTOMER.C_NATIONKEY = SUPPLIER.S_NATIONKEY) (0.04)",arrowhead=none]
+            CUSTOMER -> NATION [label="(CUSTOMER.C_NATIONKEY = NATION.N_NATIONKEY) (0.04)",arrowhead=none]
+}

@@ -1,1 +1,73 @@
-$$
+% !TeX program = xelatex
+% !TeX TXS-program:xelatex = -shell-escape
+
+\documentclass[fontset=none]{ctexart}
+\ctexset{fontset=fandol}
+
+\usepackage{xeCJK}
+\usepackage[a4paper, left=1cm, right=1cm, top=1cm, bottom=1.5cm]{geometry}    %设置页面边距
+\usepackage{graphicx}   %插入图片
+
+\usepackage{minted}     %允许插入代码段。需要在settings.json中"latex-workshop.latex.tools"节点的子节点"name":"xelatex"下面添加"-shell-escape",
+% \usepackage{minted} % 引用minted包
+\usepackage{caption} % 引用caption包
+\usepackage{fvextra} % 引用fvextra包
+\DeclareCaptionType{code}[Code Listing][List of Code Listings] % 设置code环境为新的代码环境
+
+\usepackage{amsmath} % 数学公式包
+\usepackage{amssymb} % 实数集的包
+\usepackage{parskip} % 段落包
+\usepackage{setspace} % 行距包
+% \setlength{\parindent}{0pt} % 取消段落缩进
+\usepackage{titlesec} % 章节标题格式包
+\titleformat*{\section}{\large\bfseries} % 设定section标题格式为加粗大号字体
+\usepackage{tocloft} % 目录格式包
+\renewcommand\cftsecfont{\normalfont\bfseries} % 设定section标题格式为加粗字体
+\renewcommand\cftsecpagefont{\normalfont\bfseries} % 目录页码字体
+\usepackage{ragged2e} % 左对齐包
+\usepackage{hyperref} % 超链接包
+\usepackage{array} % 引入 array、表格 包
+% \usepackage{amsthm} % 使用definition环境
+\hypersetup{colorlinks=true, linkcolor=blue, filecolor=magenta, urlcolor=blue} % 超链接格式设置
+
+
+\title{超图学习}
+\author{Lindeci}
+\date{\today}
+
+\begin{document}
+\maketitle
+\tableofcontents
+
+\definecolor{codebgcolor}{HTML}{F8F8F8} % 设置背景颜色
+
+\section{概念}
+
+\newtheorem{definition}{定义}
+
+
+\begin{definition}{(subgraph)}
+    设 H = (V, E) 是一个超图，$V' \subseteq V$， $V'$ 是普通节点的一个子集。
+
+    \ \ \ $G|_{V'}$ 定义为 $G|_{V'} = (V',E')$，其中 $E' = \{(u,v)|(u,v) \in E,u \subseteq V',v \subseteq V'\}$。
+    
+    \ \ \ $V'$ 上的节点排序继承 $V$ 上节点排序。
+
+    $\Join $
+ 
+    ⨝
+    ⨝ nature join
+    ⟗ full outerjoi
+    ⟕ left outerjoin
+    ⟖ right outerjoin
+    ✕ cross join
+    ⋊ 
+    ⋉ 
+    ⋉
+    ▷
+
+\end{definition}
+
+
+\end{document}
+

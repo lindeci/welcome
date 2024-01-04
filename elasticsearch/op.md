@@ -70,6 +70,7 @@
   - [Elasticsearch 权限说明](#elasticsearch-权限说明)
 - [命令行授权](#命令行授权)
 - [别名操作](#别名操作)
+- [null 值测试](#null-值测试)
 - [\_cat命令集](#_cat命令集)
 - [\_cluster命令集](#_cluster命令集)
 - [问题处理](#问题处理)
@@ -1855,6 +1856,60 @@ POST /_aliases
 }
 ```
 
+# null 值测试
+```sql
+PUT /ldc_test
+{
+  "mappings": {
+    "properties": {
+      "id": {
+        "type": "keyword"
+      },
+      "interface_name": {
+        "type": "keyword"
+      },
+      "interface_var": {
+        "type": "text",
+        "index": false,
+        "analyzer": "ik_max_word"
+      }
+    }
+  }
+}
+
+DELETE ldc_test
+
+PUT ldc_test/_bulk
+{"index":{"_id":1}}
+{"id":1,"interface_name":"test1","interface_var":"test1"}
+{"index":{"_id":2}}
+{"id":2,"interface_name":"test2","interface_var":"null"}
+{"index":{"_id":3}}
+{"id":3,"interface_name":"test3","interface_var":""}
+{"index":{"_id":4}}
+{"id":4,"interface_name":"test4","interface_var":null}
+{"index":{"_id":5}}
+{"id":5,"interface_name":"test5","interface_var":[]}
+{"index":{"_id":6}}
+{"id":6,"interface_name":"test6","interface_var":"NULL"}
+{"index":{"_id":7}}
+{"id":7,"interface_name":"test7","interface_var":"test7"}
+
+POST _sql?format=txt
+{
+  "query": "SELECT * FROM ldc_test"
+}
+
+      id       |interface_name | interface_var 
+---------------+---------------+---------------
+1              |test1          |test1          
+2              |test2          |null           
+3              |test3          |               
+4              |test4          |null           
+5              |test5          |null           
+6              |test6          |NULL           
+7              |test7          |test7  
+```
 # _cat命令集
 
 末尾添加 ?v可以打印字段标题
