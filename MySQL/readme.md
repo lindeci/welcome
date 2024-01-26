@@ -117,6 +117,9 @@
   - [innodb\_table\_stats](#innodb_table_stats)
   - [innodb\_index\_stats](#innodb_index_stats)
   - [ANALYZE TABLE](#analyze-table)
+- [枚举类型测试](#枚举类型测试)
+  - [枚举类型官网讲解](#枚举类型官网讲解)
+- [decimal 跟浮点数的区别](#decimal-跟浮点数的区别)
 
 # 版本
 
@@ -4169,4 +4172,52 @@ ANALYZE TABLE 91iot_db_dqh.hangfire_job_history;
 - 更新统计信息：`ANALYZE TABLE`可以更新表的统计信息，这对于查询优化器生成最佳查询计划非常重要³。
 - 支持多种存储引擎：`ANALYZE TABLE`支持InnoDB、NDB、MyISAM等存储引擎，但不支持视图²⁵。
 
-需要注意的是，执行`ANALYZE TABLE`时，会对表加上读锁¹⁵。在分析期间，只能读取表中的记录，不能更新和插入记录¹。此外，`ANALYZE TABLE`的操作会记录到binlog¹⁵。
+需要注意的是，执行`ANALYZE TABLE`时，会对表加上读锁¹⁵。在分析期间，只能读取表中的记录，不能更新和插入记录¹。此外，`ANALYZE TABLE`的操作会记录到binlog。
+
+# 枚举类型测试
+```sql
+CREATE TABLE test2 (
+    id int PRIMARY key,
+    col ENUM ('value1','value2','value3') not null default 'value3'
+);
+
+insert into test2 values (1,'value1'),(2,'value2'),(3,'value3');
+
+select * from test2;
+/* 返回
+id	col
+1	value1
+2	value2
+3	value3
+*/
+
+select id,col+0 from test2;
+/* 返回
+id	col+0
+1	1
+2	2
+3	3
+*/
+
+select id,col from test2 where col=1;
+/* 返回
+id	col
+1	value1
+*/
+
+select id,col from test2 where col='value1';
+/* 返回
+id	col
+1	value1
+*/
+```
+## 枚举类型官网讲解
+Modifying the definition of an ENUM or SET column by adding new enumeration or set members to the end of the list of valid member values may be performed in place, as long as the storage size of the data type does not change. For example, adding a member to a SET column that has 8 members changes the required storage per value from 1 byte to 2 bytes; this requires a table copy. Adding members in the middle of the list causes renumbering of existing members, which requires a table copy.
+
+通过在有效成员值列表的末尾添加新的枚举或集合成员来修改ENUM或SET列的定义，只要数据类型的存储大小不变，就可以在原地执行。例如，向一个有8个成员的SET列添加一个成员会将每个值所需的存储空间从1字节变为2字节；这就需要复制整个表。在列表中间添加成员会导致现有成员的重新编号，这也需要复制整个表。
+
+|Operation|	In Place|	Rebuilds Table|	Permits Concurrent DML|	Only Modifies Metadata|
+| ------- | --------|-----------------|-----------------------| ----------------------|
+|Modifying the definition of an ENUM or SET column|	Yes|	Yes|	No|	Yes|	Yes|
+
+# decimal 跟浮点数的区别

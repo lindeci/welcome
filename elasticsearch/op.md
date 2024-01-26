@@ -1189,6 +1189,67 @@ GET /logx-business/_search
 GET /logx-business/_search?size=10&filter_path=hits.hits
 ```
 
+# 创建 data_stream 模板
+```sh
+-- 建立 datastream 模板
+PUT _index_template/ceph-template     -- 这里的 ceph-template 是模板名称
+{
+  "index_patterns": [
+    "ceph-logs*"   -- 匹配的 datastream 名称
+  ],
+  "priority": 1,	-- 索引模板的优先级，一个datastream同时匹配到多个模板时，会用到
+  "data_stream": {},	-- 表示这个模式是用于数据流
+  "template": {
+    "settings": {
+      "index": {
+        "number_of_shards": "16",	-- 建议一个分片不超过100G（比如14天的日志量是14T，那么可以设置为16分片，刚好每个分片100G）
+        "number_of_replicas": "1",	-- 建议默认一个从副本
+        "lifecycle.name ": "14-days-default"	--	关联生命周期模板，有很多模板，比如7、14、30、90、180等，还可以设置滚动策略
+      }
+    },
+	"mappings": {     -- 映射规则，规范同普通索引的映射规则
+		"_meta": {
+				"software_version_mapping": "1.0",
+				"description": "升级包(te_iot_upgrade_package)"
+		},
+		"_default_": {
+		  "_all": {
+			"enabled": false
+		  }
+		},
+		"properties": {
+			"id": {
+				"type": "keyword",
+				"index": "true"
+			},
+			"package_name": {
+				"type": "text",
+				"analyzer": "ik_max_word",
+				"fields": {
+					"keyword": {
+						"type": "keyword"
+					}
+				},
+				"index": "true"
+			},
+			"version": {
+				"type": "keyword",
+				"index": "true"
+			},
+			"create_time": {
+				"type": "date",
+				"format": "yyyy-MM-dd HH:mm:ss||strict_date_optional_time||epoch_millis",
+				"index": "false"
+			}
+		}
+	  }
+  }
+}
+
+-- 建立对应的 datastream
+PUT /_data_stream/ceph-logs-test  -- 要求跟模板中的 ceph-logs* 对应
+```
+
 # 多个条件模糊匹配查询
 ```json
 {

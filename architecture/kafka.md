@@ -408,6 +408,14 @@ kafka-topics.sh --delete --topic test --zookeeper tdsql_test_zk:2118,tdsq2_test_
 kafka-configs.sh --zookeeper tdsql_test_zk:2118,tdsq2_test_zk:2118,tdsq2_test_zk:2118/kafka --entity-type topics --entity-name test --alter --delete-config retention.ms
 ```
 
+## 查看集群有哪些节点
+```sh
+zookeeper-shell.sh 172.1.1.1:2181 ls /brokers/ids
+zookeeper-shell.sh 172.1.1.1:2181 get /brokers/ids/0
+zookeeper-shell.sh 172.1.1.1:2181 get /brokers/ids/1
+zookeeper-shell.sh 172.1.1.1:2181 get /brokers/ids/2
+```
+
 # kafka 2.2.0 版本
 
 从Kafka 2.2.0版本开始，`kafka-topics.sh`脚本不再支持 `--zookeeper`选项，而是使用 `--bootstrap-server`选项来指定Kafka集群的地址。您可以使用以下命令来列出Kafka主题：

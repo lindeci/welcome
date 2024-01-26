@@ -191,4 +191,83 @@ class Mem_root_array_YY<Item*> {
 }
 
 Mem_root_array --|> Mem_root_array_YY
+
+struct RelationalExpression {
+    RelationalExpression::Type type;
+    table_map tables_in_subtree;
+    hypergraph::NodeMap nodes_in_subtree;
+    const Table_ref *table;
+    Mem_root_array<Item*> join_conditions_pushable_to_this;
+    CompanionSet *companion_set;
+    RelationalExpression *left;
+    RelationalExpression *right;
+    Mem_root_array<RelationalExpression*> multi_children;
+    Mem_root_array<Item*> join_conditions;
+    Mem_root_array<Item_eq_base*> equijoin_conditions;
+    Mem_root_array<CachedPropertiesForPredicate> properties_for_join_conditions;
+    Mem_root_array<CachedPropertiesForPredicate> properties_for_equijoin_conditions;
+    bool join_conditions_reject_all_rows;
+    table_map conditions_used_tables;
+    int join_predicate_first;
+    int join_predicate_last;
+    Mem_root_array<ConflictRule> conflict_rules;
+}
+RelationalExpression --* JoinPredicate::RelationalExpression 
+
+enum RelationalExpression::Type
+{
+  RelationalExpression::INNER_JOIN, 
+  RelationalExpression::LEFT_JOIN, 
+  RelationalExpression::SEMIJOIN = 3, 
+  RelationalExpression::ANTIJOIN = 2, 
+  RelationalExpression::STRAIGHT_INNER_JOIN = 101, 
+  RelationalExpression::FULL_OUTER_JOIN = 4, 
+  RelationalExpression::MULTI_INNER_JOIN = 102, 
+  RelationalExpression::TABLE = 100
+}
+RelationalExpression::Type --* RelationalExpression::type
+
+enum AccessPath::Type {
+	AccessPath::TABLE_SCAN, 
+	AccessPath::INDEX_SCAN, 
+	AccessPath::REF, 
+	AccessPath::REF_OR_NULL, 
+	AccessPath::EQ_REF, 
+	AccessPath::PUSHED_JOIN_REF, 
+	AccessPath::FULL_TEXT_SEARCH, 
+	AccessPath::CONST_TABLE, 
+	AccessPath::MRR, AccessPath::FOLLOW_TAIL, 
+	AccessPath::INDEX_RANGE_SCAN, 
+	AccessPath::INDEX_MERGE, 
+	AccessPath::ROWID_INTERSECTION, 
+	AccessPath::ROWID_UNION, 
+	AccessPath::INDEX_SKIP_SCAN, 
+	AccessPath::GROUP_INDEX_SKIP_SCAN, 
+	AccessPath::DYNAMIC_INDEX_RANGE_SCAN, 
+	AccessPath::TABLE_VALUE_CONSTRUCTOR, 
+	AccessPath::FAKE_SINGLE_ROW, 
+	AccessPath::ZERO_ROWS, 
+	AccessPath::ZERO_ROWS_AGGREGATED, 
+	AccessPath::MATERIALIZED_TABLE_FUNCTION, 
+	AccessPath::UNQUALIFIED_COUNT, 
+	AccessPath::NESTED_LOOP_JOIN, 
+	AccessPath::NESTED_LOOP_SEMIJOIN_WITH_DUPLICATE_REMOVAL, 
+	AccessPath::BKA_JOIN, AccessPath::HASH_JOIN,
+	AccessPath::FILTER, AccessPath::SORT, 
+	AccessPath::AGGREGATE, AccessPath::TEMPTABLE_AGGREGATE, 
+	AccessPath::LIMIT_OFFSET, 
+	AccessPath::STREAM, 
+	AccessPath::MATERIALIZE, 
+	AccessPath::MATERIALIZE_INFORMATION_SCHEMA_TABLE, 
+	AccessPath::APPEND, 
+	AccessPath::WINDOW, 
+	AccessPath::WEEDOUT, 
+	AccessPath::REMOVE_DUPLICATES, 
+	AccessPath::REMOVE_DUPLICATES_ON_INDEX, 
+	AccessPath::ALTERNATIVE, 
+	AccessPath::CACHE_INVALIDATOR, 
+	AccessPath::DELETE_ROWS, 
+	AccessPath::UPDATE_ROWS
+}
+
 @enduml 

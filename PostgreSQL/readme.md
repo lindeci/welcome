@@ -33,7 +33,13 @@
 - [查看连接和 kill 连接](#查看连接和-kill-连接)
 - [SEQUENCE](#sequence)
 - [创建指定权限用户](#创建指定权限用户)
+- [创建只读账号](#创建只读账号)
+- [授权监控权限](#授权监控权限)
+- [修改库的OWNER](#修改库的owner)
 - [修改用户密码](#修改用户密码)
+- [添加建表权限](#添加建表权限)
+- [授权序列](#授权序列)
+- [给 kong 的所有权限](#给-kong-的所有权限)
 - [pgbench 压测](#pgbench-压测)
 - [帮助命令](#帮助命令)
   - [General](#general)
@@ -478,6 +484,18 @@ ALTER USER postgres WITH PASSWORD 'new_password';
 ALTER USER repl WITH PASSWORD 'repl123';
 ```
 
+# 添加建表权限
+```sql
+GRANT CREATE ON SCHEMA public TO kong_dev;
+```
+# 授权序列
+```sql
+GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO kong_dev;
+```
+# 给 kong 的所有权限
+```sql
+ALTER DATABASE kong OWNER TO kong_dev;
+```
 # pgbench 压测
 
 
