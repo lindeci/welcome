@@ -44,6 +44,7 @@
 - [设置路由的例子](#设置路由的例子)
 - [data stream 的限制](#data-stream-的限制)
 - [创建data stream例子](#创建data-stream例子)
+- [创建 data\_stream 模板](#创建-data_stream-模板)
 - [多个条件模糊匹配查询](#多个条件模糊匹配查询)
 - [批量删除索引中的文档](#批量删除索引中的文档)
 - [安装分词器](#安装分词器)
@@ -76,6 +77,7 @@
 - [问题处理](#问题处理)
   - [1、TOO\_MANY\_REQUESTS/12/disk usage exceeded flood-stage watermark](#1too_many_requests12disk-usage-exceeded-flood-stage-watermark)
   - [2、扩容磁盘空间](#2扩容磁盘空间)
+  - [](#)
 
 
 # 网上资料
@@ -560,6 +562,10 @@ POST _reindex
 | token_count | 令牌计数字段，用于跟踪文本字段的令牌数量 |
 | nested      | 嵌套对象字段，用于存储嵌套的JSON对象     |
 | object      | 对象字段，用于存储JSON对象               |
+
+需要注意的是，ignore_above 参数只适用于 keyword 类型的字段。  
+对于 text 类型的字段，Elasticsearch 并没有提供直接的方式来限制字段的长度。  
+如果你需要限制 text 类型字段的长度，你可能需要在应用程序中进行处理，比如在索引数据之前先检查字段的长度。
 
 # 日期字段类型
 比如：
@@ -2052,3 +2058,5 @@ curl  -X GET 'https://172.1.1.2:9200/_cat/indices' -uelastic:123456 -k | grep gb
 curl -X DELETE 'https://172.1.1.2:9200/.xxxx-test-2023.11.30-000024' -uelastic:123456 -k
 ```
 ## 2、扩容磁盘空间
+
+## 
