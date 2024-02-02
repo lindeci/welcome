@@ -47,6 +47,7 @@
 - [创建 data\_stream 模板](#创建-data_stream-模板)
 - [多个条件模糊匹配查询](#多个条件模糊匹配查询)
 - [批量删除索引中的文档](#批量删除索引中的文档)
+- [只删除数据](#只删除数据)
 - [安装分词器](#安装分词器)
 - [使用S3接口进行备份恢复](#使用s3接口进行备份恢复)
 - [查看 索引 是否可用状态](#查看-索引-是否可用状态)
@@ -1298,6 +1299,15 @@ POST smartpark-jf/_delete_by_query?scroll=5m&conflicts=proceed&timeout=5m&slices
 }
 ```
 在SSD上，上面的参数在性能上表现优异，平均每秒删除上万个文档
+# 只删除数据
+```
+POST /ldc_elastic/_delete_by_query
+{
+  "query": { 
+    "match_all": {} 
+  }
+}
+```
 
 # 安装分词器
 IK 中文分词器
