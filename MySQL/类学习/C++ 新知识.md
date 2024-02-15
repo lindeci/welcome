@@ -767,3 +767,8 @@ int main() {
 ```
 
 在这个例子中，我们使用std::forward<int>来将x作为一个左值引用传递给print函数。这样就可以保证每次调用print函数时都得到正确的结果。
+
+# 成员指针运算符
+```cpp
+using Item_processor = bool (Item::*)(unsigned char *);
+```

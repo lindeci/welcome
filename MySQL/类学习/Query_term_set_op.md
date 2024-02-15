@@ -27,3 +27,29 @@ protected:
     void print(int, std::ostringstream &, const char *) const;  // 打印函数声明
 }
 ```
+
+
+
+
+```cpp
+class Query_term_set_op : public Query_term {
+  private:
+    Query_block *m_block;
+  public:
+    mem_root_deque<Query_term*> m_children;
+    int64_t m_last_distinct;
+    int64_t m_first_distinct;
+    bool m_is_materialized;
+}
+
+class Query_term {
+  protected:
+    Query_term_set_op *m_parent;
+    Query_result *m_setop_query_result;
+    bool m_owning_operand;
+    Table_ref *m_result_table;
+    mem_root_deque<Item*> *m_fields;
+  private:
+    uint m_curr_id;
+}
+```
