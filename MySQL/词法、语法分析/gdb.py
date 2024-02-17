@@ -1,10 +1,10 @@
 import gdb
 
 BLOCK_ELEMENTS = 128
-num_blocks = gdb.parse_and_eval('thd->lex->query_block->m_table_nest.num_blocks()')
-if (num_blocks):
-    BLOCK_ELEMENTS = gdb.parse_and_eval(
-        'thd->lex->query_block->m_table_nest->m_capacity/thd->lex->query_block->m_table_nest.num_blocks()')
+#num_blocks = gdb.parse_and_eval('thd->lex->query_block->m_table_nest.num_blocks()')
+#if (num_blocks):
+#    BLOCK_ELEMENTS = gdb.parse_and_eval(
+#        'thd->lex->query_block->m_table_nest->m_capacity/thd->lex->query_block->m_table_nest.num_blocks()')
 
 g_conv = 'g_conv'
 g_tab = ' ' * 5
@@ -401,6 +401,16 @@ class GDB_JoinHypergraph(gdb.Command):
         print('-----------JoinHypergraph::num_where_predicates-----------')
         print(f"num_where_predicates: {graph['num_where_predicates']}")
 
+        print('')
+        print('-----------JoinHypergraph::sargable_join_predicates-----------')
+        #print(graph['sargable_join_predicates'].dynamic_type)
+        #sargable_join_predicates = graph['sargable_join_predicates']
+        #print(dir(sargable_join_predicates))
+        #begin = sargable_join_predicates['_M_h']['_M_bbegin']
+        #end = sargable_join_predicates['_M_h']['_M_eend']
+        #print(f"sargable_join_predicates: {graph['sargable_join_predicates']}")
+        
+
     def display_table_num_to_node_num(self, vector):
         table_num_to_node_num = std_array_to_list(vector)
         for i in range(len(table_num_to_node_num)):
@@ -520,6 +530,13 @@ class GDB_RelationalExpression(gdb.Command):
         print((f"multi_children<RelationalExpression>: {multi_children}"))
         join_conditions_pushable_to_this = Mem_root_array_to_list(rel_expr.dereference()['join_conditions_pushable_to_this'].address)
         print((f"join_conditions_pushable_to_this<Item*>: {[str(i.address) for i in join_conditions_pushable_to_this]}"))
+
+        conflict_rules = Mem_root_array_to_list(rel_expr.dereference()['conflict_rules'].address)
+        print("conflict_rules: [", end = '')
+        for i in range(len(conflict_rules)):
+            print(f"{{needed_to_activate_rule: {conflict_rules[i]['needed_to_activate_rule']},  "
+                f"required_nodes: {conflict_rules[i]['required_nodes']} }}  ", end = '')
+        print("]")
         print('')
 
         if (rel_expr.dereference()['left'] and str(rel_expr.dereference()['left']) != '0x8f8f8f8f8f8f8f8f'):
