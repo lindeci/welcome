@@ -204,3 +204,13 @@ git branch -m main
 ```bash
 git push -f origin main
 ```
+
+7. 设置开发者密码
+```bash
+https://github.com/settings/tokens?type=beta
+
+然后
+git config --global user.name lindeci
+git config --global user.password 上面生成的token
+git config --global user.email 541287039@qq.com
+```
