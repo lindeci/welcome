@@ -14,9 +14,22 @@
     - [查看 DPhyp 打印的动态规划表日志](#查看-dphyp-打印的动态规划表日志)
     - [查看 DPhyp 打印的 csg-cmp-pair](#查看-dphyp-打印的-csg-cmp-pair)
     - [查看 DPhyp 打印的函数调用流程](#查看-dphyp-打印的函数调用流程)
-- [对 CD-C 算法完备性的证明](#对-cd-c-算法完备性的证明)
-- [对 cascade 架构性能的质疑](#对-cascade-架构性能的质疑)
-- [gdb 打印超图内容的 python 源码](#gdb-打印超图内容的-python-源码)
+  - [官方 DPhyp 测试用例的演示](#官方-dphyp-测试用例的演示)
+    - [编译 dphyp-t 测试用例](#编译-dphyp-t-测试用例)
+    - [查看 dphyp-t 中的测试用例](#查看-dphyp-t-中的测试用例)
+    - [查看 DPhypTest.SmallStar 测试用例的 hypergraph 图形](#查看-dphyptestsmallstar-测试用例的-hypergraph-图形)
+    - [执行 DPhypTest.SmallStar 测试用例](#执行-dphyptestsmallstar-测试用例)
+    - [查看 DPhypTest.SmallStar 测试用例的 DynamicTable 打印日志](#查看-dphyptestsmallstar-测试用例的-dynamictable-打印日志)
+    - [查看 DPhypTest.SmallStar 测试用例的 csg-cmp-pair 打印日志](#查看-dphyptestsmallstar-测试用例的-csg-cmp-pair-打印日志)
+    - [查看 DPhypTest.ExampleHypergraph 测试用例的 hypergraph 图形](#查看-dphyptestexamplehypergraph-测试用例的-hypergraph-图形)
+    - [查看 DPhypTest.ExampleHypergraph 等价 SQL 的 Hypergraph 图](#查看-dphyptestexamplehypergraph-等价-sql-的-hypergraph-图)
+    - [执行 DPhypTest.ExampleHypergraph 测试用例](#执行-dphyptestexamplehypergraph-测试用例)
+    - [查看 DPhypTest.ExampleHypergraph 测试用例的 DynamicTable 打印日志](#查看-dphyptestexamplehypergraph-测试用例的-dynamictable-打印日志)
+    - [查看 DPhypTest.ExampleHypergraph 测试用例的 csg-cmp-pair 打印日志](#查看-dphyptestexamplehypergraph-测试用例的-csg-cmp-pair-打印日志)
+- [4. 对 CD-C 算法完备性的证明](#4-对-cd-c-算法完备性的证明)
+  - [归纳法的证明过程](#归纳法的证明过程)
+- [5. 对 cascade 架构性能的质疑](#5-对-cascade-架构性能的质疑)
+- [6. gdb 打印超图内容的 python 源码](#6-gdb-打印超图内容的-python-源码)
 
 # 1. 一条 SQL 搜索最低成本执行计划时的计算顺序
 为什么说 join order 是核心搜索空间？
@@ -57,10 +70,14 @@ CREATE TABLE t1 ( id int, a int );
 CREATE TABLE t2 LIKE t1;
 CREATE TABLE t3 LIKE t1;
 CREATE TABLE t4 LIKE t1;
+CREATE TABLE t5 LIKE t1;
+CREATE TABLE t6 LIKE t1;
 INSERT INTO t1 (id, a) VALUES (1,1),(2,2);
 INSERT INTO t2 SELECT * FROM t1;
 INSERT INTO t3 SELECT * FROM t1;
 INSERT INTO t4 SELECT * FROM t1;
+INSERT INTO t5 SELECT * FROM t1;
+INSERT INTO t6 SELECT * FROM t1;
 
 -- 开启 Hypergraph 优化器
 set optimizer_switch="hypergraph_optimizer=on";
@@ -84,7 +101,9 @@ where
 -exec mysql hypergraph receiver->m_graph
 ```
 输出结果如下。请确保你理解了下面的数据结构再阅读下面的章节。  
-比如 `edge[0]: {left: 0000000001   right: 0000000010}` 的含意是：这条边的左边的点是 `node[0]`,右边的点是 `node[1]`。
+比如 `edge[0]: {left: 0000000001   right: 0000000010}` 的含意是：这条边的左边的点是 `node[0]`,右边的点是 `node[1]`。  
+每个连接谓词，都会产生两个 edge。比如 `t1.id = t2.id` 会产生两条边 `edege[0]、edege[1]`。  
+由于超边比较抽象，我们先忽略 `complex_edges`。
 ```yaml
 ----------------其中 hypergraph 的数据结构及信息----------------------
 edge[0]: {left: 0000000001   right: 0000000010}
@@ -987,7 +1006,7 @@ bool EnumerateAllConnectedPartitions(const Hypergraph &g, Receiver *receiver) {
 ```
 
 ## 查看 DPhyp 的打印日志
-执行 sql
+执行 sql，然后查看 MySQL server 端的日志
 ```sql
 select t1.* from
 t1, t2, t3, t4
@@ -1163,12 +1182,372 @@ EnumerateAllConnectedPartitions     Starting main iteration at node {R1}
         ExpandSubgraph(lowest_node_idx:0, subgraph:{R1,R3,R4}, full_neighborhood:{R2,R3,R4}, neighborhood:{}, forbidden:{R2})
         ExpandSubgraph(lowest_node_idx:0, subgraph:{R1,R2,R3,R4}, full_neighborhood:{R2,R3,R4}, neighborhood:{}, forbidden:{})
 ```
+## 官方 DPhyp 测试用例的演示
+官方的测试框架是 `googletest`
+### 编译 dphyp-t 测试用例
+ ```sh
+cmake --build /data/mysql-server-8.2.0/build --config Debug --target dphyp-t
+# 对应的测试用例源码在 /data/mysql-server-8.2.0/unittest/gunit/dphyp-t.cc
+ ```
+### 查看 dphyp-t 中的测试用例
+```sh
+/data/mysql-server-8.2.0/build/runtime_output_directory/dphyp-t --gtest_list_tests
+```
+输出结果
+```yaml
+DPhypTest.
+  ExampleHypergraph
+  Loop
+  AbortWithError
+  Chain
+  SmallStar
+  Clique
+  OuterJoinChain
+Microbenchmarks.
+  BM_Chain20
+  BM_NestedOuterJoin20
+  BM_HyperCycle16
+  BM_Star17
+  BM_HyperStar17_ManyHyperedges
+  BM_HyperStar17_SingleLargeHyperedge
+```
+### 查看 DPhypTest.SmallStar 测试用例的 hypergraph 图形
+在 `/data/mysql-server-8.2.0/unittest/gunit/dphyp-t.cc` 中搜索 `TEST(DPhypTest, SmallStar)`，可以看到
+```
+  /*
+     R2
+     |
+     |
+     R1---R3
+     |
+     |
+     R4
+   */
+```
+### 执行 DPhypTest.SmallStar 测试用例
+```sh
+/data/mysql-server-8.2.0/build/runtime_output_directory/dphyp-t --gtest_filter=DPhypTest.SmallStar  --gtest_output=json:/tmp/log.json > /tmp/log
+# 这里的 DPhypTest SmallStar 是测试用例名称
+```
+查看 googletest 测试结果
+```
+cat /tmp/log.json 
+{
+  "tests": 1,
+  "failures": 0,
+  "disabled": 0,
+  "errors": 0,
+  "timestamp": "2024-03-04T04:58:16Z",
+  "time": "0.003s",
+  "name": "AllTests",
+  "testsuites": [
+    {
+      "name": "DPhypTest",
+      "tests": 1,
+      "failures": 0,
+      "disabled": 0,
+      "errors": 0,
+      "timestamp": "2024-03-04T04:58:16Z",
+      "time": "0.003s",
+      "testsuite": [
+        {
+          "name": "SmallStar",
+          "file": "\/data\/mysql-server-8.2.0\/unittest\/gunit\/dphyp-t.cc",
+          "line": 470,
+          "status": "RUN",
+          "result": "COMPLETED",
+          "timestamp": "2024-03-04T04:58:16Z",
+          "time": "0.003s",
+          "classname": "DPhypTest"
+        }
+      ]
+    }
+  ]
+}
+```
+### 查看 DPhypTest.SmallStar 测试用例的 DynamicTable 打印日志
+```yaml
+cat /tmp/log | grep -v '\[-' | grep -v '\[=' | grep -v '\[ ' | grep DynamicTable
 
-# 对 CD-C 算法完备性的证明
+DynamicTable: |FunctionName             |lowest_node_idx     |subgraph            |forbidden           |Neighborhood        |Complement          |
+DynamicTable: ------------------------------------------------------------------------------------------------------------------------------------
+DynamicTable: |   EnumerateComplementsTo|                   3|                {R4}|                  {}|                  {}|                  {}|
+DynamicTable: |           ExpandSubgraph|                   3|                {R4}|       {R1,R2,R3,R4}|                  {}|                  {}|
+DynamicTable: |   EnumerateComplementsTo|                   2|                {R3}|                  {}|                  {}|                  {}|
+DynamicTable: |           ExpandSubgraph|                   2|                {R3}|          {R1,R2,R3}|                  {}|                  {}|
+DynamicTable: |   EnumerateComplementsTo|                   1|                {R2}|                  {}|                  {}|                  {}|
+DynamicTable: |           ExpandSubgraph|                   1|                {R2}|             {R1,R2}|                  {}|                  {}|
+DynamicTable: |   EnumerateComplementsTo|                   0|                {R1}|                  {}|          {R2,R3,R4}|                  {}|
+DynamicTable: |         ExpandComplement|                   0|                {R1}|          {R1,R2,R3}|                  {}|                {R4}|
+DynamicTable: |         ExpandComplement|                   0|                {R1}|             {R1,R2}|                  {}|                {R3}|
+DynamicTable: |         ExpandComplement|                   0|                {R1}|                {R1}|                  {}|                {R2}|
+DynamicTable: |           ExpandSubgraph|                   0|                {R1}|                {R1}|          {R2,R3,R4}|                  {}|
+DynamicTable: |   EnumerateComplementsTo|                   0|             {R1,R2}|                  {}|       {R1,R2,R3,R4}|                  {}|
+DynamicTable: |         ExpandComplement|                   0|             {R1,R2}|          {R1,R2,R3}|                  {}|                {R4}|
+DynamicTable: |         ExpandComplement|                   0|             {R1,R2}|             {R1,R2}|                  {}|                {R3}|
+DynamicTable: |   EnumerateComplementsTo|                   0|             {R1,R3}|                  {}|       {R1,R2,R3,R4}|                  {}|
+DynamicTable: |         ExpandComplement|                   0|             {R1,R3}|          {R1,R2,R3}|                  {}|                {R4}|
+DynamicTable: |         ExpandComplement|                   0|             {R1,R3}|             {R1,R3}|                  {}|                {R2}|
+DynamicTable: |   EnumerateComplementsTo|                   0|          {R1,R2,R3}|                  {}|       {R1,R2,R3,R4}|                  {}|
+DynamicTable: |         ExpandComplement|                   0|          {R1,R2,R3}|          {R1,R2,R3}|                  {}|                {R4}|
+DynamicTable: |   EnumerateComplementsTo|                   0|             {R1,R4}|                  {}|       {R1,R2,R3,R4}|                  {}|
+DynamicTable: |         ExpandComplement|                   0|             {R1,R4}|          {R1,R2,R4}|                  {}|                {R3}|
+DynamicTable: |         ExpandComplement|                   0|             {R1,R4}|             {R1,R4}|                  {}|                {R2}|
+DynamicTable: |   EnumerateComplementsTo|                   0|          {R1,R2,R4}|                  {}|       {R1,R2,R3,R4}|                  {}|
+DynamicTable: |         ExpandComplement|                   0|          {R1,R2,R4}|          {R1,R2,R4}|                  {}|                {R3}|
+DynamicTable: |   EnumerateComplementsTo|                   0|          {R1,R3,R4}|                  {}|       {R1,R2,R3,R4}|                  {}|
+DynamicTable: |         ExpandComplement|                   0|          {R1,R3,R4}|          {R1,R3,R4}|                  {}|                {R2}|
+DynamicTable: |   EnumerateComplementsTo|                   0|       {R1,R2,R3,R4}|                  {}|       {R1,R2,R3,R4}|                  {}|
+DynamicTable: |           ExpandSubgraph|                   0|             {R1,R2}|             {R3,R4}|                  {}|                  {}|
+DynamicTable: |           ExpandSubgraph|                   0|             {R1,R3}|             {R2,R4}|                  {}|                  {}|
+DynamicTable: |           ExpandSubgraph|                   0|          {R1,R2,R3}|                {R4}|                  {}|                  {}|
+DynamicTable: |           ExpandSubgraph|                   0|             {R1,R4}|             {R2,R3}|                  {}|                  {}|
+DynamicTable: |           ExpandSubgraph|                   0|          {R1,R2,R4}|                {R3}|                  {}|                  {}|
+DynamicTable: |           ExpandSubgraph|                   0|          {R1,R3,R4}|                {R2}|                  {}|                  {}|
+DynamicTable: |           ExpandSubgraph|                   0|       {R1,R2,R3,R4}|                  {}|                  {}|                  {}|
+```
+### 查看 DPhypTest.SmallStar 测试用例的 csg-cmp-pair 打印日志
+可以看出所有的 csg 中都有 {R1}，所有的 cmp 都是单点。
+```yaml
+cat /tmp/log | grep -v '\[-' | grep -v '\[=' | grep -v '\[ ' | grep Complete
 
-# 对 cascade 架构性能的质疑
+Complete csg-cmp-pair : {R1}-{R4}
+Complete csg-cmp-pair : {R1}-{R3}
+Complete csg-cmp-pair : {R1}-{R2}
+Complete csg-cmp-pair : {R1,R2}-{R4}
+Complete csg-cmp-pair : {R1,R2}-{R3}
+Complete csg-cmp-pair : {R1,R3}-{R4}
+Complete csg-cmp-pair : {R1,R3}-{R2}
+Complete csg-cmp-pair : {R1,R2,R3}-{R4}
+Complete csg-cmp-pair : {R1,R4}-{R3}
+Complete csg-cmp-pair : {R1,R4}-{R2}
+Complete csg-cmp-pair : {R1,R2,R4}-{R3}
+Complete csg-cmp-pair : {R1,R3,R4}-{R2}
+```
 
-# gdb 打印超图内容的 python 源码
+### 查看 DPhypTest.ExampleHypergraph 测试用例的 hypergraph 图形
+```
+  /*
+    The example graph from the DPhyp paper. One large
+    hyperedge and four simple edges.
+
+      R1-.   ,-R4
+      |   \ /   |
+      R2---x---R5
+      |   / \   |
+      R3-'   `-R6
+   */
+```
+### 查看 DPhypTest.ExampleHypergraph 等价 SQL 的 Hypergraph 图
+1、在 EnumerateAllConnectedPartitions 处下断点
+
+2、执行 SQL
+```sql
+select t1.* from t1,t2,t3,t4,t5,t6 where t1.id+t2.id+t3.id=t4.id+t5.id+t6.id;
+```
+
+3、 查看 Hypergraph 图
+```sh
+-exec source /data/mysql-server-8.2.0/lindc/gdb.py
+-exec mysql hypergraph receiver->m_graph
+```
+输出结果：
+```yaml
+----------------其中 hypergraph 的数据结构及信息----------------------
+edge[0]: {left: 0000000001   right: 0000000010}
+edge[1]: {left: 0000000010   right: 0000000001}
+edge[2]: {left: 0000000011   right: 0000000100}
+edge[3]: {left: 0000000100   right: 0000000011}
+edge[4]: {left: 0000000111   right: 0000001000}
+edge[5]: {left: 0000001000   right: 0000000111}
+edge[6]: {left: 0000001111   right: 0000010000}
+edge[7]: {left: 0000010000   right: 0000001111}
+edge[8]: {left: 0000011111   right: 0000100000}
+edge[9]: {left: 0000100000   right: 0000011111}
+
+node[0]: {simple_neighborhood: 0000000010   simple_edges: {0}   complex_edges: {2,4,6,8} }
+node[1]: {simple_neighborhood: 0000000001   simple_edges: {1}   complex_edges: {2,4,6,8} }
+node[2]: {simple_neighborhood: 0000000000   simple_edges: {complex_edges: {3,4,6,8} }
+node[3]: {simple_neighborhood: 0000000000   simple_edges: {complex_edges: {5,6,8} }
+node[4]: {simple_neighborhood: 0000000000   simple_edges: {complex_edges: {7,8} }
+node[5]: {simple_neighborhood: 0000000000   simple_edges: {complex_edges: {9} }
+
+----------------其中 hypergraph 跟 SQL 的关系----------------------
+node[0]: t1
+node[1]: t2
+node[2]: t3
+node[3]: t4
+node[4]: t5
+node[5]: t6
+
+edege[0]、edege[1]:
+
+edege[2]、edege[3]:
+
+edege[4]、edege[5]:
+
+edege[6]、edege[7]:
+
+edege[8]、edege[9]:
+  0xffff30bdbf10 Item_func_eq
+  |--> 0xffff30b9c718 Item_func_plus 
+  |    |--> 0xffff30b9c528 Item_func_plus 
+  |    |    |--> 0xffff30bdb670 Item_field :   t1.id
+  |    |    `--> 0xffff30bdb7e0 Item_field :   t2.id
+  |    `--> 0xffff30bdb950 Item_field :   t3.id
+  `--> 0xffff30b9cbe8 Item_func_plus 
+       |--> 0xffff30b9c9f8 Item_func_plus 
+       |    |--> 0xffff30bdbac0 Item_field :   t4.id
+       |    `--> 0xffff30bdbc30 Item_field :   t5.id
+       `--> 0xffff30bdbda0 Item_field :   t6.id
+```
+### 执行 DPhypTest.ExampleHypergraph 测试用例
+```sh
+/data/mysql-server-8.2.0/build/runtime_output_directory/dphyp-t --gtest_filter=DPhypTest.ExampleHypergraph  --gtest_output=json:/tmp/log.json > /tmp/log
+# 这里的 DPhypTest SmallStar 是测试用例名称
+```
+查看 googletest 测试结果
+```
+cat /tmp/log.json 
+{
+  "tests": 1,
+  "failures": 0,
+  "disabled": 0,
+  "errors": 0,
+  "timestamp": "2024-03-04T05:24:26Z",
+  "time": "0.002s",
+  "name": "AllTests",
+  "testsuites": [
+    {
+      "name": "DPhypTest",
+      "tests": 1,
+      "failures": 0,
+      "disabled": 0,
+      "errors": 0,
+      "timestamp": "2024-03-04T05:24:26Z",
+      "time": "0.002s",
+      "testsuite": [
+        {
+          "name": "ExampleHypergraph",
+          "file": "\/data\/mysql-server-8.2.0\/unittest\/gunit\/dphyp-t.cc",
+          "line": 53,
+          "status": "RUN",
+          "result": "COMPLETED",
+          "timestamp": "2024-03-04T05:24:26Z",
+          "time": "0.002s",
+          "classname": "DPhypTest"
+        }
+      ]
+    }
+  ]
+}
+```
+### 查看 DPhypTest.ExampleHypergraph 测试用例的 DynamicTable 打印日志
+```yaml
+cat /tmp/log | grep -v '\[-' | grep -v '\[=' | grep -v '\[ ' | grep DynamicTable
+
+DynamicTable: |FunctionName             |lowest_node_idx     |subgraph            |forbidden           |Neighborhood        |Complement          |
+DynamicTable: ------------------------------------------------------------------------------------------------------------------------------------
+DynamicTable: |   EnumerateComplementsTo|                   5|                {R6}|                  {}|                  {}|                  {}|
+DynamicTable: |           ExpandSubgraph|                   5|                {R6}| {R1,R2,R3,R4,R5,R6}|                  {}|                  {}|
+DynamicTable: |   EnumerateComplementsTo|                   4|                {R5}|                  {}|                {R6}|                  {}|
+DynamicTable: |         ExpandComplement|                   4|                {R5}|    {R1,R2,R3,R4,R5}|                  {}|                {R6}|
+DynamicTable: |           ExpandSubgraph|                   4|                {R5}|    {R1,R2,R3,R4,R5}|                {R6}|                  {}|
+DynamicTable: |   EnumerateComplementsTo|                   4|             {R5,R6}|                  {}|             {R5,R6}|                  {}|
+DynamicTable: |           ExpandSubgraph|                   4|             {R5,R6}|       {R1,R2,R3,R4}|                  {}|                  {}|
+DynamicTable: |   EnumerateComplementsTo|                   3|                {R4}|                  {}|                {R5}|                  {}|
+DynamicTable: |         ExpandComplement|                   3|                {R4}|       {R1,R2,R3,R4}|                {R6}|                {R5}|
+DynamicTable: |         ExpandComplement|                   3|                {R4}|       {R1,R2,R3,R4}|                  {}|             {R5,R6}|
+DynamicTable: |           ExpandSubgraph|                   3|                {R4}|       {R1,R2,R3,R4}|                {R5}|                  {}|
+DynamicTable: |   EnumerateComplementsTo|                   3|             {R4,R5}|                  {}|          {R4,R5,R6}|                  {}|
+DynamicTable: |         ExpandComplement|                   3|             {R4,R5}|    {R1,R2,R3,R4,R5}|                  {}|                {R6}|
+DynamicTable: |           ExpandSubgraph|                   3|             {R4,R5}|          {R1,R2,R3}|                {R6}|                  {}|
+DynamicTable: |   EnumerateComplementsTo|                   3|          {R4,R5,R6}|                  {}|                {R6}|                  {}|
+DynamicTable: |           ExpandSubgraph|                   3|          {R4,R5,R6}|          {R1,R2,R3}|                  {}|                  {}|
+DynamicTable: |   EnumerateComplementsTo|                   2|                {R3}|                  {}|                  {}|                  {}|
+DynamicTable: |           ExpandSubgraph|                   2|                {R3}|          {R1,R2,R3}|                  {}|                  {}|
+DynamicTable: |   EnumerateComplementsTo|                   1|                {R2}|                  {}|                {R3}|                  {}|
+DynamicTable: |         ExpandComplement|                   1|                {R2}|             {R1,R2}|                  {}|                {R3}|
+DynamicTable: |           ExpandSubgraph|                   1|                {R2}|             {R1,R2}|                {R3}|                  {}|
+DynamicTable: |   EnumerateComplementsTo|                   1|             {R2,R3}|                  {}|             {R2,R3}|                  {}|
+DynamicTable: |           ExpandSubgraph|                   1|             {R2,R3}|                {R1}|                  {}|                  {}|
+DynamicTable: |   EnumerateComplementsTo|                   0|                {R1}|                  {}|                {R2}|                  {}|
+DynamicTable: |         ExpandComplement|                   0|                {R1}|                {R1}|                {R3}|                {R2}|
+DynamicTable: |         ExpandComplement|                   0|                {R1}|                {R1}|                  {}|             {R2,R3}|
+DynamicTable: |           ExpandSubgraph|                   0|                {R1}|                {R1}|                {R2}|                  {}|
+DynamicTable: |   EnumerateComplementsTo|                   0|             {R1,R2}|                  {}|          {R1,R2,R3}|                  {}|
+DynamicTable: |         ExpandComplement|                   0|             {R1,R2}|             {R1,R2}|                  {}|                {R3}|
+DynamicTable: |           ExpandSubgraph|                   0|             {R1,R2}|                  {}|                {R3}|                  {}|
+DynamicTable: |   EnumerateComplementsTo|                   0|          {R1,R2,R3}|                  {}|             {R3,R4}|                  {}|
+DynamicTable: |         ExpandComplement|                   0|          {R1,R2,R3}|          {R1,R2,R3}|                {R5}|                {R4}|
+DynamicTable: |         ExpandComplement|                   0|          {R1,R2,R3}|          {R1,R2,R3}|                {R6}|             {R4,R5}|
+DynamicTable: |         ExpandComplement|                   0|          {R1,R2,R3}|          {R1,R2,R3}|                  {}|          {R4,R5,R6}|
+DynamicTable: |           ExpandSubgraph|                   0|          {R1,R2,R3}|                  {}|                {R4}|                  {}|
+DynamicTable: |           ExpandSubgraph|                   0|       {R1,R2,R3,R4}|                  {}|                {R5}|                  {}|
+DynamicTable: |           ExpandSubgraph|                   0|    {R1,R2,R3,R4,R5}|                  {}|                {R6}|                  {}|
+DynamicTable: |           ExpandSubgraph|                   0| {R1,R2,R3,R4,R5,R6}|                  {}|                  {}|                  {}|
+```
+### 查看 DPhypTest.ExampleHypergraph 测试用例的 csg-cmp-pair 打印日志
+```yaml
+cat /tmp/log | grep -v '\[-' | grep -v '\[=' | grep -v '\[ ' | grep Complete
+
+Complete csg-cmp-pair : {R5}-{R6}
+Complete csg-cmp-pair : {R4}-{R5}
+Complete csg-cmp-pair : {R4}-{R5,R6}
+Complete csg-cmp-pair : {R4,R5}-{R6}
+Complete csg-cmp-pair : {R2}-{R3}
+Complete csg-cmp-pair : {R1}-{R2}
+Complete csg-cmp-pair : {R1}-{R2,R3}
+Complete csg-cmp-pair : {R1,R2}-{R3}
+Complete csg-cmp-pair : {R1,R2,R3}-{R4,R5}
+Complete csg-cmp-pair : {R1,R2,R3}-{R4,R5,R6}
+```
+
+# 4. 对 CD-C 算法完备性的证明
+《[On the Correct and Complete Enumeration of the Core Search Space](https://15721.courses.cs.cmu.edu/spring2019/papers/23-optimizer2/p493-moerkotte.pdf)》这篇论文主要介绍了 CD-C 算法的流程，它很重要，它的功能是判断一个 join order 是否合法。
+
+MySQL 的 DPhyp 算法中，调用 FoundSubgraphPair 时会用到 CD-C 算法。
+
+论文中给出了正确性证明，但没给出完备性证明。目前在国内外的互联网上无法找到它的完备性证明。个人觉得应用在这么核心功能上的的算法，如果没有完备性证明的话，就像天天吃泡面没有调料一样难受。
+
+非班科出身的话，想理解它的算法为什么是这样，是很有难度。但如果你理解它是一个怎么样的实际问题后，相信你能看出它的完备性证明不会超过高中一年级的知识范围。下面我用归纳法给出一份完备性证明。
+
+![alt text](image.png)
+## 归纳法的证明过程
+已知 $（|S|>=2） ∧ （|S|<=3）$ 时不会产生误杀。
+
+如果存在误杀，那么肯定存在 $2<=|S|<=n$ 都没误杀，但 $|S|=n+1$ 有误杀。意思是我们寻找产生误杀的最小 $|S|$。
+
+假设 $|S|=n+1$ 时，存在 $(\circ^b,S_1,S_2)|S_1+S_2=S$ 被误杀，那么 $L{-}TES(\circ^b) ⊆  S_1 ∧ R{-}TES(\circ^b) ⊆  S_2 ∧ S_1+S_2=S$ 也会被误杀。但对于 $CR(\circ^b)$ 中的任何一个 $T_2$ 都有 $T_2 ⊆  S$，都不会被误杀。两者矛盾。
+
+已知条件：
+$R_{set}=\{R_0,R_1...R_{n-1}\}，\circ_{set}=\{\circ^{b_1},\circ^{b_2}...\circ^{b_{n-1}}\}，CR_{set}=\{CR(\circ^{b_1})，CR(\circ^{b_2})...CR(\circ^{b_{n-1}})\}$。  
+假设 $(\circ^{b_i},S_1,S_2)$ 和 $(\circ^{b_i},S_3,S_4)$ 都合法（如果存在误杀的话，他们的 $APPLICABLE$ 值不一定为 $TRUE$）。
+
+我们有：  
+- 结论1：$L{-}TES(\circ^{b_i}) ⊆  S_1 ∧ R{-}TES(\circ^{b_i}) ⊆  S_2$ ， $L{-}TES(\circ^{b_i}) ⊆  S_3 ∧ R{-}TES(\circ^{b_i}) ⊆  S_4$ 。  
+- 结论2：如果 $S_1+S_2=S=S_3+S_3$，那么不会存在 $APPLICABLE(\circ^{b_i},S_1,S_2)=TRUE$ 但 $APPLICABLE(\circ^{b_i},S_3,S_4)=FALSE$。也就是它们两个，不会存在生成其中一个，但误杀另外一个。  
+
+结论1的证明：  
+因为 $(\circ^{b_i},S_1,S_2)$ 合法，所以有 $L{-}TES(\circ^{b_i}) ⊆  S_1 ∧ R{-}TES(\circ^{b_i}) ⊆  S_2$。  
+同理 $L{-}TES(\circ^{b_i}) ⊆  S_3 ∧ R{-}TES(\circ^{b_i}) ⊆  S_4$。
+  
+结论2的证明：  
+我们只需要对比它们两个在 $APPLICABLE$ 函数中计算的返回值是否一样。  
+因为它们两个的冲突规则都是 $CR(\circ^{b_i})$，可以得出在 $for\ all\ (T_1 → T_2) \in\ CR(\circ^{b_i}))$ 中，  
+有：($T_1 ∩ (S_1 ∪ S_2) ∧ T_2 ⊈ (S_1 ∪ S_2)$) ≡ ($T_1 ∩ S ∧ T_2 ⊈ S$) ≡ ($T_1 ∩ (S_3 ∪ S_4) ∧ T_2 ⊈ (S_3 ∪ S_4)$)，  
+也就是 $APPLICABLE(\circ^{b_i},S_1,S_2)$ 和 $APPLICABLE(\circ^{b_i},S_3,S_4)$ 的返回结果一样。
+
+已知 $n=2、3$ 都不会存在误杀。  
+假设存在某个 $R_{set}$ 存在误杀，令 $k=min\{|存在误杀的R_{set}|\}$，即 $|R_{set}|=k$。  
+假设误杀的是 $APPLICABLE(\circ^{b_i},S_1,S_2)$，其中$S_1+S_2=S$，$|S|=|R_{set}|=k$。
+- 如果 $|S|<k$，那么会跟 $k=min\{|存在误杀的R_{set}|\}$ 矛盾。
+- 如果 $|S|=k$，也那么可以推出所有的 $CR$ 中的所有 $T_2$，都有 $T_2 ⊆ S$，也就是 APPLICABLE 不会返回 FALSE。与存在误杀矛盾。
+
+
+# 5. 对 cascade 架构性能的质疑
+
+# 6. gdb 打印超图内容的 python 源码
 ```python
 import gdb
 
