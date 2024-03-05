@@ -1521,7 +1521,7 @@ MySQL 的 DPhyp 算法中，调用 FoundSubgraphPair 时会用到 CD-C 算法。
 假设 $|S|=n+1$ 时，存在 $(\circ^b,S_1,S_2)|S_1+S_2=S$ 被误杀，那么 $L{-}TES(\circ^b) ⊆  S_1 ∧ R{-}TES(\circ^b) ⊆  S_2 ∧ S_1+S_2=S$ 也会被误杀。但对于 $CR(\circ^b)$ 中的任何一个 $T_2$ 都有 $T_2 ⊆  S$，都不会被误杀。两者矛盾。
 
 已知条件：
-$R_{set}=\{R_0,R_1...R_{n-1}\}$，$\circ_{set}=\{\circ^{b_1},\circ^{b_2}...\circ^{b_{n-1}}\}$，$CR_{set}=\{CR(\circ^{b_1})，CR(\circ^{b_2})...CR(\circ^{b_{n-1}})\}$。  
+$R_{set}=${$R_0,R_1...R_{n-1}$}，$\circ_{set}=${$\circ^{b_1},\circ^{b_2}...\circ^{b_{n-1}}$}，$CR_{set}=${$CR(\circ^{b_1})，CR(\circ^{b_2})...CR(\circ^{b_{n-1}})$}。  
 假设 $(\circ^{b_i},S_1,S_2)$ 和 $(\circ^{b_i},S_3,S_4)$ 都合法（如果存在误杀的话，他们的 $APPLICABLE$ 值不一定为 $TRUE$）。
 
 我们有：  
@@ -1551,9 +1551,7 @@ $R_{set}=\{R_0,R_1...R_{n-1}\}$，$\circ_{set}=\{\circ^{b_1},\circ^{b_2}...\circ
 \{a\}
 ```
 
-$$
-\\{a\\}
-$$
+$$\\{a\\}$$
 
 hello```math \{a\}```world.
 
