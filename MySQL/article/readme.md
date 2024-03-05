@@ -1523,12 +1523,12 @@ MySQL 的 DPhyp 算法中，调用 FoundSubgraphPair 时会用到 CD-C 算法。
 已知条件：  
 $R_{set}= \lbrace R_0,R_1...R_{n-1}\rbrace$，  
 $\circ_{set}=\lbrace \circ^{b_1},\circ^{b_2}...\circ^{b_{n-1}}\rbrace$，  
-$CR_{set}=\{CR(\circ^{b_1})，CR(\circ^{b_2})...CR(\circ^{b_{n-1}})\}$。
+$CR_{set}=\lbrace CR(\circ^{b_1})，CR(\circ^{b_2})...CR(\circ^{b_{n-1}})\rbrace$。
 
 假设 $(\circ^{b_i},S_1,S_2)$ 和 $(\circ^{b_i},S_3,S_4)$ 都合法（如果存在误杀的话，他们的 $APPLICABLE$ 值不一定为 $TRUE$）。
 
 我们有：  
-- 结论1：$L{-}TES(\circ^{b_i}) ⊆  S_1 ∧ R{-}TES(\circ^{b_i}) ⊆  S_2$ ， $L{-}TES(\circ^{b_i}) ⊆  S_3 ∧ R{-}TES(\circ^{b_i}) ⊆  S_4$ 。  
+- 结论1 $L{-}TES(\circ^{b_i}) ⊆  S_1 ∧ R{-}TES(\circ^{b_i}) ⊆  S_2$ ， $L{-}TES(\circ^{b_i}) ⊆  S_3 ∧ R{-}TES(\circ^{b_i}) ⊆  S_4$ 。  
 - 结论2：如果 $S_1+S_2=S=S_3+S_3$，那么不会存在 $APPLICABLE(\circ^{b_i},S_1,S_2)=TRUE$ 但 $APPLICABLE(\circ^{b_i},S_3,S_4)=FALSE$。也就是它们两个，不会存在生成其中一个，但误杀另外一个。  
 
 结论1的证明：  
