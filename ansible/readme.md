@@ -1284,4 +1284,7 @@ ansible -i hosts es -b --become-user=es -m shell -a "ps -ef | grep 'elasticsearc
 ansible -i hosts es -b --become-user=es -m shell -a "kill \$(ps -ef | grep 'elasticsearch-7.17.0'| grep -v grep | grep java | awk '{print \$2}')"
 ansible -i hosts es -b --become-user=es -m shell -a "ps -ef | grep 'elasticsearch-7.17.0'| grep -v grep | grep java"
 # 该命令不知道为何执行不成功  ansible -i hosts es -b --become-user=es -m shell -a "/data/elasticsearch-7.17.0/bin/elasticsearch -d"
+
+# 安装 ES 命令
+ansible-playbook -i /data/hosts /data/playbooks/es.yml
 ```

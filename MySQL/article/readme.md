@@ -1,7 +1,7 @@
 
 <h1 align="center">MySQL 优化器在 join order 上的弯道超车</h1>
 
-我读完《[Dynamic Programming Strikes Back](https://15721.courses.cs.cmu.edu/spring2020/papers/20-optimizer2/p539-moerkotte.pdf)》、《[On the Correct and Complete Enumeration of the Core Search Space](https://15721.courses.cs.cmu.edu/spring2019/papers/23-optimizer2/p493-moerkotte.pdf)》这两篇论文，第一篇论文提到“our algorithm is way the fastest competitor for join ordering for complex queries”，文中的意思是目前为止在 join order 搜索算法性能中，它是 down-top 方式中最优秀的，并指出 top-down 算法目前还不成熟还在探索中。我仔细阅读 MySQL 8.2 版本在这两篇论文上的实践后，我下了这么一个结论：MySQL 优化器在 join order 上已经完成对其他开源关系型数据库的弯道超车！！！
+读完《[Dynamic Programming Strikes Back](https://15721.courses.cs.cmu.edu/spring2020/papers/20-optimizer2/p539-moerkotte.pdf)》、《[On the Correct and Complete Enumeration of the Core Search Space](https://15721.courses.cs.cmu.edu/spring2019/papers/23-optimizer2/p493-moerkotte.pdf)》这两篇论文，第一篇论文提到“our algorithm is way the fastest competitor for join ordering for complex queries”，文中的意思是目前为止在 join order 搜索算法性能中，它是 down-top 方式中最优秀的，并指出 top-down 算法目前还不成熟还在探索中。仔细阅读 MySQL 8.2 版本在这两篇论文上的实践后，我下了这么一个结论：MySQL 优化器在 join order 上已经完成对其他开源关系型数据库的弯道超车！！！
 
 下面我们分析 MySQL 优化器在 join order 搜索算法。
 
@@ -26,9 +26,6 @@
     - [执行 DPhypTest.ExampleHypergraph 测试用例](#执行-dphyptestexamplehypergraph-测试用例)
     - [查看 DPhypTest.ExampleHypergraph 测试用例的 DynamicTable 打印日志](#查看-dphyptestexamplehypergraph-测试用例的-dynamictable-打印日志)
     - [查看 DPhypTest.ExampleHypergraph 测试用例的 csg-cmp-pair 打印日志](#查看-dphyptestexamplehypergraph-测试用例的-csg-cmp-pair-打印日志)
-- [4. 对 CD-C 算法完备性的证明](#4-对-cd-c-算法完备性的证明)
-  - [归纳法的证明过程](#归纳法的证明过程)
-- [5. 对 cascade 架构性能的质疑](#5-对-cascade-架构性能的质疑)
 - [6. gdb 打印超图内容的 python 源码](#6-gdb-打印超图内容的-python-源码)
 
 # 1. 一条 SQL 搜索最低成本执行计划时的计算顺序
@@ -1502,50 +1499,6 @@ Complete csg-cmp-pair : {R1,R2}-{R3}
 Complete csg-cmp-pair : {R1,R2,R3}-{R4,R5}
 Complete csg-cmp-pair : {R1,R2,R3}-{R4,R5,R6}
 ```
-
-# 4. 对 CD-C 算法完备性的证明
-《[On the Correct and Complete Enumeration of the Core Search Space](https://15721.courses.cs.cmu.edu/spring2019/papers/23-optimizer2/p493-moerkotte.pdf)》这篇论文主要介绍了 CD-C 算法的流程，它很重要，它的功能是判断一个 join order 是否合法。
-
-MySQL 的 DPhyp 算法中，调用 FoundSubgraphPair 时会用到 CD-C 算法。
-
-论文中给出了正确性证明，但没给出完备性证明。目前在国内外的互联网上无法找到它的完备性证明。个人觉得应用在这么核心功能上的的算法，如果没有完备性证明的话，就像天天吃泡面没有调料一样难受。
-
-非班科出身的话，想理解它的算法为什么是这样，是很有难度。但如果你理解它是一个怎么样的实际问题后，相信你能看出它的完备性证明不会超过高中一年级的知识范围。下面我用归纳法给出一份完备性证明。
-
-![alt text](image.png)
-## 归纳法的证明过程
-已知 $（|S|>=2） ∧ （|S|<=3）$ 时不会产生误杀。
-
-如果存在误杀，那么肯定存在 $2<=|S|<=n$ 都没误杀，但 $|S|=n+1$ 有误杀。意思是我们寻找产生误杀的最小 $|S|$。
-
-假设 $|S|=n+1$ 时，存在 $(\circ^b,S_1,S_2)|S_1+S_2=S$ 被误杀，那么 $L{-}TES(\circ^b) ⊆  S_1 ∧ R{-}TES(\circ^b) ⊆  S_2 ∧ S_1+S_2=S$ 也会被误杀。但对于 $CR(\circ^b)$ 中的任何一个 $T_2$ 都有 $T_2 ⊆  S$，都不会被误杀。两者矛盾。
-
-已知条件：
-$R_{set}=\{R_0,R_1...R_{n-1}\}，\circ_{set}=\{\circ^{b_1},\circ^{b_2}...\circ^{b_{n-1}}\}，CR_{set}=\{CR(\circ^{b_1})，CR(\circ^{b_2})...CR(\circ^{b_{n-1}})\}$。  
-假设 $(\circ^{b_i},S_1,S_2)$ 和 $(\circ^{b_i},S_3,S_4)$ 都合法（如果存在误杀的话，他们的 $APPLICABLE$ 值不一定为 $TRUE$）。
-
-我们有：  
-- 结论1：$L{-}TES(\circ^{b_i}) ⊆  S_1 ∧ R{-}TES(\circ^{b_i}) ⊆  S_2$ ， $L{-}TES(\circ^{b_i}) ⊆  S_3 ∧ R{-}TES(\circ^{b_i}) ⊆  S_4$ 。  
-- 结论2：如果 $S_1+S_2=S=S_3+S_3$，那么不会存在 $APPLICABLE(\circ^{b_i},S_1,S_2)=TRUE$ 但 $APPLICABLE(\circ^{b_i},S_3,S_4)=FALSE$。也就是它们两个，不会存在生成其中一个，但误杀另外一个。  
-
-结论1的证明：  
-因为 $(\circ^{b_i},S_1,S_2)$ 合法，所以有 $L{-}TES(\circ^{b_i}) ⊆  S_1 ∧ R{-}TES(\circ^{b_i}) ⊆  S_2$。  
-同理 $L{-}TES(\circ^{b_i}) ⊆  S_3 ∧ R{-}TES(\circ^{b_i}) ⊆  S_4$。
-  
-结论2的证明：  
-我们只需要对比它们两个在 $APPLICABLE$ 函数中计算的返回值是否一样。  
-因为它们两个的冲突规则都是 $CR(\circ^{b_i})$，可以得出在 $for\ all\ (T_1 → T_2) \in\ CR(\circ^{b_i}))$ 中，  
-有：($T_1 ∩ (S_1 ∪ S_2) ∧ T_2 ⊈ (S_1 ∪ S_2)$) ≡ ($T_1 ∩ S ∧ T_2 ⊈ S$) ≡ ($T_1 ∩ (S_3 ∪ S_4) ∧ T_2 ⊈ (S_3 ∪ S_4)$)，  
-也就是 $APPLICABLE(\circ^{b_i},S_1,S_2)$ 和 $APPLICABLE(\circ^{b_i},S_3,S_4)$ 的返回结果一样。
-
-已知 $n=2、3$ 都不会存在误杀。  
-假设存在某个 $R_{set}$ 存在误杀，令 $k=min\{|存在误杀的R_{set}|\}$，即 $|R_{set}|=k$。  
-假设误杀的是 $APPLICABLE(\circ^{b_i},S_1,S_2)$，其中$S_1+S_2=S$，$|S|=|R_{set}|=k$。
-- 如果 $|S|<k$，那么会跟 $k=min\{|存在误杀的R_{set}|\}$ 矛盾。
-- 如果 $|S|=k$，也那么可以推出所有的 $CR$ 中的所有 $T_2$，都有 $T_2 ⊆ S$，也就是 APPLICABLE 不会返回 FALSE。与存在误杀矛盾。
-
-
-# 5. 对 cascade 架构性能的质疑
 
 # 6. gdb 打印超图内容的 python 源码
 ```python
