@@ -80,3 +80,72 @@ class GDB_table_ref(gdb.Command):
 
 MysqlCommand()
 GDB_table_ref()
+
+
+
+
+drop table if exists a;
+drop table if exists b;
+drop table if exists c;
+
+create table a (id int,c char(1));
+create table b (id int,c char(1));
+create table c (id int,c char(1));
+insert into a (id,c) values (1,'a'),(2,'a'),(NULL,'a');
+insert into b (id,c) values (1,'b'),(NULL,'b');
+insert into c (id,c) values (1,'c'),(NULL,'c'),(NULL,'c');
+
+select * from 
+a left join b on a.id=b.id 
+left join c on b.id=c.id;
+ id | c | id | c | id | c 
+----+---+----+---+----+---
+  1 | a |  1 | b |  1 | c
+  2 | a |    |   |    | 
+    | a |    |   |    | 
+	
+select * from 
+a left join b on a.id=b.id 
+left join c on b.id=c.id and b.id is not null;
+ id | c | id | c | id | c 
+----+---+----+---+----+---
+  1 | a |  1 | b |  1 | c
+  2 | a |    |   |    | 
+    | a |    |   |    |
+	
+select * from 
+a left join b on a.id=b.id 
+left join c on b.id=c.id 
+where b.id is not null;   
+ id | c | id | c | id | c 
+----+---+----+---+----+---
+  1 | a |  1 | b |  1 | c
+  
+select * from 
+a left join b on a.id=b.id and b.id is not null 
+left join c on b.id=c.id and b.id is not null;
+ id | c | id | c | id | c 
+----+---+----+---+----+---
+  1 | a |  1 | b |  1 | c
+  2 | a |    |   |    | 
+    | a |    |   |    |
+
+空值安全的等于运算符
+select * from 
+a left join b on a.id IS NOT DISTINCT FROM  b.id 
+left join c on b.id IS NOT DISTINCT FROM c.id;
+ id | c | id | c | id | c 
+----+---+----+---+----+---
+  1 | a |  1 | b |  1 | c
+  2 | a |    |   |    | c
+  2 | a |    |   |    | c
+    | a |    | b |    | c
+    | a |    | b |    | c
+--------------------------------------------------
+select * from 
+a left join b on a.id <=>  b.id 
+left join c on b.id <=> c.id;
+
+
+
+
