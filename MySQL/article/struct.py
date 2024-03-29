@@ -41,26 +41,39 @@ def mem_root_deque_to_list(deque):
         m_begin_idx += 1
     return out_list
 
+# 把 MySQL 源码中的 SQL_I_List 转换为 python 中的 list
+# @list SQL_I_List的值
+# 返回 list
+def SQL_I_List_to_list(list, next_key):
+    out_list = []
+    elements = list['elements']
+    if (elements == 0):
+        return out_list
+    item = list['first']
+    out_list.append(item)
+    while elements > 1:
+        item = item[next_key]
+        out_list.append(item)
+        elements -= 1
+    return out_list
+
+# 把 MySQL 源码中的 Mem_root_array 转换为 python 中的 list
+# @list Mem_root_array的值
+# 返回 list
+def Mem_root_array_to_list(array):
+    if array.type.code == gdb.TYPE_CODE_PTR:
+        array = array.dereference()
+    out_list = []
+    m_size = array.dereference()['m_size']
+    for i in range(m_size):
+        out_list.append(array.dereference()['m_array'][i])
+    return out_list
+
 # 打印 key
 # @space 缩进空间大小
 # @key
 def print_key(space, key):
     print(f"{' ' * space}\"{key}\":")
-
-# 打印 list 中的内容
-# @space 缩进空间大小
-# @list
-# @callback 回调函数
-def print_list(space, list, callback):
-    print(f"{' ' * space}[")
-    length = len(list)
-    for i in range(length):
-        if (i < length - 1):
-            callback(space + g_space, list[i])
-            print(",")
-        else:
-            callback(space + g_space, list[i])
-    print(f"\n{' ' * space}]", end='')
 
 # 打印 key-value，其中 value 为 strint 类型
 # @space 缩进空间大小
@@ -86,11 +99,36 @@ def print_key_value_bin(space, key, value, end=','):
 def print_key_value_oth(space, key, value, end=','):
     print(f"{' ' * space}\"{key}\":  {value}{end}")
 
+# 打印 list 中的内容
+# @space 缩进空间大小
+# @list
+# @callback 回调函数
+def print_list(space, list, callback):
+    print(f"{' ' * space}[")
+    length = len(list)
+    for i in range(length):
+        if (i < length - 1):
+            callback(space + g_space, list[i])
+            print(",")
+        else:
+            callback(space + g_space, list[i])
+    print(f"\n{' ' * space}]", end='')
+
 # 打印 string
 # @space 缩进空间大小
 # @string
 def print_string(space, string):
     print(f"{' ' * space}\"{string}\"", end = '')
+
+# 打印 field 的名字
+# @space 缩进空间大小
+# @string
+def print_field_item_name(space, item):
+    item = item.cast(item.dynamic_type)
+    print(f"{' ' * space}\"{ item['db_name'].string() + '.' + item['table_name'].string() + '.' + item['field_name'].string()}\"", end = '')
+
+def print_Table_ref_next_local_table_name(space, table_ref):
+    print(f"{' ' * space}\"{ table_ref['db'].string() + '.' + table_ref['table_name'].string()}\"", end = '')
 
 # 打印条件中的 Item
 # @space 缩进空间大小
@@ -220,6 +258,50 @@ def print_Table_ref(space, table_ref):
 
     print(f"{' ' * space}}}",end='')
 
+# 打印 JOIN
+# @space 缩进空间大小
+# @join JOIN的指针或者值
+def print_JOIN(space, join):
+    if join.type.code == gdb.TYPE_CODE_PTR:
+        join = join.dereference()
+    print(f"{' ' * space}{{")
+    new_space = g_space + space
+    print_key_value_str(new_space, '__address__',              join.address)
+    print_key_value_str(new_space, '__type__',                 'JOIN')
+
+    print_key_value_str(new_space, 'optimized',              join['optimized'])
+    print_key_value_str(new_space, 'executed',              join['executed'])
+
+    print_key(new_space, 'fields')
+    fields_list = mem_root_deque_to_list(join['fields'])
+    print_list(new_space + len('fields') + g_space, fields_list, print_field_item_name)
+    print(',')
+
+    if join['where_cond'] == 0x0:
+        print_key_value_str(new_space, 'where_cond',              join['where_cond'])
+    else:
+        print_key(new_space, 'where_cond')
+        print_cond_Item(new_space + len('where_cond') + g_space, join['where_cond'])
+        print(',')
+
+    if join['having_cond'] == 0x0:
+        print_key_value_str(new_space, 'having_cond',              join['having_cond'])
+    else:
+        print_key(new_space, 'having_cond')
+        print_cond_Item(new_space + len('having_cond') + g_space, join['having_cond'])
+        print(',')    
+    
+    if join['tables_list'] == 0x0:
+        print_key_value_str(new_space, 'tables_list',              join['tables_list'])
+    else:
+        print_key(new_space, 'tables_list')
+        print_Table_ref(new_space + len('tables_list') + g_space, join['tables_list'])
+        print(',')
+
+    
+    print_key_value_str(new_space, 'plan_state',              join['plan_state'], end= '')
+    print(f"{' ' * space}}}", end='')
+
 # 打印 Query_block
 # @space 缩进空间大小
 # @Query_block Query_block的指针或者值
@@ -235,10 +317,116 @@ def print_Query_block(space, query_block):
         print_key_value_str(new_space, 'db',              query_block['db'])
     else:
         print_key_value_str(new_space, 'db',              query_block['db'].string())
+          
+    print_key(new_space, 'fields')
+    fields_list = mem_root_deque_to_list(query_block['fields'])
+    print_list(new_space + len('fields') + g_space, fields_list, print_field_item_name)
+    print(',')
+
+    m_table_list = SQL_I_List_to_list(query_block['m_table_list'], 'next_local')
+    print_key(new_space, 'm_table_list')
+    #print_list(new_space + len('m_table_list') + g_space, m_table_list, print_Table_ref_next_local_table_name)
+    print_list(new_space + len('m_table_list') + g_space, m_table_list, print_Table_ref)
+    print(',')
+
+    sj_nests_list = mem_root_deque_to_list(query_block['sj_nests'])
+    print_key(new_space, 'sj_nests')
+    print_list(new_space + len('sj_nests') + g_space, sj_nests_list, print_Table_ref)
+    print(',')
     
-    
+    if query_block['m_where_cond'] == 0x0:
+        print_key_value_str(new_space, 'm_where_cond',              query_block['m_where_cond'])
+    else:
+        print_key(new_space, 'm_where_cond')
+        print_cond_Item(new_space + len('m_where_cond') + g_space, query_block['m_where_cond'])
+        print(',')
+
+    if query_block['m_having_cond'] == 0x0:
+        print_key_value_str(new_space, 'm_having_cond',              query_block['m_having_cond'])
+    else:
+        print_key(new_space, 'm_having_cond')
+        print_cond_Item(new_space + len('m_having_cond') + g_space, query_block['m_having_cond'])
+        print(',')
+
+    print_key_value_str(new_space, 'has_sj_nests',              query_block['has_sj_nests'])
+    print_key_value_str(new_space, 'has_aj_nests',              query_block['has_aj_nests'])
+    print_key_value_str(new_space, 'm_right_joins',              query_block['m_right_joins'])
+    print_key_value_str(new_space, 'm_use_select_limit',              query_block['m_use_select_limit'])
+
+    if query_block['select_limit'] == 0x0:
+        print_key_value_str(new_space, 'select_limit',              query_block['select_limit'])
+    else:
+        print_key(new_space, 'select_limit')
+        print_cond_Item(new_space + len('select_limit') + g_space, query_block['select_limit'])
+        print(',')
+
+    if query_block['offset_limit'] == 0x0:
+        print_key_value_str(new_space, 'offset_limit',              query_block['offset_limit'])
+    else:
+        print_key(new_space, 'offset_limit')
+        print_cond_Item(new_space + len('offset_limit') + g_space, query_block['offset_limit'])
+        print(',')
+
+    if query_block['join'] == 0x0:
+        print_key_value_str(new_space, 'join',              query_block['join'])
+    else:
+        print_key(new_space, 'join')
+        print_JOIN(new_space + len('join') + g_space, query_block['join'])
+        print(',')
+
+    #SQL_I_List<ORDER> order_list;  // 排序列表
+
     print(f"{' ' * space}}}",end='')
 
+
+# 打印 Hypergraph
+# @space 缩进空间大小
+# @graph Hypergraph的指针或者值
+def print_Hypergraph(space, graph):
+    if graph.type.code == gdb.TYPE_CODE_PTR:
+        graph = graph.dereference()
+    print(f"{' ' * space}{{")
+    new_space = g_space + space
+    print_key_value_str(new_space, '__address__',              graph.address)
+    print_key_value_str(new_space, '__type__',                 'Hypergraph')
+
+
+
+# 打印 JoinHypergraph
+# @space 缩进空间大小
+# @graph JoinHypergraph的指针或者值
+def print_JoinHypergraph(space, graph):
+    if graph.type.code == gdb.TYPE_CODE_PTR:
+        graph = graph.dereference()
+    print(f"{' ' * space}{{")
+    new_space = g_space + space
+    print_key_value_str(new_space, '__address__',              graph.address)
+    print_key_value_str(new_space, '__type__',                 'JoinHypergraph')
+
+    if graph['m_query_block'] == 0x0:
+        print_key_value_str(new_space, 'm_query_block',              graph['m_query_block'])
+    else:
+        print_key(new_space, 'm_query_block')
+        print_Query_block(new_space + len('m_query_block') + g_space, graph['m_query_block'])
+        print(',')
+
+
+
+    hypergraph::Hypergraph graph;
+    SecondaryEngineCostingFlags secondary_engine_costing_flags;
+    std::array<int, 61> table_num_to_node_num;
+    Mem_root_array<JoinHypergraph::Node> nodes;
+    Mem_root_array<JoinPredicate> edges;
+    Mem_root_array<Predicate> predicates;
+    unsigned int num_where_predicates;
+    OverflowBitset materializable_predicates;
+    mem_root_unordered_map<Item*, int, std::hash<Item*>, std::equal_to<Item*> > sargable_join_predicates;
+
+
+    print_key_value_str(new_space, 'has_reordered_left_joins',              query_block['has_reordered_left_joins'])
+    print_key_value_bin(new_space, 'tables_inner_to_outer_or_anti',              query_block['tables_inner_to_outer_or_anti'], end='')
+
+    print(f"{' ' * space}}}",end='')
 
 class MysqlCommand(gdb.Command):
     def __init__(self):
@@ -261,6 +449,20 @@ class GDB_query_block(gdb.Command):
         print_Query_block(0, gdb.parse_and_eval(arg))
         print()
 
+class GDB_cond_item(gdb.Command):
+    def __init__(self):
+        super(GDB_cond_item, self).__init__("mysql cond_item", gdb.COMMAND_USER)
+
+    def invoke(self, arg, from_tty):
+        print_cond_Item(0, gdb.parse_and_eval(arg))
+        print()
+
 MysqlCommand()
 GDB_table_ref()
 GDB_query_block()
+GDB_cond_item()
+
+"""
+-exec mysql query_block thd->lex->m_current_query_block
+
+"""
