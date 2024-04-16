@@ -21,9 +21,62 @@ g_mem_root_deque__Table_ref__list = []  # 全局 mem_root_deque<Table_ref*> 的 
 g_natural_join_column_list = []         # 全局 Natural_join_column 的 list，里面的元素是指针
 g_list__natural_join_column__list = []  # 全局 List<Natural_join_column> *join_columns 的 list，里面的元素是指针
 g_Item_field_list = []
+
+g_list_COND_EQUAL = []                  # 全局 COND_EQUAL 的 list，里面的元素是指针
+g_list_line_COND_EQUAL = []                  # 全局 COND_EQUAL 的向外的连线，里面的元素是字符串
+g_list_display_COND_EQUA = []           # 全局的 COND_EQUAL 打印字符串列表
+
+g_list_List__Item_equal = []            # 全局 List<Item_equal> 的 list，里面的元素是指针
+g_line_List__Item_equal = []            # 全局 List<Item_equal> 的 向外的连线，里面的元素是字符串
+g_list_display_List__Item_equal = []    # 全局 List<Item_equal> 打印字符串列表
+
 g_line = []                             # 遍历对象时，如果两个对象之间有连线，则把连线信息插入这个列表。里面的元素时字符串
 g_error = []
 
+
+# 修饰函数，如果参数是指针则转换为对象。如果对象的地址合法，则调用原函数，否则什么都不做
+# @func 原始函数名
+def object_decorator(func):
+    def wrapper(arg):
+        if arg.type.code == gdb.TYPE_CODE_PTR:
+            if arg not in [0x0, 0x1]:
+                return func(arg.dereference())
+        else:
+            if arg.address not in [0x0, 0x1]:
+                return func(arg)
+    return wrapper
+
+# 添加连线
+# @list 连线列表，比如 g_line_COND_EQUAL、g_line_List__Item_equal 等
+# @line_prefix 连线字符串的前缀
+# @item 连线末尾的对象
+def add_line(list, line_prefix, item):
+    if item.type.code == gdb.TYPE_CODE_PTR:
+        if item not in [0x0, 0x1]:
+            list.append(line_prefix + '_' + str(item))
+    else:
+        if item.address not in [0x0, 0x1]:
+            list.append(line_prefix + '_' + item.address)
+
+# 调用 object 的 print(const THD *, String *str, enum_query_type) 函数，返回 String
+# object 有 print(const THD *, String *str, enum_query_type) 函数成员的对象
+@object_decorator
+def get_object_print_result(object):
+    gdb.set_convenience_variable(g_gdb_conv,object.address)
+    gdb.execute('call thd->gdb_str.set("", 0, system_charset_info)')
+    gdb.execute('call $g_gdb_conv->print(thd, &(thd->gdb_str), QT_ORDINARY)')
+    return gdb.parse_and_eval('thd->gdb_str.c_ptr_safe()').string()
+
+# 把 object 添加到 list 中
+# @list 比如 g_list_COND_EQUAL、g_list_List__Item_equal 等
+# @object 指针或者对象
+def add_object_to_list(list, object):
+    if object.type.code == gdb.TYPE_CODE_PTR:
+        if object not in list:
+            list.append(object)
+    else:
+        if object.address not in list:    
+            list.append(object.address)
 
 # 把 MySQL 源码中的 List 转换为 python 中的 list
 # @list List的指针或者值
@@ -104,9 +157,6 @@ class MysqlCommand(gdb.Command):
 def display_Query_expression(expr):
     if expr.type.code == gdb.TYPE_CODE_PTR:
         expr = expr.dereference()
-
-    for key, value in expr.address.items():
-        print(f"    {key} => {value}")
 
     print(f"map Query_expression_{str(expr.address)} #header:lightblue {{")
     print(f"    master => {expr['master']}")
@@ -193,6 +243,9 @@ def display_Query_block(block):
         for i in SQL_I_List_to_list(block['m_table_list'], 'next_local'):
             print(f"    {i} => {i.dynamic_type}")
         print(f"}}")
+
+    if (block['join'] != 0x0):
+        display_join(block['join'])
 
 # 打印 Query_term，包含子类的 Query_term_except、Query_term_intersect、Query_term_unary、Query_term_union，不包含 Query_block
 # @term Query_term的指针或者对象
@@ -343,116 +396,194 @@ def display_Item_field(item):
     print(f"    field_index => {item['field_index']}")
     print(f"}}")
 
+
 def display_join(join):
     if join.type.code == gdb.TYPE_CODE_PTR:
         join = join.dereference()
     print(f"map JOIN_{join.address} {{")
     print(f"    query_block => {join['query_block']}")
-    print(f"    thd => {join[thd]}")
-    print(f"    grouped => {join[grouped]}")
-    print(f"    const_table_map => {join[const_table_map]}")
-    print(f"    found_const_table_map => {join[found_const_table_map]}")
-    print(f"    fields => {join[fields]}")
-    print(f"    tmp_table_param => {join[tmp_table_param]}")
-    print(f"    lock => {join[lock]}")
-    print(f"    implicit_grouping => {join[implicit_grouping]}")
-    print(f"    select_distinct => {join[select_distinct]}")
-    print(f"    keyuse_array => {join[keyuse_array]}")
-    print(f"    order => {join[order]}")
-    print(f"    group_list => {join[group_list]}")
-    print(f"    m_windows => {join[m_windows]}")
-    print(f"    where_cond => {join[where_cond]}")
-    print(f"    having_cond => {join[having_cond]}")
-    print(f"    having_for_explain => {join[having_for_explain]}")
-    print(f"    tables_list => {join[tables_list]}")
-    print(f"    current_ref_item_slice => {join[current_ref_item_slice]}")
-    print(f"    with_json_agg => {join[with_json_agg]}")
-    print(f"    rollup_state => {join[rollup_state]}")
-    print(f"    explain_flags => {join[explain_flags]}")
-    print(f"    send_group_parts => {join[send_group_parts]}")
-    print(f"    thd => {join[thd]}")
+    print(f"    thd => {join['thd']}")
+    print(f"    join_tab => {join['join_tab']}")
+    print(f"    qep_tab => {join['qep_tab']}")
+    if join['best_ref'] != 0X0:
+        print(f"    best_ref.dereference => {join['best_ref'].dereference()}")
+    else:
+        print(f"    best_ref.dereference => {join['best_ref']}")
+    if join['map2table'] != 0X0:
+        print(f"    map2table.dereference => {join['map2table'].dereference()}")
+    else:
+        print(f"    map2table.dereference => {join['map2table']}")
+    print(f"    sort_by_table => {join['sort_by_table']}")
+    print(f"    grouped => {join['grouped']}")
+    print(f"    const_table_map => {join['const_table_map']}")
+    print(f"    found_const_table_map => {join['found_const_table_map']}")
+    print(f"    fields => {join['fields']}")
+    print(f"    tmp_table_param => {join['tmp_table_param'].address}")
+    print(f"    lock => {join['lock']}")
+    print(f"    implicit_grouping => {join['implicit_grouping']}")
+    print(f"    select_distinct => {join['select_distinct']}")
+    print(f"    keyuse_array => {join['keyuse_array'].address}")
+    print(f"    order => {join['order'].address}")
+    print(f"    group_list => {join['group_list'].address}")
+    print(f"    m_windows => {join['m_windows'].address}")
+    print(f"    where_cond => {join['where_cond']}")
+    print(f"    having_cond => {join['having_cond']}")
+    print(f"    having_for_explain => {join['having_for_explain']}")
+    print(f"    tables_list => {join['tables_list']}")
+    print(f"    current_ref_item_slice => {join['current_ref_item_slice']}")
+    print(f"    with_json_agg => {join['with_json_agg']}")
+    print(f"    rollup_state => {join['rollup_state']}")
+    print(f"    explain_flags => {join['explain_flags'].address}")
+    print(f"    send_group_parts => {join['send_group_parts']}")
+    print(f"    cond_equal => {join['cond_equal']}")
     print(f"}}")
+
+    if join['join_tab'] != 0X0:
+        display_JOIN_TAB(join['join_tab'])
+
+    if join['qep_tab'] != 0X0:
+        display_QEP_TAB(join['qep_tab'])
+
+    if join['where_cond'] not in [0x0, 0x1]:
+        print(f"note right of JOIN_{join.address}")
+        gdb.set_convenience_variable(g_gdb_conv,join['where_cond'].cast(join['where_cond'].dynamic_type))
+        gdb.execute('call thd->gdb_str.set("", 0, system_charset_info)')
+        gdb.execute('call $g_gdb_conv->print(thd, &(thd->gdb_str), QT_ORDINARY)')
+        gdb_str = gdb.parse_and_eval('thd->gdb_str.c_ptr_safe()').string()
+        formatted_sql = sqlparse.format(gdb_str, reindent=True, keyword_case='upper')
+        print(f"where_cond:   {formatted_sql}")
+        print(f"end note")
+
+    if join['cond_equal'] != 0X0:
+        display_COND_EQUAL(join['cond_equal'])
 
 def display_QEP_shared(share):
     if share.type.code == gdb.TYPE_CODE_PTR:
         share = share.dereference()
     print(f"map QEP_shared_{share.address} {{")
-    print(f"    m_join => {share[m_join]}")
-    print(f"    m_idx => {share[m_idx]}")
-    print(f"    m_table => {share[m_table]}")
-    print(f"    m_position => {share[m_position]}")
-    print(f"    m_sj_mat_exec => {share[m_sj_mat_exec]}")
-    print(f"    m_first_sj_inner => {share[m_first_sj_inner]}")
-    print(f"    m_last_sj_inner => {share[m_last_sj_inner]}")
-    print(f"    m_first_inner => {share[m_first_inner]}")
-    print(f"    m_last_inner => {share[m_last_inner]}")
-    print(f"    m_first_upper => {share[m_first_upper]}")
-    print(f"    m_ref => {share[m_ref]}")
-    print(f"    m_index => {share[m_index]}")
-    print(f"    m_condition => {share[m_condition]}")
-    print(f"    m_condition_is_pushed_to_sort => {share[m_condition_is_pushed_to_sort]}")
-    print(f"    m_records => {share[m_records]}")
-    print(f"    m_range_scan => {share[m_range_scan]}")
-    print(f"    prefix_tables_map => {share[prefix_tables_map]}")
-    print(f"    added_tables_map => {share[added_tables_map]}")
-    print(f"    m_ft_func => {share[m_ft_func]}")
-    print(f"    m_skip_records_in_range => {share[m_skip_records_in_range]}")
+    print(f"    m_join => {share['m_join']}")
+    print(f"    m_idx => {share['m_idx']}")
+    print(f"    m_table => {share['m_table']}")
+    print(f"    m_position => {share['m_position']}")
+    print(f"    m_sj_mat_exec => {share['m_sj_mat_exec']}")
+    print(f"    m_first_sj_inner => {share['m_first_sj_inner']}")
+    print(f"    m_last_sj_inner => {share['m_last_sj_inner']}")
+    print(f"    m_first_inner => {share['m_first_inner']}")
+    print(f"    m_last_inner => {share['m_last_inner']}")
+    print(f"    m_first_upper => {share['m_first_upper']}")
+    print(f"    m_ref => {share['m_ref']}")
+    print(f"    m_index => {share['m_index']}")
+    print(f"    m_condition => {share['m_condition']}")
+    print(f"    m_condition_is_pushed_to_sort => {share['m_condition_is_pushed_to_sort']}")
+    print(f"    m_records => {share['m_records']}")
+    print(f"    m_range_scan => {share['m_range_scan']}")
+    print(f"    prefix_tables_map => {share['prefix_tables_map']}")
+    print(f"    added_tables_map => {share['added_tables_map']}")
+    print(f"    m_ft_func => {share['m_ft_func']}")
+    print(f"    m_skip_records_in_range => {share['m_skip_records_in_range']}")
     print(f"}}")
+    
 
 def display_JOIN_TAB(JOIN_TAB):
     if JOIN_TAB.type.code == gdb.TYPE_CODE_PTR:
         JOIN_TAB = JOIN_TAB.dereference()
     print(f"map JOIN_TAB_{JOIN_TAB.address} {{")
-    print(f"    table_ref => {JOIN_TAB[table_ref]}")
-    print(f"    m_keyuse => {JOIN_TAB[m_keyuse]}")
-    print(f"    m_join_cond_ref => {JOIN_TAB[m_join_cond_ref]}")
-    print(f"    cond_equal => {JOIN_TAB[cond_equal]}")
-    print(f"    worst_seeks => {JOIN_TAB[worst_seeks]}")
-    print(f"    const_keys => {JOIN_TAB[const_keys]}")
-    print(f"    checked_keys => {JOIN_TAB[checked_keys]}")
-    print(f"    skip_scan_keys => {JOIN_TAB[skip_scan_keys]}")
-    print(f"    needed_reg => {JOIN_TAB[needed_reg]}")
-    print(f"    quick_order_tested => {JOIN_TAB[quick_order_tested]}")
-    print(f"    found_records => {JOIN_TAB[found_records]}")
-    print(f"    read_time => {JOIN_TAB[read_time]}")
-    print(f"    dependent => {JOIN_TAB[dependent]}")
-    print(f"    key_dependent => {JOIN_TAB[key_dependent]}")
-    print(f"    used_fieldlength => {JOIN_TAB[used_fieldlength]}")
-    print(f"    use_quick => {JOIN_TAB[use_quick]}")
-    print(f"    m_use_join_cache => {JOIN_TAB[m_use_join_cache]}")
-    print(f"    emb_sj_nest => {JOIN_TAB[emb_sj_nest]}")
-    print(f"    embedding_map => {JOIN_TAB[embedding_map]}")
-    print(f"    join_cache_flags => {JOIN_TAB[join_cache_flags]}")
-    print(f"    reversed_access => {JOIN_TAB[reversed_access]}")
+    print(f"    table_ref => {JOIN_TAB['table_ref']}")
+    print(f"    m_keyuse => {JOIN_TAB['m_keyuse']}")
+    print(f"    m_join_cond_ref => {JOIN_TAB['m_join_cond_ref']}")
+    print(f"    cond_equal => {JOIN_TAB['cond_equal']}")
+    print(f"    worst_seeks => {JOIN_TAB['worst_seeks']}")
+    print(f"    const_keys => {JOIN_TAB['const_keys']}")
+    print(f"    checked_keys => {JOIN_TAB['checked_keys']}")
+    print(f"    skip_scan_keys => {JOIN_TAB['skip_scan_keys']}")
+    print(f"    needed_reg => {JOIN_TAB['needed_reg']}")
+    print(f"    quick_order_tested => {JOIN_TAB['quick_order_tested']}")
+    print(f"    found_records => {JOIN_TAB['found_records']}")
+    print(f"    read_time => {JOIN_TAB['read_time']}")
+    print(f"    dependent => {JOIN_TAB['dependent']}")
+    print(f"    key_dependent => {JOIN_TAB['key_dependent']}")
+    print(f"    used_fieldlength => {JOIN_TAB['used_fieldlength']}")
+    print(f"    use_quick => {JOIN_TAB['use_quick']}")
+    print(f"    m_use_join_cache => {JOIN_TAB['m_use_join_cache']}")
+    print(f"    emb_sj_nest => {JOIN_TAB['emb_sj_nest']}")
+    print(f"    embedding_map => {JOIN_TAB['embedding_map']}")
+    print(f"    join_cache_flags => {JOIN_TAB['join_cache_flags']}")
+    print(f"    reversed_access => {JOIN_TAB['reversed_access']}")
     print(f"}}")
 
-def display_QEP_TABB(QEP_TAB):
+    #display_QEP_shared(JOIN_TAB)
+
+def display_QEP_TAB(QEP_TAB):
     if QEP_TAB.type.code == gdb.TYPE_CODE_PTR:
         QEP_TAB = QEP_TAB.dereference()
     print(f"map QEP_TAB_{QEP_TAB.address} {{")
-    print(f"    table_ref => {QEP_TAB[table_ref]}")
-    print(f"    flush_weedout_table => {QEP_TAB[flush_weedout_table]}")
-    print(f"    check_weed_out_table => {QEP_TAB[check_weed_out_table]}")
-    print(f"    firstmatch_return => {QEP_TAB[firstmatch_return]}")
-    print(f"    loosescan_key_len => {QEP_TAB[loosescan_key_len]}")
-    print(f"    rematerialize => {QEP_TAB[rematerialize]}")
-    print(f"    materialize_table => {QEP_TAB[materialize_table]}")
-    print(f"    using_dynamic_range => {QEP_TAB[using_dynamic_range]}")
-    print(f"    needs_duplicate_removal => {QEP_TAB[needs_duplicate_removal]}")
-    print(f"    not_used_in_distinct => {QEP_TAB[not_used_in_distinct]}")
-    print(f"    having => {QEP_TAB[having]}")
-    print(f"    op_type => {QEP_TAB[op_type]}")
-    print(f"    tmp_table_param => {QEP_TAB[tmp_table_param]}")
-    print(f"    filesort => {QEP_TAB[filesort]}")
-    print(f"    filesort_pushed_order => {QEP_TAB[filesort_pushed_order]}")
-    print(f"    ref_item_slice => {QEP_TAB[ref_item_slice]}")
-    print(f"    m_condition_optim => {QEP_TAB[m_condition_optim]}")
-    print(f"    m_keyread_optim => {QEP_TAB[m_keyread_optim]}")
-    print(f"    m_reversed_access => {QEP_TAB[m_reversed_access]}")
-    print(f"    lateral_derived_tables_depend_on_me => {QEP_TAB[lateral_derived_tables_depend_on_me]}")
-    print(f"    invalidators => {QEP_TAB[invalidators]}")
+    print(f"    table_ref => {QEP_TAB['table_ref']}")
+    print(f"    flush_weedout_table => {QEP_TAB['flush_weedout_table']}")
+    print(f"    check_weed_out_table => {QEP_TAB['check_weed_out_table']}")
+    print(f"    firstmatch_return => {QEP_TAB['firstmatch_return']}")
+    print(f"    loosescan_key_len => {QEP_TAB['loosescan_key_len']}")
+    print(f"    rematerialize => {QEP_TAB['rematerialize']}")
+    print(f"    materialize_table => {QEP_TAB['materialize_table']}")
+    print(f"    using_dynamic_range => {QEP_TAB['using_dynamic_range']}")
+    print(f"    needs_duplicate_removal => {QEP_TAB['needs_duplicate_removal']}")
+    print(f"    not_used_in_distinct => {QEP_TAB['not_used_in_distinct']}")
+    print(f"    having => {QEP_TAB['having']}")
+    print(f"    op_type => {QEP_TAB['op_type']}")
+    print(f"    tmp_table_param => {QEP_TAB['tmp_table_param']}")
+    print(f"    filesort => {QEP_TAB['filesort']}")
+    print(f"    filesort_pushed_order => {QEP_TAB['filesort_pushed_order']}")
+    print(f"    ref_item_slice => {QEP_TAB['ref_item_slice']}")
+    print(f"    m_condition_optim => {QEP_TAB['m_condition_optim']}")
+    print(f"    m_keyread_optim => {QEP_TAB['m_keyread_optim']}")
+    print(f"    m_reversed_access => {QEP_TAB['m_reversed_access']}")
+    print(f"    lateral_derived_tables_depend_on_me => {QEP_TAB['lateral_derived_tables_depend_on_me']}")
+    print(f"    invalidators => {QEP_TAB['invalidators']}")
     print(f"}}")
 
+    if QEP_TAB['m_condition_optim'] not in [0x0, 0x1]:
+        print(f"note right of QEP_TAB_{QEP_TAB.address}")
+        gdb.set_convenience_variable(g_gdb_conv,QEP_TAB['m_condition_optim'].cast(QEP_TAB['m_condition_optim'].dynamic_type))
+        gdb.execute('call thd->gdb_str.set("", 0, system_charset_info)')
+        gdb.execute('call $g_gdb_conv->print(thd, &(thd->gdb_str), QT_ORDINARY)')
+        gdb_str = gdb.parse_and_eval('thd->gdb_str.c_ptr_safe()').string()
+        formatted_sql = sqlparse.format(gdb_str, reindent=True, keyword_case='upper')
+        print(f"m_condition_optim:   {formatted_sql}")
+        print(f"end note")
+
+    #display_QEP_shared(QEP_TAB)
+import textwrap
+
+@object_decorator
+def display_COND_EQUAL(COND_EQUAL):
+    add_object_to_list(g_list_display_COND_EQUA, COND_EQUAL)
+    display = textwrap.dedent(f'''
+        map COND_EQUAL_{COND_EQUAL.address} {{
+            max_members => {COND_EQUAL['max_members']}
+            upper_levels => {COND_EQUAL['upper_levels']}
+            current_level => {COND_EQUAL['current_level'].address}
+        }}
+        ''')
+    g_list_line_COND_EQUAL
+    
+    add_line(g_line_COND_EQUAL, f'COND_EQUAL_{COND_EQUAL.address}::current_level -->List__Item_equal_', COND_EQUAL)
+    if COND_EQUAL['current_level'].address not in [0x0, 0x1]:
+        current_level_list = List_to_list(COND_EQUAL['current_level'])
+        for i in current_level_list:
+            gdb.set_convenience_variable(g_gdb_conv, get_object(i).address)
+            gdb.execute('call thd->gdb_str.set("", 0, system_charset_info)')
+            gdb.execute('call $g_gdb_conv->print(thd, &(thd->gdb_str), QT_ORDINARY)')
+            gdb_str = gdb.parse_and_eval('thd->gdb_str.c_ptr_safe()').string()
+            #formatted_sql = sqlparse.format(gdb_str, reindent=True, keyword_case='upper')
+            print(gdb_str)
+
+@object_decorator
+def display_List__Item_equal(list):
+    display = f'map List__Item_equal_{list.address} {{\n'
+    for i in List_to_list(list):
+        display += f'    {i.address} => {get_object_print_result(i)}\n'
+    display += f'}}'
+    g_list_List__Item_equal
+    
 def print_class():
     print("class Query_term { \n"
             "    # Query_term_set_op *m_parent \n"
