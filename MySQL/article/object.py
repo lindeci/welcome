@@ -23,15 +23,17 @@ g_list__natural_join_column__list = []  # 全局 List<Natural_join_column> *join
 g_Item_field_list = []
 
 g_list_COND_EQUAL = []                  # 全局 COND_EQUAL 的 list，里面的元素是指针
-g_list_line_COND_EQUAL = []                  # 全局 COND_EQUAL 的向外的连线，里面的元素是字符串
+g_list_line_COND_EQUAL = []             # 全局 COND_EQUAL 的向外的连线，里面的元素是字符串
 g_list_display_COND_EQUA = []           # 全局的 COND_EQUAL 打印字符串列表
 
 g_list_List__Item_equal = []            # 全局 List<Item_equal> 的 list，里面的元素是指针
 g_line_List__Item_equal = []            # 全局 List<Item_equal> 的 向外的连线，里面的元素是字符串
 g_list_display_List__Item_equal = []    # 全局 List<Item_equal> 打印字符串列表
 
+g_list_object_string = []
 g_line = []                             # 遍历对象时，如果两个对象之间有连线，则把连线信息插入这个列表。里面的元素时字符串
 g_error = []
+
 
 
 # 修饰函数，如果参数是指针则转换为对象。如果对象的地址合法，则调用原函数，否则什么都不做
