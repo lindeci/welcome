@@ -29,6 +29,10 @@ g_list_Natural_join_column = [] #全局 Natural_join_column 的 list，里面的
 g_list_mem_root_deque__Table_ref = []  # 全局 mem_root_deque<Table_ref*> 的 list, 面的元素是指针
 g_list_List__natural_join_colum = []  # 全局 List<Natural_join_column> 的 list，里面的元素是指针
 g_list_List__Item_equal = []            # 全局 List<Item_equal> 的 list，里面的元素是指针
+g_list_mem_root_deque__object = []  # 全局 mem_root_deque<xxx> 的 list, 里面的元素是指针
+g_list_Item = []     # 全局 Item 的 list, 里面的元素是指针
+g_list_SQL_I_List__object = []  # 全局 SQL_I_List<xxx> 的 list, 里面的元素是指针
+g_list_JOIN = []  # 全局 JOIN 的 list, 里面的元素是指针
 
 g_list_line = []                             # 遍历对象时，如果两个对象之间有连线，则把连线信息插入这个列表。里面的元素时字符串
 g_list_object_string = []
@@ -52,13 +56,13 @@ def object_decorator(func):
 # @list 连线列表，比如 g_line_COND_EQUAL、g_line_List__Item_equal 等
 # @line_prefix 连线字符串的前缀，包含最后一个 _ 符号
 # @item 连线末尾的对象或者指针
-def add_line(list, line_prefix, item):
+def add_line(list, line_prefix, item, label):
     if item.type.code == gdb.TYPE_CODE_PTR:
         if item not in [0x0, 0x1]:
-            list.append(line_prefix + str(item))
+            list.append(line_prefix + str(item) + ' : ' + label)
     else:
         if item.address not in [0x0, 0x1]:
-            list.append(line_prefix + '_' + item.address)
+            list.append(line_prefix + '_' + item.address + ' : ' + label)
 
 # 调用 object 的 print(const THD *, String *str, enum_query_type) 函数，返回 String
 # object 有 print(const THD *, String *str, enum_query_type) 函数成员的对象
@@ -187,19 +191,26 @@ def traverse_Query_expression(list, object):
            f'{sqlparse.format(get_object_print_result(object), reindent=True, keyword_case="upper")}\n' + \
            'end note'
     g_list_note.append(note)
-    add_line(g_list_line, f'Query_expression_{object.address}::master --[#lightblue]> Query_block_', object['master'])
-    add_line(g_list_line, f'Query_expression_{object.address}::slave --[#lightblue]> Query_block_', object['slave'])
-    add_line(g_list_line, f'Query_expression_{object.address}::next --[#lightblue]> Query_expression_', object['next'])
-    if prev__dereference != 0x0:
-        g_list_line.append(f'Query_expression_{object.address}::prev.dereference --[#lightblue]> Query_expression_{prev__dereference}')
-    add_line(g_list_line, f'Query_expression_{object.address}::m_query_term --[#lightblue]> Query_term_', object['m_query_term'])
     
-    traverse_Query_block(g_list_Query_block, object['master'])
+    traverse_Query_block(g_list_Query_block, object['master'])    
+    add_line(g_list_line, f'Query_expression_{object.address}::master -up-> Query_block_', object['master'], 'master')
+    
     traverse_Query_block(g_list_Query_block, object['slave'])
-    traverse_Query_expression(g_list_Query_expression, object['next'])
-    if prev__dereference != 0x0:
-        traverse_Query_expression(g_list_Query_expression, object['prev'].dereference())
+    add_line(g_list_line, f'Query_expression_{object.address}::slave -down-> Query_block_', object['slave'], 'slave')
     
+    traverse_Query_expression(g_list_Query_expression, object['next'])
+    add_line(g_list_line, f'Query_expression_{object.address}::next --> Query_expression_', object['next'], 'next')
+    
+    if prev__dereference != 0x0:
+        traverse_Query_expression(g_list_Query_expression, object['prev'].dereference())        
+        g_list_line.append(f'Query_expression_{object.address}::prev.dereference --> Query_expression_{prev__dereference} : prev.dereference')
+
+    if str(object['m_query_term'].dynamic_type) in ['Query_term_except *','Query_term_intersect *','Query_term_unary *','Query_term_union *']:
+        traverse_Query_term(g_list_Query_term, object['m_query_term'].cast(object['m_query_term'].dynamic_type))
+        add_line(g_list_line, f'Query_expression_{object.address}::m_query_term --> Query_term_', object['m_query_term'], 'm_query_term')
+    elif str(object['m_query_term'].dynamic_type) in ['Query_block *']:
+        traverse_Query_block(g_list_Query_block, object['m_query_term'].cast(object['m_query_term'].dynamic_type))
+        add_line(g_list_line, f'Query_expression_{object.address}::m_query_term --> Query_block_', object['m_query_term'], 'm_query_term')
 
 # 探索 Query_block
 # @list 存储 Query_block 指针的列表
@@ -225,7 +236,6 @@ def traverse_Query_block(list, object):
                                        slave => <Query_expression*> {object['slave']}
                                        next => <Query_block*> {object['next']}
                                        link_prev.dereference => <Query_block**> {link_prev__dereference}
-                                       m_query_term => <Query_term*> {object['m_query_term']}
                                        select_limit.value => <Item*> {object['select_limit']}
                                        offset_limit.value => <Item*> {object['offset_limit']}
                                        m_table_list.address => <SQL_I_List<Table_ref>> {object['m_table_list'].address}
@@ -251,143 +261,271 @@ def traverse_Query_block(list, object):
            f'{sqlparse.format(get_object_print_result(object), reindent=True, keyword_case="upper")}\n' + \
            'end note'
     g_list_note.append(note)
-    add_line(g_list_line, f'Query_block_{object.address}::master --[#lightgreen]> Query_expression_', object['master'])
-    add_line(g_list_line, f'Query_block_{object.address}::slave --[#lightgreen]> Query_expression_', object['slave'])
-    add_line(g_list_line, f'Query_block_{object.address}::next --[#lightgreen]> Query_block_', object['next'])
-    if link_prev__dereference != 0x0:
-        g_list_line.append(f'Query_block_{object.address}::link_prev.dereference --[#lightgreen]> Query_block_{link_prev__dereference}')
-
-# 打印 Query_block
-# @block Query_block的指针或者对象
-def display_Query_block(block):
-
-
+        
+    traverse_Query_expression(g_list_Query_expression, object['master'])
+    add_line(g_list_line, f'Query_block_{object.address}::master -up-> Query_expression_', object['master'], 'master')
     
-    if (block['m_table_list'].address != 0x0):
-        print(f"map SQL_I_List__Table_ref_{block['m_table_list'].address} {{")
-        for i in SQL_I_List_to_list(block['m_table_list'], 'next_local'):
-            print(f"    {i} => {i.dynamic_type}")
-        print(f"}}")
-
-    if (block['join'] != 0x0):
-        display_join(block['join'])
-
-# 打印 Query_term，包含子类的 Query_term_except、Query_term_intersect、Query_term_unary、Query_term_union，不包含 Query_block
-# @term Query_term的指针或者对象
-def display_Query_term(term):
-    if term.type.code == gdb.TYPE_CODE_PTR:
-        term = term.dereference()
-    dynamic_type = term.dynamic_type
-    if str(dynamic_type) in ['Query_term_except','Query_term_intersect','Query_term_unary','Query_term_union']:
-        new_term = term.cast(dynamic_type)        
-        print(f"map Query_term_{str(new_term.address)} #header:lightgreen {{")
-        print(f"    __dynamic_type => {dynamic_type}")
-        print(f"    m_block => {new_term['m_block']}")
-        print(f"    m_children => {new_term['m_children'].address}")
-        print(f"    m_last_distinct => {new_term['m_last_distinct']}")
-        print(f"    m_first_distinct => {new_term['m_first_distinct']}")
-        print(f"    m_is_materialized => {new_term['m_is_materialized']}")
-        print(f"}}")
-
-        m_children_list = mem_root_deque_to_list(new_term['m_children'])
-        print(f"map mem_root_deque__Query_term_{new_term['m_children'].address} #header:pink {{")
-        for i in m_children_list:
-            if i.type.code == gdb.TYPE_CODE_PTR:
-                i = i.dereference()
-            print(f"    {i.address} => {i.dynamic_type}")
-        print(f"}}")
-
-        for i in m_children_list:
-            if i not in g_query_term_list and i not in g_query_block_list:
-                g_query_term_list.append(i)
-                display_Query_term(i)
-
+    traverse_Query_block(g_list_Query_block, object['next'])
+    add_line(g_list_line, f'Query_block_{object.address}::next --> Query_block_', object['next'], 'next')
+    
+    traverse_Query_expression(g_list_Query_expression, object['slave'])
+    add_line(g_list_line, f'Query_block_{object.address}::slave -down-> Query_expression_', object['slave'], 'slave')
+    
+    if link_prev__dereference != 0x0:
+        traverse_Query_block(g_list_Query_block, object['link_prev'].dereference())
+        g_list_line.append(f'Query_block_{object.address}::link_prev.dereference -right-> Query_block_{link_prev__dereference} : link_prev.dereference')
+    
+    traverse_Table_ref(g_list_Table_ref, object['leaf_tables'])
+    add_line(g_list_line, f'Query_block_{object.address}::leaf_tables --> Table_ref_', object['leaf_tables'], 'leaf_tables')
+    
+    traverse_Item(g_list_Item, object['m_where_cond'])
+    add_line(g_list_line, f'Query_block_{object.address}::m_where_cond --> Item_', object['m_where_cond'], 'm_where_cond')
+    
+    traverse_Item(g_list_Item, object['m_having_cond'])
+    add_line(g_list_line, f'Query_block_{object.address}::m_having_cond --> Item_', object['m_having_cond'], 'm_having_cond')
+    
+    traverse_SQL_I_List__object(g_list_SQL_I_List__object, object['m_table_list'])
+    if object["m_table_list"].type.template_argument(0).code == gdb.TYPE_CODE_PTR:
+        add_line(g_list_line, f'Query_block_{object.address}::m_table_list --> SQL_I_List__{object["m_table_list"].type.template_argument(0).target()}_', object['m_table_list'].address, 'm_table_list')
     else:
-        print("dynamic_type type error in display_Query_term_set_op.")
-
-# 打印 Table_ref
-# @term Query_term的指针或者对象
-def display_Table_ref(table_ref):
-    if table_ref.type.code == gdb.TYPE_CODE_PTR:
-        table_ref = table_ref.dereference()
-    print(f"map Table_ref_{table_ref.address} {{")
-    if table_ref['db'] != 0x0:
-        print(f"    db => {table_ref['db'].string()}")
-    if table_ref['table_name'] != 0x0:
-        print(f"    table_name => {table_ref['table_name'].string()}")
-    if table_ref['alias'] != 0x0:
-        print(f"    alias => {table_ref['alias'].string()}")
-    print(f"    m_tableno => {table_ref['m_tableno']}")
-    print(f"    next_local => {table_ref['next_local']}")
-    print(f"    next_leaf => {table_ref['next_leaf']}")
-    print(f"    partition_names => {table_ref['partition_names']}")
-    print(f"    index_hints => {table_ref['index_hints']}")
-    print(f"    view => {table_ref['view']}")
-    print(f"    derived => {table_ref['derived']}")
-    print(f"    schema_table => {table_ref['schema_table']}")
-    print(f"    effective_algorithm => {table_ref['effective_algorithm']}")
-    print(f"    field_translation => {table_ref['field_translation']}")
-    print(f"    natural_join => {table_ref['natural_join']}")
-    print(f"    join_using_fields => {table_ref['join_using_fields']}")
-    print(f"    m_join_cond => {table_ref['m_join_cond']}")
-    print(f"    m_is_sj_or_aj_nest => {table_ref['m_is_sj_or_aj_nest']}")
-    print(f"    sj_inner_tables => {table_ref['sj_inner_tables']}")
-    print(f"    is_natural_join => {table_ref['is_natural_join']}")
-    print(f"    join_using_fields => {table_ref['join_using_fields']}")
-    print(f"    join_columns => {table_ref['join_columns']}")
-    print(f"    is_join_columns_complete => {table_ref['is_join_columns_complete']}")
-    print(f"    join_order_swapped => {table_ref['join_order_swapped']}")
-    print(f"    straight => {table_ref['straight']}")
-    print(f"    join_cond_dep_tables => {table_ref['join_cond_dep_tables']}")
-    print(f"    nested_join => {table_ref['nested_join']}")
-    print(f"    embedding => {table_ref['embedding']}")
-    print(f"    join_list => {table_ref['join_list']}")
-    print(f"    m_join_cond_optim => {table_ref['m_join_cond_optim']}")
-    print(f"    cond_equal => {table_ref['cond_equal']}")
-    print(f"}}")
-
-    print(f"note right of Table_ref_{str(table_ref.address)}")
-    gdb.set_convenience_variable(g_gdb_conv,table_ref.address)
-    gdb.execute('call thd->gdb_str.set("", 0, system_charset_info)')
-    gdb.execute('call $g_gdb_conv->print(thd, &(thd->gdb_str), QT_ORDINARY)')
-    gdb_str = gdb.parse_and_eval('thd->gdb_str->m_ptr').string()
-    #formatted_sql = sqlparse.format(gdb_str, reindent=True, keyword_case='upper')
-    print(f"{gdb_str}")
-    print(f"end note")
-
-    if table_ref['m_join_cond_optim'] not in [0x0, 0x1]:
-        print(f"note right of Table_ref_{str(table_ref.address)}")
-        gdb.set_convenience_variable(g_gdb_conv,table_ref['m_join_cond_optim'].cast(table_ref['m_join_cond_optim'].dynamic_type))
-        gdb.execute('call thd->gdb_str.set("", 0, system_charset_info)')
-        gdb.execute('call $g_gdb_conv->print(thd, &(thd->gdb_str), QT_ORDINARY)')
-        gdb_str = gdb.parse_and_eval('thd->gdb_str.c_ptr_safe()').string()
-        formatted_sql = sqlparse.format(gdb_str, reindent=True, keyword_case='upper')
-        print(f"m_join_cond_optim:   {formatted_sql}")
-        print(f"end note")
-    print()
-
-    if table_ref['m_join_cond'] not in [0x0, 0x1]:
-        print(f"note right of Table_ref_{str(table_ref.address)}")
-        gdb.set_convenience_variable(g_gdb_conv,table_ref['m_join_cond'].cast(table_ref['m_join_cond'].dynamic_type))
-        gdb.execute('call thd->gdb_str.set("", 0, system_charset_info)')
-        gdb.execute('call $g_gdb_conv->print(thd, &(thd->gdb_str), QT_ORDINARY)')
-        gdb_str = gdb.parse_and_eval('thd->gdb_str.c_ptr_safe()').string()
-        formatted_sql = sqlparse.format(gdb_str, reindent=True, keyword_case='upper')
-        print(f"m_join_cond:   {formatted_sql}")
-        print(f"end note")
-    print()
+        add_line(g_list_line, f'Query_block_{object.address}::m_table_list --> SQL_I_List__{object["m_table_list"].type.template_argument(0)}_', object['m_table_list'].address, 'm_table_list')
 
 
-# 打印 mem_root_deque__Table_ref
-# @deque mem_root_deque的指针或者对象
-def display_mem_root_deque__Table_ref(deque):
-    if deque.type.code == gdb.TYPE_CODE_PTR:
-        deque = deque.dereference()
-    print(f"map mem_root_deque__Table_ref_{deque.address} {{")
-    for i in mem_root_deque_to_list(deque):
-        print(f"    {i}=> {i.dynamic_type}")
-    print(f"}}")
+# 探索 Query_term，包含子类 Query_term_except、Query_term_intersect、Query_term_unary、Query_term_union，不包含 Query_block
+# @list 存储 Query_term 指针的列表
+# @object Query_term的指针或者对象
+@object_decorator
+def traverse_Query_term(list, object):
+    if str(object.dynamic_type) not in ['Query_term_except','Query_term_intersect','Query_term_unary','Query_term_union']:
+        return
+    display = textwrap.dedent(f'''
+                              map Query_term_{object.address} #header:pink;back:lightyellow{{
+                                       __dynamic_type => {object.dynamic_type}
+                                       m_block => <Query_block*> {object['m_block']}
+                                       m_children.address => <mem_root_deque<Query_term*>> {object['m_children'].address}
+                                       m_last_distinct => <int64_t> {object['m_last_distinct']}
+                                       m_first_distinct => <int64_t> {object['m_first_distinct']}
+                                       m_is_materialized => <bool> {object['m_is_materialized']}
+                              }}
+                              ''')
+    g_list_object_string.append(display)
+    add_line(g_list_line, f'Query_term_{object.address}::m_block --> Query_block_', object['m_block'], 'm_block')
+    add_line(g_list_line, f'Query_term_{object.address}::m_children.address --> mem_root_deque__Query_term_', object['m_children'].address, 'm_children')
+    traverse_Query_block(g_list_Query_block, object['m_block'])
+    traverse_mem_root_deque__object(g_list_mem_root_deque__object, object['m_children'])
+    
+@object_decorator
+def traverse_mem_root_deque__object(list, object):
+    if object.type.template_argument(0).code == gdb.TYPE_CODE_PTR:
+        target = object.type.template_argument(0).target()
+    else:
+        target = object.type.template_argument(0)
+    display = f'map mem_root_deque__{target}_{object.address} {{\n'    
+    for i in mem_root_deque_to_list(object):
+        address = 0x0
+        if object.type.template_argument(0).code == gdb.TYPE_CODE_PTR:
+            address = str(i)
+        else:
+            address = str(i.address)
+        display += f'         {address} => {i.dynamic_type}\n'
+        if str(i.dynamic_type.target()) == 'Query_block':
+            g_list_line.append(f'mem_root_deque__{target}_{object.address} --> Query_block_{address} : {address}')
+            traverse_Query_block(g_list_Query_block, i.cast(i.dynamic_type))
+        elif str(i.dynamic_type.target()) in ['Query_term_except','Query_term_intersect','Query_term_unary','Query_term_union']:
+            g_list_line.append(f'mem_root_deque__{target}_{object.address} --> Query_term_{address} : {address}')
+            traverse_Query_term(g_list_Query_term, i.cast(i.dynamic_type))
+    display += '}\n'
+    g_list_object_string.append(display)
+    
+@object_decorator
+def traverse_SQL_I_List__object(list, object):
+    if object.type.template_argument(0).code == gdb.TYPE_CODE_PTR:
+        target = object.type.template_argument(0).target()
+    else:
+        target = object.type.template_argument(0)
+    display = f'map SQL_I_List__{target}_{object.address} {{\n'
 
+    for i in SQL_I_List_to_list(object):
+        address = str(i)
+        display += f'         {address} => {i.dynamic_type}\n'
+        if str(target) == 'Table_ref':
+            traverse_Table_ref(g_list_Table_ref, i)
+            g_list_line.append(f'SQL_I_List__{target}_{object.address}::{address} --> Table_ref_{address} : {address}')
+    display += '}\n'
+    g_list_object_string.append(display)
+
+# 探索 Table_ref
+# @list 存储 Table_ref 指针的列表
+# @object Table_ref 的指针或者对象
+@object_decorator
+def traverse_Table_ref(list, object):
+    if object['db'] != 0x0:
+        db = object['db'].string()
+    else:
+        db = 0x0
+    if object['table_name'] != 0x0:
+        table_name = object['table_name'].string()
+    else:
+        table_name = 0x0
+    if object['alias'] != 0x0:
+        alias = object['alias'].string()      
+    else:
+        alias = 0x0
+    display = textwrap.dedent(f'''
+                              map Table_ref_{object.address} #header:pink;back:lightblue{{
+                                       db => <const char*> {db}
+                                       table_name => <const char*> {table_name}
+                                       alias => <const char*> {alias}
+                                       m_tableno => <uint> {object['m_tableno']}
+                                       next_local => <Table_ref*> {object['next_local']}
+                                       next_leaf => <Table_ref*> {object['next_leaf']}
+                                       partition_names => <List<String>*> {object['partition_names']}
+                                       index_hints => <List<Index_hint>*> {object['index_hints']}
+                                       view => <LEX*> {object['view']}
+                                       derived => <Query_expression*> {object['derived']}
+                                       schema_table => <ST_SCHEMA_TABLE*> {object['schema_table']}
+                                       effective_algorithm => <enum_view_algorithm> {object['effective_algorithm']}
+                                       field_translation => <Field_translator*> {object['field_translation']}
+                                       natural_join => <Table_ref*> {object['natural_join']}
+                                       join_using_fields => <List<String>*> {object['join_using_fields']}
+                                       m_join_cond => <Item*> {object['m_join_cond']}
+                                       m_is_sj_or_aj_nest => <bool> {object['m_is_sj_or_aj_nest']}
+                                       sj_inner_tables => <table_map> {object['sj_inner_tables']}
+                                       is_natural_join => <bool> {object['is_natural_join']}
+                                       join_using_fields => <List<String>*> {object['join_using_fields']}
+                                       join_columns => <List<Natural_join_column>*> {object['join_columns']}
+                                       is_join_columns_complete => <bool> {object['is_join_columns_complete']}
+                                       join_order_swapped => <bool> {object['join_order_swapped']}
+                                       straight => <bool> {object['straight']}
+                                       join_cond_dep_tables => <table_map> {object['join_cond_dep_tables']}
+                                       nested_join => <NESTED_JOIN*> {object['nested_join']}
+                                       embedding => <Table_ref*> {object['embedding']}
+                                       join_list => <mem_root_deque<Table_ref*>*> {object['join_list']}
+                                       m_join_cond_optim => <Item*> {object['m_join_cond_optim']}
+                                       cond_equal => <COND_EQUAL*> {object['cond_equal']}
+                              }}
+                              ''')
+    g_list_object_string.append(display)
+    note = f'note right of Table_ref_{object.address}\n' + \
+           f'{sqlparse.format(get_object_print_result(object), reindent=True, keyword_case="upper")}\n' + \
+           'end note'
+    g_list_note.append(note)
+    
+    traverse_Item(g_list_Item, object['m_join_cond'])
+    add_line(g_list_line, f'Table_ref_{object.address}::m_join_cond --> Item_', object['m_join_cond'], 'm_join_cond')
+    
+    traverse_Item(g_list_Item, object['m_join_cond_optim'])
+    add_line(g_list_line, f'Table_ref_{object.address}::m_join_cond_optim --> Item_', object['m_join_cond_optim'], 'm_join_cond_optim')
+
+    traverse_Table_ref(g_list_Table_ref, object['next_local'])
+    add_line(g_list_line, f'Table_ref_{object.address}::next_local --> Table_ref_', object['next_local'], 'next_local')
+    
+    traverse_Table_ref(g_list_Table_ref, object['next_leaf'])
+    add_line(g_list_line, f'Table_ref_{object.address}::next_leaf --> Table_ref_', object['next_leaf'], 'next_leaf')
+    
+# 探索 Item
+# @list 存储 Item 指针的列表
+# @object Item 的指针或者对象
+@object_decorator
+def traverse_Item(list, object):
+    gdb_str = sqlparse.format(get_object_print_result(object), reindent=True, keyword_case="upper").replace("\n","\\\\n")
+    display = textwrap.dedent(f'''
+                              map Item_{object.address} #header:pink;back:orange{{
+                                       __dynamic_type => {object.dynamic_type}
+                                       __print => {get_object_print_result(object)}
+                              }}
+                              ''')
+    g_list_object_string.append(display)
+    
+# 探索 JOIN
+# @list 存储 JOIN 指针的列表
+# @object JOIN 的指针或者对象
+@object_decorator
+def traverse_JOIN(list, object):
+    if object['best_ref'] != 0X0:
+        best_ref__dereference = object['best_ref'].dereference()
+    else:
+        best_ref__dereference = 0x0
+    if object['map2table'] != 0X0:
+        map2table__dereference = object['map2table'].dereference()
+    else:
+        map2table__dereference = 0x0
+    display = textwrap.dedent(f'''
+                              map JOIN_{object.address} #header:pink;back:lightblue{{
+                                       query_block => <Query_block* const> {object['query_block']}
+                                       thd => <THD* const> {object['thd']}
+                                       join_tab => <JOIN_TAB*> {object['join_tab']}
+                                       qep_tab => <QEP_TAB*> {object['qep_tab']}                                       
+                                       sort_by_table => <TABLE*> {object['sort_by_table']}
+                                       grouped => <bool> {object['grouped']}
+                                       const_table_map => <table_map> {object['const_table_map']}
+                                       found_const_table_map => <table_map> {object['found_const_table_map']}
+                                       fields => <mem_root_deque<Item*>> {object['fields']}
+                                       tmp_table_param => <Temp_table_param> {object['tmp_table_param'].address}
+                                       lock => <MYSQL_LOCK*> {object['lock']}
+                                       implicit_grouping => <bool> {object['implicit_grouping']}
+                                       select_distinct => <bool> {object['select_distinct']}
+                                       keyuse_array => <Key_use_array> {object['keyuse_array'].address}
+                                       order => <ORDER_with_src> {object['order'].address}
+                                       group_list => <ORDER_with_src> {object['group_list'].address}
+                                       m_windows => <List<Window>> {object['m_windows'].address}
+                                       where_cond => <Item*> {object['where_cond']}
+                                       having_cond => <Item*> {object['having_cond']}
+                                       having_for_explain => <Item*> {object['having_for_explain']}
+                                       tables_list => <Table_ref*> {object['tables_list']}
+                                       current_ref_item_slice => <uint> {object['current_ref_item_slice']}
+                                       with_json_agg => <bool> {object['with_json_agg']}
+                                       rollup_state => <JOIN::RollupState> {object['rollup_state']}
+                                       explain_flags => <Explain_format_flags> {object['explain_flags'].address}
+                                       send_group_parts => <uint> {object['send_group_parts']}
+                                       cond_equal => <COND_EQUAL*> {object['cond_equal']}
+                              }}
+                              ''')
+    g_list_object_string.append(display)
+    
+    traverse_Item(g_list_Item, object['where_cond'])
+    add_line(g_list_line, f'JOIN_{object.address}::where_cond --> Item_', object['where_cond'], 'where_cond')
+    
+    traverse_Item(g_list_Item, object['having_cond'])
+    add_line(g_list_line, f'JOIN_{object.address}::having_cond --> Item_', object['having_cond'], 'having_cond')
+
+# 探索 QEP_shared
+# @list 存储 QEP_shared 指针的列表
+# @object QEP_shared 的指针或者对象
+@object_decorator
+def traverse_QEP_shared(list, object):
+    display = textwrap.dedent(f'''
+                              map JOIN_{object.address} #header:pink;back:lightblue{{
+                                       query_block => <Query_block* const> {object['query_block']}
+                                       thd => <THD* const> {object['thd']}
+                                       join_tab => <JOIN_TAB*> {object['join_tab']}
+                                       qep_tab => <QEP_TAB*> {object['qep_tab']}                                       
+                                       sort_by_table => <TABLE*> {object['sort_by_table']}
+                                       grouped => <bool> {object['grouped']}
+                                       const_table_map => <table_map> {object['const_table_map']}
+                                       found_const_table_map => <table_map> {object['found_const_table_map']}
+                                       fields => <mem_root_deque<Item*>> {object['fields']}
+                                       tmp_table_param => <Temp_table_param> {object['tmp_table_param'].address}
+                                       lock => <MYSQL_LOCK*> {object['lock']}
+                                       implicit_grouping => <bool> {object['implicit_grouping']}
+                                       select_distinct => <bool> {object['select_distinct']}
+                                       keyuse_array => <Key_use_array> {object['keyuse_array'].address}
+                                       order => <ORDER_with_src> {object['order'].address}
+                                       group_list => <ORDER_with_src> {object['group_list'].address}
+                                       m_windows => <List<Window>> {object['m_windows'].address}
+                                       where_cond => <Item*> {object['where_cond']}
+                                       having_cond => <Item*> {object['having_cond']}
+                                       having_for_explain => <Item*> {object['having_for_explain']}
+                                       tables_list => <Table_ref*> {object['tables_list']}
+                                       current_ref_item_slice => <uint> {object['current_ref_item_slice']}
+                                       with_json_agg => <bool> {object['with_json_agg']}
+                                       rollup_state => <JOIN::RollupState> {object['rollup_state']}
+                                       explain_flags => <Explain_format_flags> {object['explain_flags'].address}
+                                       send_group_parts => <uint> {object['send_group_parts']}
+                                       cond_equal => <COND_EQUAL*> {object['cond_equal']}
+                              }}
+                              ''')
+    g_list_object_string.append(display)
 # List<Natural_join_column> *join_columns; // 连接列列表
 
 def display_list__natural_join_column__list(list):
@@ -826,8 +964,12 @@ class GDB_expr(gdb.Command):
         del g_list_COND_EQUAL[:]
         del g_list_Natural_join_column[:]
         del g_list_mem_root_deque__Table_ref[:]
+        del g_list_mem_root_deque__object[:]
         del g_list_List__natural_join_colum[:]
         del g_list_List__Item_equal[:]
+        del g_list_Item[:]
+        del g_list_SQL_I_List__object[:]
+        del g_list_JOIN[:]
         del g_list_line[:]
         del g_list_object_string[:]
         del g_list_note[:]
@@ -843,9 +985,9 @@ class GDB_expr(gdb.Command):
             print(i)
         print()
         
-        for i in g_list_note:
-            print(i)
-            print()
+        #for i in g_list_note:
+        #    print(i)
+        #    print()
 
         #print_class()
         
@@ -983,5 +1125,37 @@ class GDB_expr(gdb.Command):
                     if i not in g_query_term_list:
                         self.traverse_terms(i.cast(dynamic_type))
 
+MysqlCommand()
+GDB_expr()
+
+
+
+
+
+
+
+
+
+
+
+
+
+import gdb
+
+class MysqlCommand(gdb.Command):
+    def __init__(self):
+        super(MysqlCommand, self).__init__(
+            "mysql", gdb.COMMAND_USER, prefix=True)
+
+class GDB_expr(gdb.Command):
+    def __init__(self):
+        super(GDB_expr, self).__init__("mysql my_object", gdb.COMMAND_USER)
+
+    def invoke(self, arg, from_tty):        
+        class_type = gdb.lookup_type(arg)
+        fields = class_type.fields()
+        for field in fields:
+            print(field.name, field.type)
+        
 MysqlCommand()
 GDB_expr()
