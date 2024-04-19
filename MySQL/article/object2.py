@@ -30,10 +30,20 @@ g_list_mem_root_deque__Table_ref = []  # 全局 mem_root_deque<Table_ref*> 的 l
 g_list_List__natural_join_colum = []  # 全局 List<Natural_join_column> 的 list，里面的元素是指针
 g_list_List__Item_equal = []            # 全局 List<Item_equal> 的 list，里面的元素是指针
 g_list_mem_root_deque__object = []  # 全局 mem_root_deque<xxx> 的 list, 里面的元素是指针
+g_list_Mem_root_array__object = []  # 全局 Mem_root_array<xxx> 的 list, 里面的元素是指针
 g_list_Item = []     # 全局 Item 的 list, 里面的元素是指针
 g_list_SQL_I_List__object = []  # 全局 SQL_I_List<xxx> 的 list, 里面的元素是指针
+g_list_List__object = []  # 全局 List<xxx> 的 list, 里面的元素是指针
+g_list_std_vector__object = []  # 全局 std::vector<xxx> 的 list, 里面的元素是指针
 g_list_JOIN = []  # 全局 JOIN 的 list, 里面的元素是指针
-
+g_list_JOIN_TAB = []
+g_list_QEP_TAB = []
+g_list_QEP_shared = []
+g_list_AccessPath = []
+g_list_JoinHypergraph = []
+g_list_hypergraph_Hypergraph = []
+g_list_hypergraph_Node = []
+g_list_hypergraph_Hyperedge = []
 g_list_line = []                             # 遍历对象时，如果两个对象之间有连线，则把连线信息插入这个列表。里面的元素时字符串
 g_list_object_string = []
 g_list_note = []
@@ -108,7 +118,7 @@ def List_to_list(list):
     return out_list
 
 # 把 MySQL 源码中的 mem_root_deque 转换为 python 中的 list
-# @deque mem_root_deque的指针或者值
+# @deque mem_root_deque 的指针或者值
 # 返回 list
 def mem_root_deque_to_list(deque):
     if deque.type.code == gdb.TYPE_CODE_PTR:
@@ -123,9 +133,11 @@ def mem_root_deque_to_list(deque):
     return out_list
 
 # 把 MySQL 源码中的 SQL_I_List 转换为 python 中的 list
-# @list SQL_I_List的值
+# @list SQL_I_List 的值或指针
 # 返回 list
-def SQL_I_List_to_list(list, next_key = 'next_local'):
+def SQL_I_List_to_list(list, next_key = 'next_local'):    
+    if list.type.code == gdb.TYPE_CODE_PTR:
+        list = list.dereference()
     out_list = []
     elements = list['elements']
     if (elements == 0):
@@ -139,29 +151,32 @@ def SQL_I_List_to_list(list, next_key = 'next_local'):
     return out_list
 
 # 把 MySQL 源码中的 Mem_root_array 转换为 python 中的 list
-# @array Mem_root_array的值
+# @array Mem_root_array 的值或指针
 # 返回 list
 def Mem_root_array_to_list(array):
     if array.type.code == gdb.TYPE_CODE_PTR:
         array = array.dereference()
     out_list = []
-    m_size = array.dereference()['m_size']
+    m_size = array['m_size']
     for i in range(m_size):
-        out_list.append(array.dereference()['m_array'][i])
+        if array['m_array'][i].type.code == gdb.TYPE_CODE_PTR:
+            out_list.append(array['m_array'][i])
+        else:
+             out_list.append(array['m_array'][i].address)
     return out_list
 
-
-def table_ref_to_list(table_ref, next_key):
+# 把 MySQL 源码中的 std::vector 转换为 python 中的 list
+# @vector std::vector 的值或指针
+# 返回 list  里面存的是指针
+def std_vector_to_list(vector):
+    if vector.type.code == gdb.TYPE_CODE_PTR:
+        vector = vector.dereference()
     out_list = []
-    while table_ref:
-        out_list.append(table_ref)
-        table_ref = table_ref.dereference()[next_key]
+    value_reference = vector['_M_impl']['_M_start']
+    while value_reference != vector['_M_impl']['_M_finish']:
+        out_list.append(value_reference)
+        value_reference += 1
     return out_list
-
-class MysqlCommand(gdb.Command):
-    def __init__(self):
-        super(MysqlCommand, self).__init__(
-            "mysql", gdb.COMMAND_USER, prefix=True)
 
 # 探索 Query_expression
 # @list 存储 Query_expression 指针的列表
@@ -245,7 +260,7 @@ def traverse_Query_block(list, object):
                                        order_list.address => <SQL_I_List<ORDER>> {object['order_list'].address}
                                        select_list_tables => <table_map> {object['select_list_tables']}
                                        outer_join => <table_map> {object['outer_join']}
-                                       join.address => <JOIN*> {object['join'].address}
+                                       join => <JOIN*> {object['join']}
                                        m_current_table_nest => <mem_root_deque<Table_ref*>*> {object['m_current_table_nest']}
                                        cond_value => <Item::cond_result> {object['cond_value']}
                                        having_value => <Item::cond_result> {object['having_value']}
@@ -289,8 +304,17 @@ def traverse_Query_block(list, object):
         add_line(g_list_line, f'Query_block_{object.address}::m_table_list --> SQL_I_List__{object["m_table_list"].type.template_argument(0).target()}_', object['m_table_list'].address, 'm_table_list')
     else:
         add_line(g_list_line, f'Query_block_{object.address}::m_table_list --> SQL_I_List__{object["m_table_list"].type.template_argument(0)}_', object['m_table_list'].address, 'm_table_list')
-
-
+    
+    traverse_JOIN(g_list_JOIN, object['join'])
+    add_line(g_list_line, f'Query_block_{object.address}::join --> JOIN_', object['join'], 'join')
+    
+    traverse_mem_root_deque__object(g_list_mem_root_deque__object, object['m_table_nest'])
+    add_line(g_list_line, f'Query_block_{object.address}::m_table_nest.address --> mem_root_deque__Table_ref_', object['m_table_nest'].address, 'm_table_nest')
+    
+    traverse_mem_root_deque__object(g_list_mem_root_deque__object, object['sj_nests'])
+    add_line(g_list_line, f'Query_block_{object.address}::sj_nests.address --> mem_root_deque__Table_ref_', object['sj_nests'].address, 'sj_nests')
+    
+    
 # 探索 Query_term，包含子类 Query_term_except、Query_term_intersect、Query_term_unary、Query_term_union，不包含 Query_block
 # @list 存储 Query_term 指针的列表
 # @object Query_term的指针或者对象
@@ -309,10 +333,12 @@ def traverse_Query_term(list, object):
                               }}
                               ''')
     g_list_object_string.append(display)
-    add_line(g_list_line, f'Query_term_{object.address}::m_block --> Query_block_', object['m_block'], 'm_block')
-    add_line(g_list_line, f'Query_term_{object.address}::m_children.address --> mem_root_deque__Query_term_', object['m_children'].address, 'm_children')
+   
     traverse_Query_block(g_list_Query_block, object['m_block'])
+    add_line(g_list_line, f'Query_term_{object.address}::m_block --> Query_block_', object['m_block'], 'm_block')
+    
     traverse_mem_root_deque__object(g_list_mem_root_deque__object, object['m_children'])
+    add_line(g_list_line, f'Query_term_{object.address}::m_children.address --> mem_root_deque__Query_term_', object['m_children'].address, 'm_children')
     
 @object_decorator
 def traverse_mem_root_deque__object(list, object):
@@ -334,6 +360,12 @@ def traverse_mem_root_deque__object(list, object):
         elif str(i.dynamic_type.target()) in ['Query_term_except','Query_term_intersect','Query_term_unary','Query_term_union']:
             g_list_line.append(f'mem_root_deque__{target}_{object.address} --> Query_term_{address} : {address}')
             traverse_Query_term(g_list_Query_term, i.cast(i.dynamic_type))
+        elif str(i.dynamic_type.target()) in ['Item_field']:
+            g_list_line.append(f'mem_root_deque__{target}_{object.address} --> Item_{address} : {address}')
+            traverse_Item(g_list_Item, i.cast(i.dynamic_type))
+        elif str(i.dynamic_type.target()) in ['Table_ref']:
+            g_list_line.append(f'mem_root_deque__{target}_{object.address} --> Table_ref_{address} : {address}')
+            traverse_Item(g_list_Table_ref, i.cast(i.dynamic_type))
     display += '}\n'
     g_list_object_string.append(display)
     
@@ -351,6 +383,72 @@ def traverse_SQL_I_List__object(list, object):
         if str(target) == 'Table_ref':
             traverse_Table_ref(g_list_Table_ref, i)
             g_list_line.append(f'SQL_I_List__{target}_{object.address}::{address} --> Table_ref_{address} : {address}')
+    display += '}\n'
+    g_list_object_string.append(display)
+    
+@object_decorator
+def traverse_List__object(list, object):
+    if object.type.template_argument(0).code == gdb.TYPE_CODE_PTR:
+        target = object.type.template_argument(0).target()
+    else:
+        target = object.type.template_argument(0)
+    display = f'map List__{target}_{object.address} {{\n'
+
+    for i in List_to_list(object):
+        address = str(i)
+        display += f'         {address} => {i.dynamic_type}\n'
+        if str(target) == 'Item_equal':
+            traverse_Item(g_list_List__Item_equal, i)
+            g_list_line.append(f'List__{target}_{object.address}::{address} --> Item_{address} : {address}')
+    display += '}\n'
+    g_list_object_string.append(display)
+
+
+@object_decorator
+def traverse_Mem_root_array__object(list, object):
+    if object.type.template_argument(0).code == gdb.TYPE_CODE_PTR:
+        target = object.type.template_argument(0).target()
+    else:
+        target = object.type.template_argument(0)
+    display = f'map Mem_root_array_{str(target).replace("::","_")}_{object.address} {{\n'
+    out_list = Mem_root_array_to_list(object)
+    for i in range(len(out_list)):
+        address = str(out_list[i])
+        if str(target) == 'hypergraph::Hyperedge':
+            display += f'         edges[{i}] => {address}<{out_list[i].dynamic_type}>    left={bin(out_list[i]["left"])[2:].zfill(16)}    right={bin(out_list[i]["right"])[2:].zfill(16)}\n'
+        elif str(target) == 'hypergraph::Node':
+            simple_edges = set()
+            complex_edges = set()
+            for j in std_vector_to_list(out_list[i]['simple_edges']):
+                simple_edges.add(int(j.dereference()))
+            for j in std_vector_to_list(out_list[i]['complex_edges']):
+                complex_edges.add(int(j.dereference()))
+            if not simple_edges:
+                simple_edges = '{}'
+            if not complex_edges:
+                complex_edges = '{}'
+            display += f'         nodes[{i}] => {address}<{out_list[i].dynamic_type}>    simple_neighborhood={bin(out_list[i]["simple_neighborhood"])[2:].zfill(16)}    simple_edges={simple_edges}    complex_edges={complex_edges}\n'
+        else:
+            display += f'         {address} => {out_list[i].dynamic_type}\n'
+        #if str(target) == 'hypergraph::Hyperedge':
+        #    traverse_hypergraph_Hyperedge(g_list_hypergraph_Hyperedge, out_list[i])
+        #    g_list_line.append(f'Mem_root_array_{str(target).replace("::","_")}_{object.address}::{address} --> hypergraph_Hyperedge_{address} : {address}')
+        #elif str(target) == 'hypergraph::Node':
+        #    traverse_hypergraph_Node(g_list_hypergraph_Node, out_list[i])
+        #    g_list_line.append(f'Mem_root_array_{str(target).replace("::","_")}_{object.address}::{address} --> hypergraph_Node_{address} : {address}')
+    display += '}\n'
+    g_list_object_string.append(display)
+    
+@object_decorator
+def traverse_std_vector__object(list, object):
+    if object.type.template_argument(0).code == gdb.TYPE_CODE_PTR:
+        target = object.type.template_argument(0).target()
+    else:
+        target = object.type.template_argument(0)
+    display = f'map std_vector_{str(target).replace("::","_").replace(" ","_")}_{object.address} {{\n'
+    for i in std_vector_to_list(object):
+        #address = str(i)
+        display += f'         {bin(i.dereference())[2:].zfill(10)} => {i.dynamic_type}\n'
     display += '}\n'
     g_list_object_string.append(display)
 
@@ -479,6 +577,9 @@ def traverse_JOIN(list, object):
                                        explain_flags => <Explain_format_flags> {object['explain_flags'].address}
                                        send_group_parts => <uint> {object['send_group_parts']}
                                        cond_equal => <COND_EQUAL*> {object['cond_equal']}
+                                       ref_items => <Ref_item_array *> {object['ref_items']}
+                                       m_root_access_path => <AccessPath *> {object['m_root_access_path']}
+                                       m_root_access_path_no_in2exists => <AccessPath *> {object['m_root_access_path_no_in2exists']}
                               }}
                               ''')
     g_list_object_string.append(display)
@@ -489,44 +590,287 @@ def traverse_JOIN(list, object):
     traverse_Item(g_list_Item, object['having_cond'])
     add_line(g_list_line, f'JOIN_{object.address}::having_cond --> Item_', object['having_cond'], 'having_cond')
 
+    traverse_JOIN_TAB(g_list_JOIN_TAB, object['join_tab'])
+    add_line(g_list_line, f'JOIN_{object.address}::join_tab --> JOIN_TAB_', object['join_tab'], 'join_tab')
+
+    traverse_QEP_TAB(g_list_QEP_TAB, object['qep_tab'])
+    add_line(g_list_line, f'JOIN_{object.address}::qep_tab --> QEP_TAB_', object['qep_tab'], 'qep_tab')
+
+    traverse_COND_EQUAL(g_list_COND_EQUAL, object['cond_equal'])
+    add_line(g_list_line, f'JOIN_{object.address}::cond_equal --> COND_EQUAL_', object['cond_equal'], 'cond_equal')
+    
+    traverse_Table_ref(g_list_Table_ref, object['tables_list'])
+    add_line(g_list_line, f'JOIN_{object.address}::tables_list --> Table_ref_', object['tables_list'], 'tables_list')
+        
+    traverse_mem_root_deque__object(g_list_mem_root_deque__object, object['fields'])
+    add_line(g_list_line, f'JOIN_{object.address}::fields --> mem_root_deque__Item_', object['fields'], 'fields')
+
+    traverse_AccessPath(g_list_AccessPath, object['m_root_access_path'])
+    add_line(g_list_line, f'JOIN_{object.address}::m_root_access_path --> AccessPath_', object['m_root_access_path'], 'm_root_access_path')
+
+    traverse_AccessPath(g_list_AccessPath, object['m_root_access_path_no_in2exists'])
+    add_line(g_list_line, f'JOIN_{object.address}::m_root_access_path_no_in2exists --> AccessPath_', object['m_root_access_path_no_in2exists'], 'm_root_access_path_no_in2exists')
+    
 # 探索 QEP_shared
 # @list 存储 QEP_shared 指针的列表
 # @object QEP_shared 的指针或者对象
 @object_decorator
 def traverse_QEP_shared(list, object):
     display = textwrap.dedent(f'''
-                              map JOIN_{object.address} #header:pink;back:lightblue{{
-                                       query_block => <Query_block* const> {object['query_block']}
-                                       thd => <THD* const> {object['thd']}
-                                       join_tab => <JOIN_TAB*> {object['join_tab']}
-                                       qep_tab => <QEP_TAB*> {object['qep_tab']}                                       
-                                       sort_by_table => <TABLE*> {object['sort_by_table']}
-                                       grouped => <bool> {object['grouped']}
-                                       const_table_map => <table_map> {object['const_table_map']}
-                                       found_const_table_map => <table_map> {object['found_const_table_map']}
-                                       fields => <mem_root_deque<Item*>> {object['fields']}
-                                       tmp_table_param => <Temp_table_param> {object['tmp_table_param'].address}
-                                       lock => <MYSQL_LOCK*> {object['lock']}
-                                       implicit_grouping => <bool> {object['implicit_grouping']}
-                                       select_distinct => <bool> {object['select_distinct']}
-                                       keyuse_array => <Key_use_array> {object['keyuse_array'].address}
-                                       order => <ORDER_with_src> {object['order'].address}
-                                       group_list => <ORDER_with_src> {object['group_list'].address}
-                                       m_windows => <List<Window>> {object['m_windows'].address}
-                                       where_cond => <Item*> {object['where_cond']}
-                                       having_cond => <Item*> {object['having_cond']}
-                                       having_for_explain => <Item*> {object['having_for_explain']}
-                                       tables_list => <Table_ref*> {object['tables_list']}
-                                       current_ref_item_slice => <uint> {object['current_ref_item_slice']}
-                                       with_json_agg => <bool> {object['with_json_agg']}
-                                       rollup_state => <JOIN::RollupState> {object['rollup_state']}
-                                       explain_flags => <Explain_format_flags> {object['explain_flags'].address}
-                                       send_group_parts => <uint> {object['send_group_parts']}
-                                       cond_equal => <COND_EQUAL*> {object['cond_equal']}
+                              map QEP_shared_{object.address} #header:pink;back:lightgreen{{
+                                       m_join => <JOIN *> {object['m_join']}
+                                       m_idx => <plan_idx> {object['m_idx']}
+                                       m_table => <TABLE *> {object['m_table']}
+                                       m_position => <POSITION *> {object['m_position']}
+                                       m_sj_mat_exec => <Semijoin_mat_exec *> {object['m_sj_mat_exec']}
+                                       m_first_sj_inner => <plan_idx> {object['m_first_sj_inner']}
+                                       m_last_sj_inner => <plan_idx> {object['m_last_sj_inner']}
+                                       m_first_inner => <plan_idx> {object['m_first_inner']}
+                                       m_last_inner => <plan_idx> {object['m_last_inner']}
+                                       m_first_upper => <plan_idx> {object['m_first_upper']}
+                                       m_ref.address => <Index_lookup> {object['m_ref'].address}
+                                       m_index => <uint> {object['m_index']}
+                                       m_type => <join_type> {object['m_type']}
+                                       m_condition => <Item *> {object['m_condition']}
+                                       m_condition_is_pushed_to_sort => <bool> {object['m_condition_is_pushed_to_sort']}
+                                       m_keys.address => <Key_map> {object['m_keys'].address}
+                                       m_records => <ha_rows> {object['m_records']}
+                                       m_range_scan => <AccessPath *> {object['m_range_scan']}
+                                       prefix_tables_map => <table_map> {object['prefix_tables_map']}
+                                       added_tables_map => <table_map> {object['added_tables_map']}
+                                       m_ft_func => <Item_func_match *> {object['m_ft_func']}
+                                       m_skip_records_in_range => <bool> {object['m_skip_records_in_range']}
                               }}
                               ''')
     g_list_object_string.append(display)
+    
+    traverse_Item(g_list_Item, object['m_condition'])
+    add_line(g_list_line, f'QEP_shared_{object.address}::m_condition --> Item_', object['m_condition'], 'm_condition')
 # List<Natural_join_column> *join_columns; // 连接列列表
+
+# 探索 JOIN_TAB
+# @list 存储 JOIN_TAB 指针的列表
+# @object JOIN_TAB 的指针或者对象
+@object_decorator
+def traverse_JOIN_TAB(list, object):
+    display = textwrap.dedent(f'''
+                              map JOIN_TAB_{object.address} #header:pink;back:lightgreen{{
+                                       m_qs => <QEP_shared *> {object['m_qs']}
+                                       table_ref => <Table_ref *> {object['table_ref']}
+                                       m_keyuse => <Key_use *> {object['m_keyuse']}
+                                       m_join_cond_ref => <Item **> {object['m_join_cond_ref']}
+                                       cond_equal => <COND_EQUAL *> {object['cond_equal']}
+                                       worst_seeks => <double> {object['worst_seeks']}
+                                       const_keys => <Key_map> {object['const_keys']}
+                                       checked_keys => <Key_map> {object['checked_keys']}
+                                       skip_scan_keys => <Key_map> {object['skip_scan_keys']}
+                                       needed_reg => <Key_map> {object['needed_reg']}
+                                       quick_order_tested => <Key_map> {object['quick_order_tested']}
+                                       found_records => <ha_rows> {object['found_records']}
+                                       read_time => <double> {object['read_time']}
+                                       dependent => <table_map> {object['dependent']}
+                                       key_dependent => <table_map> {object['key_dependent']}
+                                       used_fieldlength => <uint> {object['used_fieldlength']}
+                                       use_quick => <quick_type> {object['use_quick']}
+                                       m_use_join_cache => <uint> {object['m_use_join_cache']}
+                                       emb_sj_nest => <Table_ref *> {object['emb_sj_nest']}
+                                       embedding_map => <nested_join_map> {object['embedding_map']}
+                                       join_cache_flags => <uint> {object['join_cache_flags']}
+                                       reversed_access => <bool> {object['reversed_access']}
+                              }}
+                              ''')
+    g_list_object_string.append(display)
+
+    traverse_QEP_shared(g_list_QEP_shared, object['m_qs'])
+    add_line(g_list_line, f'JOIN_TAB_{object.address}::m_qs --> QEP_shared_', object['m_qs'], 'm_qs')
+
+# 探索 QEP_TAB
+# @list 存储 QEP_TAB 指针的列表
+# @object QEP_TAB 的指针或者对象
+@object_decorator
+def traverse_QEP_TAB(list, object):
+    display = textwrap.dedent(f'''
+                              map QEP_TAB_{object.address} #header:pink;back:lightgreen{{
+                                       m_qs => <QEP_shared *> {object['m_qs']}
+                                       table_ref => <Table_ref *> {object['table_ref']}
+                                       flush_weedout_table => <SJ_TMP_TABLE *> {object['flush_weedout_table']}
+                                       check_weed_out_table => <SJ_TMP_TABLE *> {object['check_weed_out_table']}
+                                       firstmatch_return => <plan_idx> {object['firstmatch_return']}
+                                       loosescan_key_len => <uint> {object['loosescan_key_len']}
+                                       match_tab => <plan_idx> {object['match_tab']}
+                                       rematerialize => <bool> {object['rematerialize']}
+                                       materialize_table => <QEP_TAB::Setup_func> {object['materialize_table']}
+                                       using_dynamic_range => <bool> {object['using_dynamic_range']}
+                                       needs_duplicate_removal => <bool> {object['needs_duplicate_removal']}
+                                       not_used_in_distinct => <bool> {object['not_used_in_distinct']}
+                                       having => <Item *> {object['having']}
+                                       op_type => <QEP_TAB::enum_op_type> {object['op_type']}
+                                       tmp_table_param => <Temp_table_param *> {object['tmp_table_param']}
+                                       filesort => <Filesort *> {object['filesort']}
+                                       filesort_pushed_order => <ORDER *> {object['filesort_pushed_order']}
+                                       ref_item_slice => <uint> {object['ref_item_slice']}
+                                       m_condition_optim => <Item *> {object['m_condition_optim']}
+                                       m_keyread_optim => <bool> {object['m_keyread_optim']}
+                                       m_reversed_access => <bool> {object['m_reversed_access']}
+                                       lateral_derived_tables_depend_on_me => <qep_tab_map> {object['lateral_derived_tables_depend_on_me']}
+                                       invalidators => <Mem_root_array<AccessPath const*> *> {object['invalidators']}
+                              }}
+                              ''')
+    g_list_object_string.append(display)
+
+    traverse_QEP_shared(g_list_QEP_shared, object['m_qs'])
+    add_line(g_list_line, f'QEP_TAB_{object.address}::m_qs --> QEP_shared_', object['m_qs'], 'm_qs')
+    
+    traverse_Table_ref(g_list_Table_ref, object['table_ref'])
+    add_line(g_list_line, f'QEP_TAB_{object.address}::table_ref --> Table_ref_', object['table_ref'], 'table_ref')
+
+    traverse_Item(g_list_Item, object['m_condition_optim'])
+    add_line(g_list_line, f'QEP_TAB_{object.address}::m_condition_optim --> Item_', object['m_condition_optim'], 'm_condition_optim')
+    
+# 探索 COND_EQUAL
+# @list 存储 COND_EQUAL 指针的列表
+# @object COND_EQUAL 的指针或者对象
+@object_decorator
+def traverse_COND_EQUAL(list, object):
+    display = textwrap.dedent(f'''
+                              map COND_EQUAL_{object.address} #header:pink;back:lightgreen{{
+                                       max_members => <uint> {object['max_members']}
+                                       upper_levels => <COND_EQUAL *> {object['upper_levels']}
+                                       current_level.address => <List<Item_equal>> {object['current_level'].address}
+                              }}
+                              ''')
+    g_list_object_string.append(display)
+
+    traverse_List__object(g_list_List__object, object['current_level'])
+    add_line(g_list_line, f'COND_EQUAL_{object.address}::current_level.address --> List__Item_equal_', object['current_level'].address, 'current_level')
+
+# 探索 AccessPath
+# @list 存储 AccessPath 指针的列表
+# @object AccessPath 的指针或者对象
+@object_decorator
+def traverse_AccessPath(list, object):
+    display = textwrap.dedent(f'''
+                              map AccessPath_{object.address} #header:pink;back:lightgreen{{
+                                       type => <AccessPath::Type> {object['type']}
+                                       safe_for_rowid => <AccessPath::Safety> {object['safe_for_rowid']}
+                                       count_examined_rows => <bool> {object['count_examined_rows']}
+                                       has_group_skip_scan => <bool> {object['has_group_skip_scan']}
+                                       forced_by_dbug => <bool> {object['forced_by_dbug']}
+                                       ordering_state => <int> {object['ordering_state']}
+                                       iterator => <RowIterator *> {object['iterator']}
+                                       num_output_rows_before_filter => <double> {object['num_output_rows_before_filter']}
+                                       filter_predicates.address => <OverflowBitset> {object['filter_predicates'].address}
+                                       delayed_predicates.address => <OverflowBitset> {object['delayed_predicates'].address}
+                                       parameter_tables => <hypergraph::NodeMap> {object['parameter_tables']}
+                                       secondary_engine_data => <void *> {object['secondary_engine_data']}
+                                       m_num_output_rows => <double> {object['m_num_output_rows']}
+                                       m_cost => <double> {object['m_cost']}
+                                       m_init_cost => <double> {object['m_init_cost']}
+                                       m_init_once_cost => <double> {object['m_init_once_cost']}
+                                       m_cost_before_filter => <double> {object['m_cost_before_filter']}
+                                       u.address => <union {...}> {object['u'].address}
+                              }}
+                              ''')
+    # immediate_update_delete_table => <int8_t> {object['immediate_update_delete_table']}
+    g_list_object_string.append(display)
+
+# 探索 JoinHypergraph
+# @list 存储 JoinHypergraph 指针的列表
+# @object JoinHypergraph 的指针或者对象
+@object_decorator
+def traverse_JoinHypergraph(list, object):
+    display = textwrap.dedent(f'''
+                              map JoinHypergraph_{object.address} #header:pink;back:lightgreen{{
+                                       graph.address => <hypergraph::Hypergraph> {object['graph'].address}
+                                       secondary_engine_costing_flags => <SecondaryEngineCostingFlags> {object['secondary_engine_costing_flags']}
+                                       table_num_to_node_num.address => <std::array<int, 61>> {object['table_num_to_node_num'].address}
+                                       nodes.address => <Mem_root_array<JoinHypergraph::Node>> {object['nodes'].address}
+                                       edges.address => <Mem_root_array<JoinPredicate>> {object['edges'].address}
+                                       predicates.address => <Mem_root_array<Predicate>> {object['predicates'].address}
+                                       num_where_predicates => <unsigned int> {object['num_where_predicates']}
+                                       materializable_predicates.address => <OverflowBitset> {object['materializable_predicates'].address}
+                                       sargable_join_predicates.address => <mem_root_unordered_map<Item*, int, std::hash<Item*>, std::equal_to<Item*> >> {object['sargable_join_predicates'].address}
+                                       has_reordered_left_joins => <bool> {object['has_reordered_left_joins']}
+                                       tables_inner_to_outer_or_anti => <table_map> {object['tables_inner_to_outer_or_anti']}
+                                       m_query_block => <const Query_block *> {object['m_query_block']}
+                              }}
+                              ''')
+    g_list_object_string.append(display)
+
+    traverse_Mem_root_array__object(g_list_Mem_root_array__object, object['nodes'])
+    add_line(g_list_line, f'JoinHypergraph_{object.address}::nodes.address --> Mem_root_array_JoinHypergraph_Node_', object['nodes'].address, 'nodes.address')
+    
+    traverse_Mem_root_array__object(g_list_Mem_root_array__object, object['edges'])
+    add_line(g_list_line, f'JoinHypergraph_{object.address}::edges.address --> Mem_root_array_JoinPredicate_', object['edges'].address, 'edges.address')
+    
+    traverse_Mem_root_array__object(g_list_Mem_root_array__object, object['predicates'])
+    add_line(g_list_line, f'JoinHypergraph_{object.address}::predicates.address --> Mem_root_array_Predicate_', object['predicates'].address, 'predicates.address')
+
+    traverse_hypergraph_Hypergraph(g_list_hypergraph_Hypergraph, object['graph'])
+    add_line(g_list_line, f'JoinHypergraph_{object.address}::graph.address --> hypergraph_Hypergraph_', object['graph'].address, 'graph.address')
+
+    #traverse_Query_block(g_list_Query_block, object['m_query_block'])
+    #add_line(g_list_line, f'JoinHypergraph_{object.address}::m_query_block --> Query_block_', object['m_query_block'], 'm_query_block')
+    
+# 探索 hypergraph_Hypergraph
+# @list 存储 hypergraph_Hypergraph 指针的列表
+# @object hypergraph_Hypergraph 的指针或者对象
+@object_decorator
+def traverse_hypergraph_Hypergraph(list, object):
+    display = textwrap.dedent(f'''
+                              map hypergraph_Hypergraph_{object.address} #header:pink;back:lightgreen{{
+                                       nodes.address => <Mem_root_array<hypergraph::Node>> {object['nodes'].address}
+                                       edges.address => <Mem_root_array<hypergraph::Hyperedge>> {object['edges'].address}
+                              }}
+                              ''')
+#    display = f'''map hypergraph_Hypergraph_{object.address} #header:pink;back:lightgreen{{ \n'''
+#    edges_list = Mem_root_array_to_list(object['edges'])
+#    nodes_list = Mem_root_array_to_list(object['nodes'])
+#    display += f'''         edges.address => <Mem_root_array<hypergraph::Hyperedge>> {object['edges'].address} \\n'''
+#    for i in range(len(edges_list)):
+#        display += f'''edges[{i}] : <hypergraph::Hyperedge *> {edges_list[i]}     left={edges_list[i]["left"]}      right={edges_list[i]["right"]} \\n'''
+#    print(display)
+    g_list_object_string.append(display)
+
+    traverse_Mem_root_array__object(g_list_Mem_root_array__object, object['nodes'])
+    add_line(g_list_line, f'hypergraph_Hypergraph_{object.address}::nodes.address --> Mem_root_array_hypergraph_Node_', object['nodes'].address, 'nodes.address')
+    
+    traverse_Mem_root_array__object(g_list_Mem_root_array__object, object['edges'])
+    add_line(g_list_line, f'hypergraph_Hypergraph_{object.address}::edges.address --> Mem_root_array_hypergraph_Hyperedge_', object['edges'].address, 'edges.address')
+
+
+## 探索 hypergraph_Node
+## @list 存储 hypergraph_Node 指针的列表
+## @object hypergraph_Node 的指针或者对象
+#@object_decorator
+#def traverse_hypergraph_Node(list, object):
+#    display = textwrap.dedent(f'''
+#                              map hypergraph_Node_{object.address} #header:pink;back:lightgreen{{
+#                                       complex_edges.address => <std::vector<unsigned int, std::allocator<unsigned int> >> {object['complex_edges'].address}
+#                                       simple_edges.address => <std::vector<unsigned int, std::allocator<unsigned int> >> {object['simple_edges'].address}
+#                                       simple_neighborhood => <hypergraph::NodeMap> {bin(object['simple_neighborhood'])[2:].zfill(16)}
+#                                       Size => <const int> {object['Size']}
+#                                       padding => <char [8]> {object['padding']}
+#                              }}
+#                              ''')
+#    g_list_object_string.append(display)
+#    
+#    traverse_std_vector__object(g_list_std_vector__object, object['simple_edges'])
+#    add_line(g_list_line, f'hypergraph_Node_{object.address}::simple_edges.address --> std_vector_unsigned_int_', object['simple_edges'].address, 'simple_edges.address')
+#    
+#
+## 探索 hypergraph_Hyperedge
+## @list 存储 hypergraph_Hyperedge 指针的列表
+## @object hypergraph_Hyperedge 的指针或者对象
+#@object_decorator
+#def traverse_hypergraph_Hyperedge(list, object):
+#    display = textwrap.dedent(f'''
+#                              map hypergraph_Hyperedge_{object.address} #header:pink;back:lightgreen{{
+#                                       left => <hypergraph::NodeMap> {bin(object['left'])[2:].zfill(16)}
+#                                       right => <hypergraph::NodeMap> {bin(object['right'])[2:].zfill(16)}
+#                              }}
+#                              ''')
+#    g_list_object_string.append(display)
 
 def display_list__natural_join_column__list(list):
     if list.type.code == gdb.TYPE_CODE_PTR:
@@ -546,207 +890,8 @@ def display_g_natural_join_column_list(natural_join_column):
     print(f"    is_common => {natural_join_column['is_common']}")
     print(f"}}")
 
-def display_Item_field(item):
-    if item.type.code == gdb.TYPE_CODE_PTR:
-        item = item.dereference()
-    print(f"map Item_field_{item.address} {{")
-    print(f"    table_ref => {item['table_ref']}")
-    print(f"    field.field_name => {item['field']['field_name'].string()}")
-    print(f"    field.table_name => {item['field']['table_name'].dereference().string()}")
-    # print(f"    field.orig_db_name => {item['field']['orig_db_name'].string()}")
-    print(f"    item_equal => {item['item_equal']}")
-    print(f"    item_equal_all_join_nests => {item['item_equal_all_join_nests']}")
-    print(f"    field_index => {item['field_index']}")
-    print(f"}}")
-
-
-def display_join(join):
-    if join.type.code == gdb.TYPE_CODE_PTR:
-        join = join.dereference()
-    print(f"map JOIN_{join.address} {{")
-    print(f"    query_block => {join['query_block']}")
-    print(f"    thd => {join['thd']}")
-    print(f"    join_tab => {join['join_tab']}")
-    print(f"    qep_tab => {join['qep_tab']}")
-    if join['best_ref'] != 0X0:
-        print(f"    best_ref.dereference => {join['best_ref'].dereference()}")
-    else:
-        print(f"    best_ref.dereference => {join['best_ref']}")
-    if join['map2table'] != 0X0:
-        print(f"    map2table.dereference => {join['map2table'].dereference()}")
-    else:
-        print(f"    map2table.dereference => {join['map2table']}")
-    print(f"    sort_by_table => {join['sort_by_table']}")
-    print(f"    grouped => {join['grouped']}")
-    print(f"    const_table_map => {join['const_table_map']}")
-    print(f"    found_const_table_map => {join['found_const_table_map']}")
-    print(f"    fields => {join['fields']}")
-    print(f"    tmp_table_param => {join['tmp_table_param'].address}")
-    print(f"    lock => {join['lock']}")
-    print(f"    implicit_grouping => {join['implicit_grouping']}")
-    print(f"    select_distinct => {join['select_distinct']}")
-    print(f"    keyuse_array => {join['keyuse_array'].address}")
-    print(f"    order => {join['order'].address}")
-    print(f"    group_list => {join['group_list'].address}")
-    print(f"    m_windows => {join['m_windows'].address}")
-    print(f"    where_cond => {join['where_cond']}")
-    print(f"    having_cond => {join['having_cond']}")
-    print(f"    having_for_explain => {join['having_for_explain']}")
-    print(f"    tables_list => {join['tables_list']}")
-    print(f"    current_ref_item_slice => {join['current_ref_item_slice']}")
-    print(f"    with_json_agg => {join['with_json_agg']}")
-    print(f"    rollup_state => {join['rollup_state']}")
-    print(f"    explain_flags => {join['explain_flags'].address}")
-    print(f"    send_group_parts => {join['send_group_parts']}")
-    print(f"    cond_equal => {join['cond_equal']}")
-    print(f"}}")
-
-    if join['join_tab'] != 0X0:
-        display_JOIN_TAB(join['join_tab'])
-
-    if join['qep_tab'] != 0X0:
-        display_QEP_TAB(join['qep_tab'])
-
-    if join['where_cond'] not in [0x0, 0x1]:
-        print(f"note right of JOIN_{join.address}")
-        gdb.set_convenience_variable(g_gdb_conv,join['where_cond'].cast(join['where_cond'].dynamic_type))
-        gdb.execute('call thd->gdb_str.set("", 0, system_charset_info)')
-        gdb.execute('call $g_gdb_conv->print(thd, &(thd->gdb_str), QT_ORDINARY)')
-        gdb_str = gdb.parse_and_eval('thd->gdb_str.c_ptr_safe()').string()
-        formatted_sql = sqlparse.format(gdb_str, reindent=True, keyword_case='upper')
-        print(f"where_cond:   {formatted_sql}")
-        print(f"end note")
-
-    if join['cond_equal'] != 0X0:
-        display_COND_EQUAL(join['cond_equal'])
-
-def display_QEP_shared(share):
-    if share.type.code == gdb.TYPE_CODE_PTR:
-        share = share.dereference()
-    print(f"map QEP_shared_{share.address} {{")
-    print(f"    m_join => {share['m_join']}")
-    print(f"    m_idx => {share['m_idx']}")
-    print(f"    m_table => {share['m_table']}")
-    print(f"    m_position => {share['m_position']}")
-    print(f"    m_sj_mat_exec => {share['m_sj_mat_exec']}")
-    print(f"    m_first_sj_inner => {share['m_first_sj_inner']}")
-    print(f"    m_last_sj_inner => {share['m_last_sj_inner']}")
-    print(f"    m_first_inner => {share['m_first_inner']}")
-    print(f"    m_last_inner => {share['m_last_inner']}")
-    print(f"    m_first_upper => {share['m_first_upper']}")
-    print(f"    m_ref => {share['m_ref']}")
-    print(f"    m_index => {share['m_index']}")
-    print(f"    m_condition => {share['m_condition']}")
-    print(f"    m_condition_is_pushed_to_sort => {share['m_condition_is_pushed_to_sort']}")
-    print(f"    m_records => {share['m_records']}")
-    print(f"    m_range_scan => {share['m_range_scan']}")
-    print(f"    prefix_tables_map => {share['prefix_tables_map']}")
-    print(f"    added_tables_map => {share['added_tables_map']}")
-    print(f"    m_ft_func => {share['m_ft_func']}")
-    print(f"    m_skip_records_in_range => {share['m_skip_records_in_range']}")
-    print(f"}}")
-    
-
-def display_JOIN_TAB(JOIN_TAB):
-    if JOIN_TAB.type.code == gdb.TYPE_CODE_PTR:
-        JOIN_TAB = JOIN_TAB.dereference()
-    print(f"map JOIN_TAB_{JOIN_TAB.address} {{")
-    print(f"    table_ref => {JOIN_TAB['table_ref']}")
-    print(f"    m_keyuse => {JOIN_TAB['m_keyuse']}")
-    print(f"    m_join_cond_ref => {JOIN_TAB['m_join_cond_ref']}")
-    print(f"    cond_equal => {JOIN_TAB['cond_equal']}")
-    print(f"    worst_seeks => {JOIN_TAB['worst_seeks']}")
-    print(f"    const_keys => {JOIN_TAB['const_keys']}")
-    print(f"    checked_keys => {JOIN_TAB['checked_keys']}")
-    print(f"    skip_scan_keys => {JOIN_TAB['skip_scan_keys']}")
-    print(f"    needed_reg => {JOIN_TAB['needed_reg']}")
-    print(f"    quick_order_tested => {JOIN_TAB['quick_order_tested']}")
-    print(f"    found_records => {JOIN_TAB['found_records']}")
-    print(f"    read_time => {JOIN_TAB['read_time']}")
-    print(f"    dependent => {JOIN_TAB['dependent']}")
-    print(f"    key_dependent => {JOIN_TAB['key_dependent']}")
-    print(f"    used_fieldlength => {JOIN_TAB['used_fieldlength']}")
-    print(f"    use_quick => {JOIN_TAB['use_quick']}")
-    print(f"    m_use_join_cache => {JOIN_TAB['m_use_join_cache']}")
-    print(f"    emb_sj_nest => {JOIN_TAB['emb_sj_nest']}")
-    print(f"    embedding_map => {JOIN_TAB['embedding_map']}")
-    print(f"    join_cache_flags => {JOIN_TAB['join_cache_flags']}")
-    print(f"    reversed_access => {JOIN_TAB['reversed_access']}")
-    print(f"}}")
-
-    #display_QEP_shared(JOIN_TAB)
-
-def display_QEP_TAB(QEP_TAB):
-    if QEP_TAB.type.code == gdb.TYPE_CODE_PTR:
-        QEP_TAB = QEP_TAB.dereference()
-    print(f"map QEP_TAB_{QEP_TAB.address} {{")
-    print(f"    table_ref => {QEP_TAB['table_ref']}")
-    print(f"    flush_weedout_table => {QEP_TAB['flush_weedout_table']}")
-    print(f"    check_weed_out_table => {QEP_TAB['check_weed_out_table']}")
-    print(f"    firstmatch_return => {QEP_TAB['firstmatch_return']}")
-    print(f"    loosescan_key_len => {QEP_TAB['loosescan_key_len']}")
-    print(f"    rematerialize => {QEP_TAB['rematerialize']}")
-    print(f"    materialize_table => {QEP_TAB['materialize_table']}")
-    print(f"    using_dynamic_range => {QEP_TAB['using_dynamic_range']}")
-    print(f"    needs_duplicate_removal => {QEP_TAB['needs_duplicate_removal']}")
-    print(f"    not_used_in_distinct => {QEP_TAB['not_used_in_distinct']}")
-    print(f"    having => {QEP_TAB['having']}")
-    print(f"    op_type => {QEP_TAB['op_type']}")
-    print(f"    tmp_table_param => {QEP_TAB['tmp_table_param']}")
-    print(f"    filesort => {QEP_TAB['filesort']}")
-    print(f"    filesort_pushed_order => {QEP_TAB['filesort_pushed_order']}")
-    print(f"    ref_item_slice => {QEP_TAB['ref_item_slice']}")
-    print(f"    m_condition_optim => {QEP_TAB['m_condition_optim']}")
-    print(f"    m_keyread_optim => {QEP_TAB['m_keyread_optim']}")
-    print(f"    m_reversed_access => {QEP_TAB['m_reversed_access']}")
-    print(f"    lateral_derived_tables_depend_on_me => {QEP_TAB['lateral_derived_tables_depend_on_me']}")
-    print(f"    invalidators => {QEP_TAB['invalidators']}")
-    print(f"}}")
-
-    if QEP_TAB['m_condition_optim'] not in [0x0, 0x1]:
-        print(f"note right of QEP_TAB_{QEP_TAB.address}")
-        gdb.set_convenience_variable(g_gdb_conv,QEP_TAB['m_condition_optim'].cast(QEP_TAB['m_condition_optim'].dynamic_type))
-        gdb.execute('call thd->gdb_str.set("", 0, system_charset_info)')
-        gdb.execute('call $g_gdb_conv->print(thd, &(thd->gdb_str), QT_ORDINARY)')
-        gdb_str = gdb.parse_and_eval('thd->gdb_str.c_ptr_safe()').string()
-        formatted_sql = sqlparse.format(gdb_str, reindent=True, keyword_case='upper')
-        print(f"m_condition_optim:   {formatted_sql}")
-        print(f"end note")
-
-    #display_QEP_shared(QEP_TAB)
 import textwrap
-
-@object_decorator
-def display_COND_EQUAL(COND_EQUAL):
-    add_object_to_list(g_list_display_COND_EQUA, COND_EQUAL)
-    display = textwrap.dedent(f'''
-        map COND_EQUAL_{COND_EQUAL.address} {{
-            max_members => {COND_EQUAL['max_members']}
-            upper_levels => {COND_EQUAL['upper_levels']}
-            current_level => {COND_EQUAL['current_level'].address}
-        }}
-        ''')
-    g_list_line_COND_EQUAL
-    
-    add_line(g_line_COND_EQUAL, f'COND_EQUAL_{COND_EQUAL.address}::current_level -->List__Item_equal_', COND_EQUAL)
-    if COND_EQUAL['current_level'].address not in [0x0, 0x1]:
-        current_level_list = List_to_list(COND_EQUAL['current_level'])
-        for i in current_level_list:
-            gdb.set_convenience_variable(g_gdb_conv, get_object(i).address)
-            gdb.execute('call thd->gdb_str.set("", 0, system_charset_info)')
-            gdb.execute('call $g_gdb_conv->print(thd, &(thd->gdb_str), QT_ORDINARY)')
-            gdb_str = gdb.parse_and_eval('thd->gdb_str.c_ptr_safe()').string()
-            #formatted_sql = sqlparse.format(gdb_str, reindent=True, keyword_case='upper')
-            print(gdb_str)
-
-@object_decorator
-def display_List__Item_equal(list):
-    display = f'map List__Item_equal_{list.address} {{\n'
-    for i in List_to_list(list):
-        display += f'    {i.address} => {get_object_print_result(i)}\n'
-    display += f'}}'
-    g_list_List__Item_equal
-    
+ 
 def print_class():
     print("class Query_term { \n"
             "    # Query_term_set_op *m_parent \n"
@@ -956,23 +1101,34 @@ class GDB_expr(gdb.Command):
         super(GDB_expr, self).__init__("mysql expr", gdb.COMMAND_USER)
 
     def invoke(self, arg, from_tty):
-        del g_list_Query_expression[:]
-        del g_list_Query_block[:]
-        del g_list_Query_term[:]
-        del g_list_Table_ref[:]
+        del g_list_Query_expression[:]           
+        del g_list_Query_block[:]                
+        del g_list_Query_term[:]                 
+        del g_list_Table_ref[:]                  
         del g_list_Item_field[:]
-        del g_list_COND_EQUAL[:]
-        del g_list_Natural_join_column[:]
-        del g_list_mem_root_deque__Table_ref[:]
-        del g_list_mem_root_deque__object[:]
-        del g_list_List__natural_join_colum[:]
-        del g_list_List__Item_equal[:]
-        del g_list_Item[:]
-        del g_list_SQL_I_List__object[:]
-        del g_list_JOIN[:]
-        del g_list_line[:]
+        del g_list_COND_EQUAL[:]                 
+        del g_list_Natural_join_column[:]        
+        del g_list_mem_root_deque__Table_ref[:]  
+        del g_list_List__natural_join_colum[:]   
+        del g_list_List__Item_equal[:]           
+        del g_list_mem_root_deque__object[:]     
+        del g_list_Mem_root_array__object[:]     
+        del g_list_Item[:]                       
+        del g_list_SQL_I_List__object[:]         
+        del g_list_List__object[:]               
+        del g_list_JOIN[:]                       
+        del g_list_JOIN_TAB[:]
+        del g_list_QEP_TAB[:]
+        del g_list_QEP_shared[:]
+        del g_list_AccessPath[:]
+        del g_list_JoinHypergraph[:]
+        del g_list_hypergraph_Hypergraph[:]
+        del g_list_line[:]                       
         del g_list_object_string[:]
         del g_list_note[:]
+        del g_list_hypergraph_Node[:]
+        del g_list_hypergraph_Hyperedge[:]
+        del g_list_std_vector__object[:]
         
         expr = gdb.parse_and_eval(arg)
         traverse_Query_expression(g_list_Query_expression, expr)
@@ -1129,33 +1285,69 @@ MysqlCommand()
 GDB_expr()
 
 
-
-
-
-
-
-
-
-
-
-
-
-import gdb
-
-class MysqlCommand(gdb.Command):
+class GDB_object(gdb.Command):
     def __init__(self):
-        super(MysqlCommand, self).__init__(
-            "mysql", gdb.COMMAND_USER, prefix=True)
-
-class GDB_expr(gdb.Command):
-    def __init__(self):
-        super(GDB_expr, self).__init__("mysql my_object", gdb.COMMAND_USER)
+        super(GDB_object, self).__init__("mysql object", gdb.COMMAND_USER)
 
     def invoke(self, arg, from_tty):        
         class_type = gdb.lookup_type(arg)
         fields = class_type.fields()
+        print(f'                              map {arg}_{{object.address}} #header:pink;back:lightgreen{{{{')
         for field in fields:
-            print(field.name, field.type)
+            print(f'                                       {field.name} => <{field.type}> {{object[\'{field.name}\']}}')
+        print('                              }}')
+GDB_object()
+
+class GDB_JoinHypergraph(gdb.Command):
+    def __init__(self):
+        super(GDB_JoinHypergraph, self).__init__("mysql join_graph", gdb.COMMAND_USER)
+
+    def invoke(self, arg, from_tty):
+        del g_list_Query_expression[:]           
+        del g_list_Query_block[:]                
+        del g_list_Query_term[:]                 
+        del g_list_Table_ref[:]                  
+        del g_list_Item_field[:]
+        del g_list_COND_EQUAL[:]                 
+        del g_list_Natural_join_column[:]        
+        del g_list_mem_root_deque__Table_ref[:]  
+        del g_list_List__natural_join_colum[:]   
+        del g_list_List__Item_equal[:]           
+        del g_list_mem_root_deque__object[:]     
+        del g_list_Mem_root_array__object[:]     
+        del g_list_Item[:]                       
+        del g_list_SQL_I_List__object[:]         
+        del g_list_List__object[:]               
+        del g_list_JOIN[:]                       
+        del g_list_JOIN_TAB[:]
+        del g_list_QEP_TAB[:]
+        del g_list_QEP_shared[:]
+        del g_list_AccessPath[:]
+        del g_list_JoinHypergraph[:]
+        del g_list_hypergraph_Hypergraph[:]
+        del g_list_line[:]                       
+        del g_list_object_string[:]
+        del g_list_note[:]
+        del g_list_hypergraph_Node[:]
+        del g_list_hypergraph_Hyperedge[:]
+        del g_list_std_vector__object[:]
         
-MysqlCommand()
-GDB_expr()
+        expr = gdb.parse_and_eval(arg)
+        traverse_JoinHypergraph(g_list_JoinHypergraph, expr)
+
+        print("@startuml")
+        for i in g_list_object_string:
+            print(i)
+
+        for i in g_list_line:
+            print(i)
+        print()
+        
+        #for i in g_list_note:
+        #    print(i)
+        #    print()
+
+        #print_class()
+        
+        print("@enduml")
+GDB_JoinHypergraph()
