@@ -44,6 +44,7 @@ g_list_JoinHypergraph = []
 g_list_hypergraph_Hypergraph = []
 g_list_hypergraph_Node = []
 g_list_hypergraph_Hyperedge = []
+g_list_Predicate = []
 g_list_line = []                             # 遍历对象时，如果两个对象之间有连线，则把连线信息插入这个列表。里面的元素时字符串
 g_list_object_string = []
 g_list_note = []
@@ -428,6 +429,9 @@ def traverse_Mem_root_array__object(list, object):
             if not complex_edges:
                 complex_edges = '{}'
             display += f'         nodes[{i}] => {address}<{out_list[i].dynamic_type}>    simple_neighborhood={bin(out_list[i]["simple_neighborhood"])[2:].zfill(16)}    simple_edges={simple_edges}    complex_edges={complex_edges}\n'
+        elif str(target) == 'Predicate':
+            traverse_hypergraph_Hyperedge(g_list_hypergraph_Hyperedge, out_list[i])
+            g_list_line.append(f'Mem_root_array_{str(target).replace("::","_")}_{object.address}::{address} --> hypergraph_Hyperedge_{address} : {address}')
         else:
             display += f'         {address} => {out_list[i].dynamic_type}\n'
         #if str(target) == 'hypergraph::Hyperedge':
@@ -839,6 +843,30 @@ def traverse_hypergraph_Hypergraph(list, object):
     add_line(g_list_line, f'hypergraph_Hypergraph_{object.address}::edges.address --> Mem_root_array_hypergraph_Hyperedge_', object['edges'].address, 'edges.address')
 
 
+
+# 探索 Predicate
+# @list 存储 Predicate 指针的列表
+# @object Predicate 的指针或者对象
+@object_decorator
+def traverse_Predicate(list, object):
+    display = textwrap.dedent(f'''
+                              map Predicate_{object.address} #header:pink;back:lightgreen{{
+                                       condition => <Item *> {object['condition']}
+                                       used_nodes => <hypergraph::NodeMap> {object['used_nodes']}
+                                       total_eligibility_set => <hypergraph::NodeMap> {object['total_eligibility_set']}
+                                       selectivity => <double> {object['selectivity']}
+                                       was_join_condition => <bool> {object['was_join_condition']}
+                                       source_multiple_equality_idx => <int> {object['source_multiple_equality_idx']}
+                                       functional_dependencies => <FunctionalDependencySet> {object['functional_dependencies']}
+                                       functional_dependencies_idx => <Mem_root_array<int>> {object['functional_dependencies_idx']}
+                                       contained_subqueries => <Mem_root_array<ContainedSubquery>> {object['contained_subqueries']}
+                              }}
+                              ''')
+    g_list_object_string.append(display)
+
+    #traverse_Mem_root_array__object(g_list_Mem_root_array__object, object['nodes'])
+    #add_line(g_list_line, f'Predicate_{object.address}::nodes.address --> Mem_root_array_Predicate_', object['nodes'].address, 'nodes.address')
+
 ## 探索 hypergraph_Node
 ## @list 存储 hypergraph_Node 指针的列表
 ## @object hypergraph_Node 的指针或者对象
@@ -1129,6 +1157,7 @@ class GDB_expr(gdb.Command):
         del g_list_hypergraph_Node[:]
         del g_list_hypergraph_Hyperedge[:]
         del g_list_std_vector__object[:]
+        del g_list_Predicate[:]
         
         expr = gdb.parse_and_eval(arg)
         traverse_Query_expression(g_list_Query_expression, expr)
@@ -1331,6 +1360,7 @@ class GDB_JoinHypergraph(gdb.Command):
         del g_list_hypergraph_Node[:]
         del g_list_hypergraph_Hyperedge[:]
         del g_list_std_vector__object[:]
+        del g_list_Predicate[:]
         
         expr = gdb.parse_and_eval(arg)
         traverse_JoinHypergraph(g_list_JoinHypergraph, expr)
