@@ -45,6 +45,8 @@ g_list_hypergraph_Hypergraph = []
 g_list_hypergraph_Node = []
 g_list_hypergraph_Hyperedge = []
 g_list_Predicate = []
+g_list_JoinPredicate = []
+g_list_RelationalExpression = []
 g_list_line = []                             # 遍历对象时，如果两个对象之间有连线，则把连线信息插入这个列表。里面的元素时字符串
 g_list_object_string = []
 g_list_note = []
@@ -54,11 +56,11 @@ g_list_note = []
 def object_decorator(func):
     def wrapper(list, object):
         if object.type.code == gdb.TYPE_CODE_PTR:
-            if object not in [0x0, 0x1] and object not in list:
+            if object not in [0x0, 0x1, 0x8f8f8f8f8f8f8f8f] and object not in list:
                 list.append(object)
                 return func(list, object.dereference())
         else:
-            if object.address not in [0x0, 0x1] and object.address not in list:
+            if object.address not in [0x0, 0x1, 0x8f8f8f8f8f8f8f8f] and object.address not in list:
                 list.append(object.address)
                 return func(list, object)
     return wrapper
@@ -69,10 +71,10 @@ def object_decorator(func):
 # @item 连线末尾的对象或者指针
 def add_line(list, line_prefix, item, label):
     if item.type.code == gdb.TYPE_CODE_PTR:
-        if item not in [0x0, 0x1]:
+        if item not in [0x0, 0x1, 0x8f8f8f8f8f8f8f8f]:
             list.append(line_prefix + str(item) + ' : ' + label)
     else:
-        if item.address not in [0x0, 0x1]:
+        if item.address not in [0x0, 0x1, 0x8f8f8f8f8f8f8f8f]:
             list.append(line_prefix + '_' + item.address + ' : ' + label)
 
 # 调用 object 的 print(const THD *, String *str, enum_query_type) 函数，返回 String
@@ -80,10 +82,10 @@ def add_line(list, line_prefix, item, label):
 # @object 对象或者指针
 def get_object_print_result(object):
     if object.type.code == gdb.TYPE_CODE_PTR:
-        if object not in [0x0, 0x1]:
+        if object not in [0x0, 0x1, 0x8f8f8f8f8f8f8f8f]:
             gdb.set_convenience_variable(g_gdb_conv,object.cast(object.dynamic_type))
     else:
-        if object.address not in [0x0, 0x1]:
+        if object.address not in [0x0, 0x1, 0x8f8f8f8f8f8f8f8f]:
             gdb.set_convenience_variable(g_gdb_conv,object.cast(object.dynamic_type).address)
     gdb.execute('call thd->gdb_str.set("", 0, system_charset_info)')
     gdb.execute('call $g_gdb_conv->print(thd, &(thd->gdb_str), QT_ORDINARY)')
@@ -411,7 +413,10 @@ def traverse_Mem_root_array__object(list, object):
         target = object.type.template_argument(0).target()
     else:
         target = object.type.template_argument(0)
-    display = f'map Mem_root_array_{str(target).replace("::","_")}_{object.address} {{\n'
+    if str(target) in ['Item', 'Item_eq_base']:
+        display = f'map Mem_root_array_Item_{object.address} {{\n'
+    else:
+        display = f'map Mem_root_array_{str(target).replace("::","_")}_{object.address} {{\n'
     out_list = Mem_root_array_to_list(object)
     for i in range(len(out_list)):
         address = str(out_list[i])
@@ -430,8 +435,17 @@ def traverse_Mem_root_array__object(list, object):
                 complex_edges = '{}'
             display += f'         nodes[{i}] => {address}<{out_list[i].dynamic_type}>    simple_neighborhood={bin(out_list[i]["simple_neighborhood"])[2:].zfill(16)}    simple_edges={simple_edges}    complex_edges={complex_edges}\n'
         elif str(target) == 'Predicate':
-            traverse_hypergraph_Hyperedge(g_list_hypergraph_Hyperedge, out_list[i])
-            g_list_line.append(f'Mem_root_array_{str(target).replace("::","_")}_{object.address}::{address} --> hypergraph_Hyperedge_{address} : {address}')
+            display += f'         {address} => {out_list[i].dynamic_type}\n'
+            traverse_Predicate(g_list_Predicate, out_list[i])
+            g_list_line.append(f'Mem_root_array_{str(target).replace("::","_")}_{object.address}::{address} --> Predicate_{address} : {address}')
+        elif str(target) == 'JoinPredicate':
+            display += f'         {address} => {out_list[i].dynamic_type}\n'
+            traverse_JoinPredicate(g_list_JoinPredicate, out_list[i])
+            g_list_line.append(f'Mem_root_array_{str(target).replace("::","_")}_{object.address}::{address} --> JoinPredicate_{address} : {address}')
+        elif str(target) in ['Item', 'Item_eq_base']:
+            display += f'         {address} => {out_list[i].dynamic_type}\n'
+            traverse_Item(g_list_Item, out_list[i])
+            g_list_line.append(f'Mem_root_array_Item_{object.address}::{address} --> Item_{address} : {address}')
         else:
             display += f'         {address} => {out_list[i].dynamic_type}\n'
         #if str(target) == 'hypergraph::Hyperedge':
@@ -852,21 +866,90 @@ def traverse_Predicate(list, object):
     display = textwrap.dedent(f'''
                               map Predicate_{object.address} #header:pink;back:lightgreen{{
                                        condition => <Item *> {object['condition']}
-                                       used_nodes => <hypergraph::NodeMap> {object['used_nodes']}
-                                       total_eligibility_set => <hypergraph::NodeMap> {object['total_eligibility_set']}
+                                       used_nodes => <hypergraph::NodeMap> {bin(object['used_nodes'])[2:].zfill(16)}
+                                       total_eligibility_set => <hypergraph::NodeMap> {bin(object['total_eligibility_set'])[2:].zfill(16)}
                                        selectivity => <double> {object['selectivity']}
                                        was_join_condition => <bool> {object['was_join_condition']}
                                        source_multiple_equality_idx => <int> {object['source_multiple_equality_idx']}
-                                       functional_dependencies => <FunctionalDependencySet> {object['functional_dependencies']}
-                                       functional_dependencies_idx => <Mem_root_array<int>> {object['functional_dependencies_idx']}
-                                       contained_subqueries => <Mem_root_array<ContainedSubquery>> {object['contained_subqueries']}
+                                       functional_dependencies.address => <FunctionalDependencySet> {object['functional_dependencies'].address}
+                                       functional_dependencies_idx.address => <Mem_root_array<int>> {object['functional_dependencies_idx'].address}
+                                       contained_subqueries.address => <Mem_root_array<ContainedSubquery>> {object['contained_subqueries'].address}
                               }}
                               ''')
     g_list_object_string.append(display)
 
-    #traverse_Mem_root_array__object(g_list_Mem_root_array__object, object['nodes'])
-    #add_line(g_list_line, f'Predicate_{object.address}::nodes.address --> Mem_root_array_Predicate_', object['nodes'].address, 'nodes.address')
+    traverse_Item(g_list_Item, object['condition'])
+    add_line(g_list_line, f'Predicate_{object.address}::condition --> Item_', object['condition'], 'condition')
 
+# 探索 JoinPredicate
+# @list 存储 JoinPredicate 指针的列表
+# @object JoinPredicate 的指针或者对象
+@object_decorator
+def traverse_JoinPredicate(list, object):
+    display = textwrap.dedent(f'''
+                              map JoinPredicate_{object.address} #header:pink;back:lightgreen{{
+                                       expr => <RelationalExpression *> {object['expr']}
+                                       selectivity => <double> {object['selectivity']}
+                                       estimated_bytes_per_row => <size_t> {object['estimated_bytes_per_row']}
+                                       functional_dependencies.address => <FunctionalDependencySet> {object['functional_dependencies'].address}
+                                       functional_dependencies_idx.address => <Mem_root_array<int>> {object['functional_dependencies_idx'].address}
+                                       ordering_idx_needed_for_semijoin_rewrite => <int> {object['ordering_idx_needed_for_semijoin_rewrite']}
+                                       semijoin_group => <Item **> {object['semijoin_group']}
+                                       semijoin_group_size => <int> {object['semijoin_group_size']}
+                              }}
+                              ''')
+    g_list_object_string.append(display)
+    
+    traverse_RelationalExpression(g_list_RelationalExpression, object['expr'])
+    add_line(g_list_line, f'JoinPredicate_{object.address}::expr --> RelationalExpression_', object['expr'], 'expr')
+
+# 探索 RelationalExpression
+# @list 存储 RelationalExpression 指针的列表
+# @object RelationalExpression 的指针或者对象
+@object_decorator
+def traverse_RelationalExpression(list, object):
+    display = textwrap.dedent(f'''
+                              map RelationalExpression_{object.address} #header:pink;back:lightgreen{{
+                                       type => <RelationalExpression::Type> {object['type']}
+                                       tables_in_subtree => <table_map> {object['tables_in_subtree']}
+                                       nodes_in_subtree => <hypergraph::NodeMap> {object['nodes_in_subtree']}
+                                       table => <const Table_ref *> {object['table']}
+                                       join_conditions_pushable_to_this.address => <Mem_root_array<Item*>> {object['join_conditions_pushable_to_this'].address}
+                                       companion_set => <CompanionSet *> {object['companion_set']}
+                                       left => <RelationalExpression *> {object['left']}
+                                       right => <RelationalExpression *> {object['right']}
+                                       multi_children.address => <Mem_root_array<RelationalExpression*>> {object['multi_children'].address}
+                                       join_conditions.address => <Mem_root_array<Item*>> {object['join_conditions'].address}
+                                       equijoin_conditions.address => <Mem_root_array<Item_eq_base*>> {object['equijoin_conditions'].address}
+                                       properties_for_join_conditions.address => <Mem_root_array<CachedPropertiesForPredicate>> {object['properties_for_join_conditions'].address}
+                                       properties_for_equijoin_conditions.address => <Mem_root_array<CachedPropertiesForPredicate>> {object['properties_for_equijoin_conditions'].address}
+                                       join_conditions_reject_all_rows => <bool> {object['join_conditions_reject_all_rows']}
+                                       conditions_used_tables => <table_map> {object['conditions_used_tables']}
+                                       join_predicate_first => <int> {object['join_predicate_first']}
+                                       join_predicate_last => <int> {object['join_predicate_last']}
+                                       conflict_rules.address => <Mem_root_array<ConflictRule>> {object['conflict_rules'].address}
+                              }}
+                              ''')
+    g_list_object_string.append(display)
+    
+    traverse_RelationalExpression(g_list_RelationalExpression, object['left'])
+    add_line(g_list_line, f'RelationalExpression_{object.address}::left --> RelationalExpression_', object['left'], 'left')
+    
+    traverse_RelationalExpression(g_list_RelationalExpression, object['right'])
+    add_line(g_list_line, f'RelationalExpression_{object.address}::right --> RelationalExpression_', object['right'], 'right')
+    
+    #traverse_Mem_root_array__object(g_list_Mem_root_array__object, object['join_conditions_pushable_to_this'])
+    #add_line(g_list_line, f'RelationalExpression_{object.address}::join_conditions_pushable_to_this.address --> Mem_root_array_Item_', object['join_conditions_pushable_to_this'].address, 'join_conditions_pushable_to_this.address')
+
+    traverse_Mem_root_array__object(g_list_Mem_root_array__object, object['join_conditions'])
+    add_line(g_list_line, f'RelationalExpression_{object.address}::join_conditions.address --> Mem_root_array_Item_', object['join_conditions'].address, 'join_conditions.address')
+
+    #traverse_Mem_root_array__object(g_list_Mem_root_array__object, object['equijoin_conditions'])
+    #add_line(g_list_line, f'RelationalExpression_{object.address}::equijoin_conditions.address --> Mem_root_array_Item_', object['equijoin_conditions'].address, 'equijoin_conditions.address')
+
+    #traverse_Mem_root_array__object(g_list_Mem_root_array__object, object['multi_children'])
+    #add_line(g_list_line, f'RelationalExpression_{object.address}::multi_children.address --> Mem_root_array_Item_', object['multi_children'].address, 'multi_children.address')
+    
 ## 探索 hypergraph_Node
 ## @list 存储 hypergraph_Node 指针的列表
 ## @object hypergraph_Node 的指针或者对象
@@ -1124,6 +1207,11 @@ def print_class():
     print("Query_term_except -up-|> Query_term_set_op")
     print("Query_term_intersect -up-|> Query_term_set_op")
 
+class MysqlCommand(gdb.Command):
+    def __init__(self):
+        super(MysqlCommand, self).__init__(
+            "mysql", gdb.COMMAND_USER, prefix=True)
+
 class GDB_expr(gdb.Command):
     def __init__(self):
         super(GDB_expr, self).__init__("mysql expr", gdb.COMMAND_USER)
@@ -1158,6 +1246,8 @@ class GDB_expr(gdb.Command):
         del g_list_hypergraph_Hyperedge[:]
         del g_list_std_vector__object[:]
         del g_list_Predicate[:]
+        del g_list_JoinPredicate[:]
+        del g_list_RelationalExpression[:]
         
         expr = gdb.parse_and_eval(arg)
         traverse_Query_expression(g_list_Query_expression, expr)
@@ -1361,6 +1451,8 @@ class GDB_JoinHypergraph(gdb.Command):
         del g_list_hypergraph_Hyperedge[:]
         del g_list_std_vector__object[:]
         del g_list_Predicate[:]
+        del g_list_JoinPredicate[:]
+        del g_list_RelationalExpression[:]
         
         expr = gdb.parse_and_eval(arg)
         traverse_JoinHypergraph(g_list_JoinHypergraph, expr)
