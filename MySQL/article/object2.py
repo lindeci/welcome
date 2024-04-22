@@ -44,9 +44,15 @@ g_list_JoinHypergraph = []
 g_list_hypergraph_Hypergraph = []
 g_list_hypergraph_Node = []
 g_list_hypergraph_Hyperedge = []
+g_list_JoinHypergraph_Node = [] 
 g_list_Predicate = []
 g_list_JoinPredicate = []
 g_list_RelationalExpression = []
+g_list_CompanionSet = []
+g_list_CompanionSet_EqualTerm = []
+g_list_ConflictRule = []
+g_list_CachedPropertiesForPredicate = []
+g_list_ContainedSubquery = []
 g_list_line = []                             # 遍历对象时，如果两个对象之间有连线，则把连线信息插入这个列表。里面的元素时字符串
 g_list_object_string = []
 g_list_note = []
@@ -415,6 +421,8 @@ def traverse_Mem_root_array__object(list, object):
         target = object.type.template_argument(0)
     if str(target) in ['Item', 'Item_eq_base']:
         display = f'map Mem_root_array_Item_{object.address} {{\n'
+    elif str(target) in ['const Field']:
+        display = f'map Mem_root_array_Field_{object.address} {{\n'
     else:
         display = f'map Mem_root_array_{str(target).replace("::","_")}_{object.address} {{\n'
     out_list = Mem_root_array_to_list(object)
@@ -434,6 +442,10 @@ def traverse_Mem_root_array__object(list, object):
             if not complex_edges:
                 complex_edges = '{}'
             display += f'         nodes[{i}] => {address}<{out_list[i].dynamic_type}>    simple_neighborhood={bin(out_list[i]["simple_neighborhood"])[2:].zfill(16)}    simple_edges={simple_edges}    complex_edges={complex_edges}\n'
+        elif str(target) == 'JoinHypergraph::Node':
+            display += f'         {address} => {out_list[i].dynamic_type}\n'
+            traverse_JoinHypergraph_Node(g_list_JoinHypergraph_Node, out_list[i])
+            g_list_line.append(f'Mem_root_array_{str(target).replace("::","_")}_{object.address}::{address} --> JoinHypergraph_Node_{address} : {address}')
         elif str(target) == 'Predicate':
             display += f'         {address} => {out_list[i].dynamic_type}\n'
             traverse_Predicate(g_list_Predicate, out_list[i])
@@ -446,16 +458,28 @@ def traverse_Mem_root_array__object(list, object):
             display += f'         {address} => {out_list[i].dynamic_type}\n'
             traverse_Item(g_list_Item, out_list[i])
             g_list_line.append(f'Mem_root_array_Item_{object.address}::{address} --> Item_{address} : {address}')
+        elif str(target) in ['CompanionSet::EqualTerm']:
+            display += f'         {address} => {out_list[i].dynamic_type}\n'
+            traverse_CompanionSet_EqualTerm(g_list_CompanionSet_EqualTerm, out_list[i])
+            g_list_line.append(f'Mem_root_array_CompanionSet_EqualTerm_{object.address}::{address} --> CompanionSet_EqualTerm_{address} : {address}')
+        elif str(target) in ['const Field']:
+            display += f'         {address} => {out_list[i].dynamic_type} ---- field_name:{out_list[i]["table_name"].dereference().string()}.{out_list[i]["field_name"].string()}\n'           
+        elif str(target) in ['ConflictRule']:
+            display += f'         {address} => {out_list[i].dynamic_type}\n'
+            traverse_ConflictRule(g_list_ConflictRule, out_list[i])
+            g_list_line.append(f'Mem_root_array_ConflictRule_{object.address}::{address} --> ConflictRule_{address} : {address}')
+        elif str(target) in ['CachedPropertiesForPredicate']:
+            display += f'         {address} => {out_list[i].dynamic_type}\n'
+            traverse_CachedPropertiesForPredicate(g_list_CachedPropertiesForPredicate, out_list[i])
+            g_list_line.append(f'Mem_root_array_CachedPropertiesForPredicate_{object.address}::{address} --> CachedPropertiesForPredicate_{address} : {address}') 
         else:
             display += f'         {address} => {out_list[i].dynamic_type}\n'
-        #if str(target) == 'hypergraph::Hyperedge':
-        #    traverse_hypergraph_Hyperedge(g_list_hypergraph_Hyperedge, out_list[i])
-        #    g_list_line.append(f'Mem_root_array_{str(target).replace("::","_")}_{object.address}::{address} --> hypergraph_Hyperedge_{address} : {address}')
-        #elif str(target) == 'hypergraph::Node':
-        #    traverse_hypergraph_Node(g_list_hypergraph_Node, out_list[i])
-        #    g_list_line.append(f'Mem_root_array_{str(target).replace("::","_")}_{object.address}::{address} --> hypergraph_Node_{address} : {address}')
     display += '}\n'
-    g_list_object_string.append(display)
+    if (len(out_list) > 0):
+        g_list_object_string.append(display)
+        return True
+    else:
+        return False
     
 @object_decorator
 def traverse_std_vector__object(list, object):
@@ -779,7 +803,7 @@ def traverse_AccessPath(list, object):
                                        num_output_rows_before_filter => <double> {object['num_output_rows_before_filter']}
                                        filter_predicates.address => <OverflowBitset> {object['filter_predicates'].address}
                                        delayed_predicates.address => <OverflowBitset> {object['delayed_predicates'].address}
-                                       parameter_tables => <hypergraph::NodeMap> {object['parameter_tables']}
+                                       parameter_tables => <hypergraph::NodeMap> {bin(object['parameter_tables'])[2:].zfill(16)}
                                        secondary_engine_data => <void *> {object['secondary_engine_data']}
                                        m_num_output_rows => <double> {object['m_num_output_rows']}
                                        m_cost => <double> {object['m_cost']}
@@ -814,16 +838,17 @@ def traverse_JoinHypergraph(list, object):
                               }}
                               ''')
     g_list_object_string.append(display)
+    #print(object['table_num_to_node_num']['_M_elems'][2])
 
-    traverse_Mem_root_array__object(g_list_Mem_root_array__object, object['nodes'])
-    add_line(g_list_line, f'JoinHypergraph_{object.address}::nodes.address --> Mem_root_array_JoinHypergraph_Node_', object['nodes'].address, 'nodes.address')
+    if (traverse_Mem_root_array__object(g_list_Mem_root_array__object, object['nodes'])):
+        add_line(g_list_line, f'JoinHypergraph_{object.address}::nodes.address --> Mem_root_array_JoinHypergraph_Node_', object['nodes'].address, 'nodes.address')
     
-    traverse_Mem_root_array__object(g_list_Mem_root_array__object, object['edges'])
-    add_line(g_list_line, f'JoinHypergraph_{object.address}::edges.address --> Mem_root_array_JoinPredicate_', object['edges'].address, 'edges.address')
+    if (traverse_Mem_root_array__object(g_list_Mem_root_array__object, object['edges'])):
+        add_line(g_list_line, f'JoinHypergraph_{object.address}::edges.address --> Mem_root_array_JoinPredicate_', object['edges'].address, 'edges.address')
     
-    traverse_Mem_root_array__object(g_list_Mem_root_array__object, object['predicates'])
-    add_line(g_list_line, f'JoinHypergraph_{object.address}::predicates.address --> Mem_root_array_Predicate_', object['predicates'].address, 'predicates.address')
-
+    if (traverse_Mem_root_array__object(g_list_Mem_root_array__object, object['predicates'])):
+        add_line(g_list_line, f'JoinHypergraph_{object.address}::predicates.address --> Mem_root_array_Predicate_', object['predicates'].address, 'predicates.address')
+#
     traverse_hypergraph_Hypergraph(g_list_hypergraph_Hypergraph, object['graph'])
     add_line(g_list_line, f'JoinHypergraph_{object.address}::graph.address --> hypergraph_Hypergraph_', object['graph'].address, 'graph.address')
 
@@ -850,11 +875,11 @@ def traverse_hypergraph_Hypergraph(list, object):
 #    print(display)
     g_list_object_string.append(display)
 
-    traverse_Mem_root_array__object(g_list_Mem_root_array__object, object['nodes'])
-    add_line(g_list_line, f'hypergraph_Hypergraph_{object.address}::nodes.address --> Mem_root_array_hypergraph_Node_', object['nodes'].address, 'nodes.address')
+    if (traverse_Mem_root_array__object(g_list_Mem_root_array__object, object['nodes'])):
+        add_line(g_list_line, f'hypergraph_Hypergraph_{object.address}::nodes.address --> Mem_root_array_hypergraph_Node_', object['nodes'].address, 'nodes.address')
     
-    traverse_Mem_root_array__object(g_list_Mem_root_array__object, object['edges'])
-    add_line(g_list_line, f'hypergraph_Hypergraph_{object.address}::edges.address --> Mem_root_array_hypergraph_Hyperedge_', object['edges'].address, 'edges.address')
+    if (traverse_Mem_root_array__object(g_list_Mem_root_array__object, object['edges'])):
+        add_line(g_list_line, f'hypergraph_Hypergraph_{object.address}::edges.address --> Mem_root_array_hypergraph_Hyperedge_', object['edges'].address, 'edges.address')
 
 
 
@@ -881,6 +906,59 @@ def traverse_Predicate(list, object):
     traverse_Item(g_list_Item, object['condition'])
     add_line(g_list_line, f'Predicate_{object.address}::condition --> Item_', object['condition'], 'condition')
 
+# 探索 JoinHypergraph__Node
+# @list 存储 JoinHypergraph__Node 指针的列表
+# @object inHypergraph__Node 的指针或者对象
+@object_decorator
+def traverse_JoinHypergraph_Node(list, object):
+    display = textwrap.dedent(f'''
+                              map JoinHypergraph_Node_{object.address} #header:pink;back:lightgreen{{
+                                       table.s.table_name.str => <TABLE *> {object['table']['s']['table_name']['str']}
+                                       join_conditions_pushable_to_this.address => <Mem_root_array<Item*>> {object['join_conditions_pushable_to_this'].address}
+                                       sargable_predicates.address => <Mem_root_array<SargablePredicate>> {object['sargable_predicates'].address}
+                                       companion_set => <const CompanionSet *> {object['companion_set']}
+                              }}
+                              ''')
+    g_list_object_string.append(display)
+
+    if (traverse_Mem_root_array__object(g_list_Mem_root_array__object, object['join_conditions_pushable_to_this'])):
+        add_line(g_list_line, f'JoinHypergraph_Node_{object.address} --> Mem_root_array_Item_', object['join_conditions_pushable_to_this'].address, 'join_conditions_pushable_to_this.address')
+
+    traverse_CompanionSet(g_list_CompanionSet, object['companion_set'])
+    add_line(g_list_line, f'JoinHypergraph_Node_{object.address}::companion_set --> CompanionSet_', object['companion_set'], 'companion_set')
+    
+# 探索 CompanionSet
+# @list 存储 CompanionSet 指针的列表
+# @object CompanionSet 的指针或者对象
+@object_decorator
+def traverse_CompanionSet(list, object):
+    display = textwrap.dedent(f'''
+                              map CompanionSet_{object.address} #header:pink;back:lightgreen{{
+                                       m_equal_terms.address => <Mem_root_array<CompanionSet::EqualTerm>> {object['m_equal_terms'].address}
+                              }}
+                              ''')
+    g_list_object_string.append(display)
+    
+    if (traverse_Mem_root_array__object(g_list_Mem_root_array__object, object['m_equal_terms'])):
+        add_line(g_list_line, f'CompanionSet_{object.address}::m_equal_terms.address --> Mem_root_array_CompanionSet_EqualTerm_', object['m_equal_terms'].address, 'm_equal_terms.address')
+
+# 探索 CompanionSet::EqualTerm
+# @list 存储 CompanionSet::EqualTerm 指针的列表
+# @object CompanionSet::EqualTerm 的指针或者对象
+@object_decorator
+def traverse_CompanionSet_EqualTerm(list, object):
+    display = textwrap.dedent(f'''
+                              map CompanionSet_EqualTerm_{object.address} #header:pink;back:lightgreen{{
+                                       fields => <CompanionSet::FieldArray *> {object['fields']}
+                                       tables => <table_map> {object['tables']}
+                              }}
+                              ''')
+    g_list_object_string.append(display)
+    
+    if (traverse_Mem_root_array__object(g_list_Mem_root_array__object, object['fields'])):
+        add_line(g_list_line, f'CompanionSet_EqualTerm_{object.address}::fields --> Mem_root_array_Field_', object['fields'], 'fields')
+
+
 # 探索 JoinPredicate
 # @list 存储 JoinPredicate 指针的列表
 # @object JoinPredicate 的指针或者对象
@@ -902,7 +980,7 @@ def traverse_JoinPredicate(list, object):
     
     traverse_RelationalExpression(g_list_RelationalExpression, object['expr'])
     add_line(g_list_line, f'JoinPredicate_{object.address}::expr --> RelationalExpression_', object['expr'], 'expr')
-
+    
 # 探索 RelationalExpression
 # @list 存储 RelationalExpression 指针的列表
 # @object RelationalExpression 的指针或者对象
@@ -912,7 +990,7 @@ def traverse_RelationalExpression(list, object):
                               map RelationalExpression_{object.address} #header:pink;back:lightgreen{{
                                        type => <RelationalExpression::Type> {object['type']}
                                        tables_in_subtree => <table_map> {object['tables_in_subtree']}
-                                       nodes_in_subtree => <hypergraph::NodeMap> {object['nodes_in_subtree']}
+                                       nodes_in_subtree => <hypergraph::NodeMap> {bin(object['nodes_in_subtree'])[2:].zfill(16)}
                                        table => <const Table_ref *> {object['table']}
                                        join_conditions_pushable_to_this.address => <Mem_root_array<Item*>> {object['join_conditions_pushable_to_this'].address}
                                        companion_set => <CompanionSet *> {object['companion_set']}
@@ -938,18 +1016,76 @@ def traverse_RelationalExpression(list, object):
     traverse_RelationalExpression(g_list_RelationalExpression, object['right'])
     add_line(g_list_line, f'RelationalExpression_{object.address}::right --> RelationalExpression_', object['right'], 'right')
     
-    #traverse_Mem_root_array__object(g_list_Mem_root_array__object, object['join_conditions_pushable_to_this'])
-    #add_line(g_list_line, f'RelationalExpression_{object.address}::join_conditions_pushable_to_this.address --> Mem_root_array_Item_', object['join_conditions_pushable_to_this'].address, 'join_conditions_pushable_to_this.address')
+    if (traverse_Mem_root_array__object(g_list_Mem_root_array__object, object['join_conditions_pushable_to_this'])):
+        add_line(g_list_line, f'RelationalExpression_{object.address}::join_conditions_pushable_to_this.address --> Mem_root_array_Item_', object['join_conditions_pushable_to_this'].address, 'join_conditions_pushable_to_this.address')
 
-    traverse_Mem_root_array__object(g_list_Mem_root_array__object, object['join_conditions'])
-    add_line(g_list_line, f'RelationalExpression_{object.address}::join_conditions.address --> Mem_root_array_Item_', object['join_conditions'].address, 'join_conditions.address')
+    if (traverse_Mem_root_array__object(g_list_Mem_root_array__object, object['join_conditions'])):
+        add_line(g_list_line, f'RelationalExpression_{object.address}::join_conditions.address --> Mem_root_array_Item_', object['join_conditions'].address, 'join_conditions.address')
 
-    #traverse_Mem_root_array__object(g_list_Mem_root_array__object, object['equijoin_conditions'])
-    #add_line(g_list_line, f'RelationalExpression_{object.address}::equijoin_conditions.address --> Mem_root_array_Item_', object['equijoin_conditions'].address, 'equijoin_conditions.address')
+    if (traverse_Mem_root_array__object(g_list_Mem_root_array__object, object['equijoin_conditions'])):
+        add_line(g_list_line, f'RelationalExpression_{object.address}::equijoin_conditions.address --> Mem_root_array_Item_', object['equijoin_conditions'].address, 'equijoin_conditions.address')
 
-    #traverse_Mem_root_array__object(g_list_Mem_root_array__object, object['multi_children'])
-    #add_line(g_list_line, f'RelationalExpression_{object.address}::multi_children.address --> Mem_root_array_Item_', object['multi_children'].address, 'multi_children.address')
+    if (traverse_Mem_root_array__object(g_list_Mem_root_array__object, object['multi_children'])):
+        add_line(g_list_line, f'RelationalExpression_{object.address}::multi_children.address --> Mem_root_array_RelationalExpression_', object['multi_children'].address, 'multi_children.address')
     
+    if (traverse_Mem_root_array__object(g_list_Mem_root_array__object, object['properties_for_join_conditions'])):
+        add_line(g_list_line, f'RelationalExpression_{object.address}::properties_for_join_conditions.address --> Mem_root_array_CachedPropertiesForPredicate_', object['properties_for_join_conditions'].address, 'properties_for_join_conditions.address')
+    
+    if (traverse_Mem_root_array__object(g_list_Mem_root_array__object, object['properties_for_equijoin_conditions'])):
+        add_line(g_list_line, f'RelationalExpression_{object.address}::properties_for_equijoin_conditions.address --> Mem_root_array_CachedPropertiesForPredicate_', object['properties_for_equijoin_conditions'].address, 'properties_for_equijoin_conditions.address')
+    
+    if (traverse_Mem_root_array__object(g_list_Mem_root_array__object, object['conflict_rules'])):
+        add_line(g_list_line, f'RelationalExpression_{object.address}::conflict_rules.address --> Mem_root_array_ConflictRule_', object['conflict_rules'].address, 'conflict_rules.address')
+
+    traverse_CompanionSet(g_list_CompanionSet, object['companion_set'])
+    add_line(g_list_line, f'RelationalExpression_{object.address}::companion_set --> CompanionSet_', object['companion_set'], 'companion_set')
+    
+# 探索 ConflictRule
+# @list 存储 ConflictRulem 指针的列表
+# @object ConflictRule 的指针或者对象
+@object_decorator
+def traverse_ConflictRule(list, object):
+    display = textwrap.dedent(f'''
+                              map ConflictRule_{object.address} #header:pink;back:lightgreen{{
+                                       needed_to_activate_rule => <hypergraph::NodeMap> {object['needed_to_activate_rule']}
+                                       required_nodes => <hypergraph::NodeMap> {object['required_nodes']}
+                              }}
+                              ''')
+    g_list_object_string.append(display)
+
+# 探索 CachedPropertiesForPredicate
+# @list 存储 CachedPropertiesForPredicate 指针的列表
+# @object CachedPropertiesForPredicate 的指针或者对象
+@object_decorator
+def traverse_CachedPropertiesForPredicate(list, object):
+    display = textwrap.dedent(f'''
+                              map CachedPropertiesForPredicate_{object.address} #header:pink;back:lightgreen{{
+                                       contained_subqueries.address => <Mem_root_array<ContainedSubquery>> {object['contained_subqueries'].address}
+                                       selectivity => <double> {object['selectivity']}
+                                       redundant_against_sargable_predicates.address => <OverflowBitset> {object['redundant_against_sargable_predicates'].address}
+                              }}
+                              ''')
+    g_list_object_string.append(display)
+    
+    if (traverse_Mem_root_array__object(g_list_Mem_root_array__object, object['contained_subqueries'])):
+        add_line(g_list_line, f'CachedPropertiesForPredicate_{object.address}::contained_subqueries.address --> Mem_root_array_ContainedSubquery_', object['contained_subqueries'].address, 'contained_subqueries.address')
+
+    
+# 探索 ContainedSubquery
+# @list 存储 ContainedSubquery 指针的列表
+# @object ContainedSubquery 的指针或者对象
+@object_decorator
+def traverse_ContainedSubquery(list, object):
+    display = textwrap.dedent(f'''
+                              map ContainedSubquery_{object.address} #header:pink;back:lightgreen{{
+                                       path => <AccessPath *> {object['path']}
+                                       strategy => <ContainedSubquery::Strategy> {object['strategy']}
+                                       row_width => <int> {object['row_width']}
+                              }}
+                              ''')
+    g_list_object_string.append(display)
+    
+# 下面被注释掉得 traverse_hypergraph_Node、traverse_hypergraph_Hyperedge两个方法被合并进了 traverse_JoinHypergraph
 ## 探索 hypergraph_Node
 ## @list 存储 hypergraph_Node 指针的列表
 ## @object hypergraph_Node 的指针或者对象
@@ -982,24 +1118,6 @@ def traverse_RelationalExpression(list, object):
 #                              }}
 #                              ''')
 #    g_list_object_string.append(display)
-
-def display_list__natural_join_column__list(list):
-    if list.type.code == gdb.TYPE_CODE_PTR:
-        list = list.dereference()
-    print(f"map natural_join_column__list_{list.address} {{")
-    for i in List_to_list(list):
-        print(f"    {i.address} => natural_join_column *")
-    print(f"}}")
-
-def display_g_natural_join_column_list(natural_join_column):
-    if natural_join_column.type.code == gdb.TYPE_CODE_PTR:
-        natural_join_column = natural_join_column.dereference()
-    print(f"map natural_join_column_{natural_join_column.address} {{")
-    print(f"    view_field => {natural_join_column['view_field']}")
-    print(f"    table_field => {natural_join_column['table_field']}")
-    print(f"    table_ref => {natural_join_column['table_ref']}")
-    print(f"    is_common => {natural_join_column['is_common']}")
-    print(f"}}")
 
 import textwrap
  
@@ -1248,6 +1366,12 @@ class GDB_expr(gdb.Command):
         del g_list_Predicate[:]
         del g_list_JoinPredicate[:]
         del g_list_RelationalExpression[:]
+        del g_list_JoinHypergraph_Node[:]
+        del g_list_CompanionSet[:]
+        del g_list_CompanionSet_EqualTerm[:]
+        del g_list_ConflictRule[:]
+        del g_list_CachedPropertiesForPredicate[:]
+        del g_list_ContainedSubquery[:]
         
         expr = gdb.parse_and_eval(arg)
         traverse_Query_expression(g_list_Query_expression, expr)
@@ -1267,138 +1391,6 @@ class GDB_expr(gdb.Command):
         #print_class()
         
         print("@enduml")
-
-        
-    # 探索 Query_block
-    # @expr query_block 的指针
-    # note 只有不在 g_query_block_list 中的 @block 才会进入这个函数
-    def traverse_blocks(self, block):
-        g_query_block_list.append(block)
-
-        if (block.dereference()['master'] != 0x0):
-            g_line.append(f"Query_block_{str(block)} -up-> Query_expression_{block.dereference()['master']} : master")
-            if (block.dereference()['master'] not in g_query_expression_list):                
-                self.traverse_expressions(block.dereference()['master'])
-
-        if (block.dereference()['slave'] != 0x0):
-            g_line.append(f"Query_block_{str(block)} -down-> Query_expression_{block.dereference()['slave']} : slave")
-            if (block.dereference()['slave'] not in g_query_expression_list):
-                self.traverse_expressions(block.dereference()['slave'])
-
-        if (block.dereference()['next'] != 0x0):
-            g_line.append(f"Query_block_{str(block)} --> Query_block_{block.dereference()['next']} : next")
-            if (block.dereference()['next'] not in g_query_block_list):
-                self.traverse_blocks(block.dereference()['next'])
-
-        if (block.dereference()['link_prev'] != 0x0 and block.dereference()['link_prev'].dereference() != 0x0):
-            g_line.append(f"Query_block_{str(block)} --> Query_block_{block.dereference()['link_prev'].dereference()} : link_prev.dereference")
-            if (block.dereference()['link_prev'].dereference() not in g_query_block_list):                
-                self.traverse_blocks(block.dereference()['link_prev'].dereference())
-
-        if (block['m_table_list'].address != 0x0):
-            g_line.append(f"Query_block_{str(block)} --> SQL_I_List__Table_ref_{block['m_table_list'].address} : m_table_list")
-            m_table_list = SQL_I_List_to_list(block['m_table_list'], 'next_local')
-            for i in m_table_list:
-                g_line.append(f"SQL_I_List__Table_ref_{block['m_table_list'].address} --> Table_ref_{i} : {i}")
-                if i not in g_table_ref_list:
-                    g_table_ref_list.append(i)
-                    if (i['next_local'] != 0x0):
-                        g_line.append(f"Table_ref_{i}::next_local --> Table_ref_{i['next_local']}")
-                    if (i['next_leaf'] != 0x0):
-                        g_line.append(f"Table_ref_{i}::next_leaf --> Table_ref_{i['next_leaf']}")
-                    if (i['join_list'] != 0x0):
-                        g_line.append(f"Table_ref_{i}::join_list --> mem_root_deque__Table_ref_{i['join_list']}")
-                        if i['join_list'] not in g_mem_root_deque__Table_ref__list:
-                            g_mem_root_deque__Table_ref__list.append(i['join_list'])
-                            for j in mem_root_deque_to_list(i['join_list']):
-                                g_line.append(f"mem_root_deque__Table_ref_{i['join_list']} --> Table_ref_{j} : {j}")
-                    if (i['join_columns'] != 0x0):
-                        if i['join_columns'] not in g_list__natural_join_column__list:
-                            g_line.append(f"Table_ref_{i}::join_columns --> natural_join_column__list_{i['join_columns']}")
-                            g_list__natural_join_column__list.append(i['join_columns'])
-                            for j in List_to_list(i['join_columns']):
-                                if j not in g_natural_join_column_list:
-                                    g_natural_join_column_list.append(j.address)
-                                    g_line.append(f"natural_join_column__list_{i['join_columns']} --> natural_join_column_{j.address}")
-                                    if j.address not in g_Item_field_list:
-                                        g_Item_field_list.append(j['table_field'])
-                                        g_line.append(f"natural_join_column_{j.address}::table_field --> Item_field_{j['table_field']}")
-
-
-        if (block['leaf_tables'] != 0x0):
-            leaf_tables = table_ref_to_list(block['leaf_tables'], 'next_leaf')
-            for i in leaf_tables:
-                if i not in g_table_ref_list:
-                    g_table_ref_list.append(i.dereference())
-
-        if (block['m_table_nest'].address != 0x0):            
-            m_table_nest = mem_root_deque_to_list(block['m_table_nest'])
-            for i in m_table_nest:
-                if i not in g_table_ref_list:
-                    g_table_ref_list.append(i.dereference())
-
-    # 探索 Query_expression
-    # @expr query_expression 的指针
-    # note 只有不在 g_query_expression_list 中的 @expr 才会进入这个函数
-    def traverse_expressions(self, expr):
-        g_query_expression_list.append(expr)
-
-        if (expr.dereference()['master'] != 0x0):            
-            g_line.append(f"Query_expression_{str(expr)} --> Query_block_{expr.dereference()['master']} : master")
-            if (expr.dereference()['master'] not in g_query_block_list):
-                self.traverse_blocks(expr.dereference()['master'])
-
-        if (expr.dereference()['slave'] != 0x0):
-            g_line.append(f"Query_expression_{str(expr)} --> Query_block_{expr.dereference()['slave']} : slave")
-            if (expr.dereference()['slave'] not in g_query_block_list):
-                self.traverse_blocks(expr.dereference()['slave'])
-
-        if (expr.dereference()['next'] != 0x0):
-            g_line.append(f"Query_expression_{str(expr)} --> Query_expression_{expr.dereference()['next']} : next")
-            if (expr.dereference()['next'] not in g_query_expression_list):                
-                self.traverse_expressions(expr.dereference()['next'])
-
-        if (expr.dereference()['prev'] != 0x0):
-            if (expr.dereference()['prev'].dereference() not in g_query_expression_list):
-                g_line.append(f"Query_expression_{str(expr)} --> Query_expression_{expr.dereference()['prev']} : prev.dereference")
-                self.traverse_expressions(expr.dereference()['prev'].dereference())
-        
-        if (expr.dereference()['m_query_term'] != 0x0):
-            m_query_term_dynamic_type = expr.dereference()['m_query_term'].dynamic_type
-            if str(m_query_term_dynamic_type) in ['Query_block *']:
-                g_line.append(f"Query_expression_{str(expr)} --> Query_block_{expr.dereference()['m_query_term']} : m_query_term")
-                if expr.dereference()['m_query_term'] not in g_query_block_list:                    
-                    self.traverse_blocks(expr.dereference()['m_query_term'].cast(m_query_term_dynamic_type))
-            elif str(m_query_term_dynamic_type) in ['Query_term_except *','Query_term_intersect *','Query_term_unary *','Query_term_union *']:
-                g_line.append(f"Query_expression_{str(expr)} --> Query_term_{expr.dereference()['m_query_term']} : m_query_term")
-                if expr.dereference()['m_query_term'] not in g_query_term_list:                    
-                    self.traverse_terms(expr.dereference()['m_query_term'].cast(m_query_term_dynamic_type))
-    
-    # 探索 Query_term
-    # term 实时类型为 ['Query_term_except *','Query_term_intersect *','Query_term_unary *','Query_term_union *'] 其中一种时才会进入该函数
-    # @term query_term 的指针
-    # note 只有不在 g_query_term_list 中的 @term 才会进入这个函数
-    def traverse_terms(self, term):
-        g_query_term_list.append(term)
-
-        if (term['m_block'].address != 0x0):
-            g_line.append(f"Query_term_{str(term)} --> Query_block_{term['m_block']} : m_block")
-            if term['m_block'] not in g_query_block_list:
-                self.traverse_blocks(term['m_block'])
-            
-        if (term['m_children'].address != 0x0):
-            g_line.append(f"Query_term_{str(term)} --> mem_root_deque__Query_term_{term.dereference()['m_children'].address} : m_children")
-            m_children_list = mem_root_deque_to_list(term['m_children'])
-            for i in m_children_list:
-                dynamic_type = i.dynamic_type
-                if str(dynamic_type) in ['Query_block *']:
-                    g_line.append(f"mem_root_deque__Query_term_{term.dereference()['m_children'].address}::{str(i)} --> Query_block_{str(i)} : {str(i)}")
-                    if i not in g_query_block_list:                        
-                        self.traverse_blocks(i.cast(dynamic_type))
-                elif str(dynamic_type) in ['Query_term_except *','Query_term_intersect *','Query_term_unary *','Query_term_union *']:
-                    g_line.append(f"mem_root_deque__Query_term_{term.dereference()['m_children'].address}::{str(i)} --> Query_term_{str(i)} : {str(i)}")
-                    if i not in g_query_term_list:
-                        self.traverse_terms(i.cast(dynamic_type))
 
 MysqlCommand()
 GDB_expr()
@@ -1453,6 +1445,12 @@ class GDB_JoinHypergraph(gdb.Command):
         del g_list_Predicate[:]
         del g_list_JoinPredicate[:]
         del g_list_RelationalExpression[:]
+        del g_list_JoinHypergraph_Node[:]
+        del g_list_CompanionSet[:]
+        del g_list_CompanionSet_EqualTerm[:]
+        del g_list_ConflictRule[:]
+        del g_list_CachedPropertiesForPredicate[:]
+        del g_list_ContainedSubquery[:]
         
         expr = gdb.parse_and_eval(arg)
         traverse_JoinHypergraph(g_list_JoinHypergraph, expr)
