@@ -56,6 +56,12 @@ g_list_ContainedSubquery = []
 g_list_Ref_item_array = []
 g_list_Query_result = []
 g_list_Natural_join_column = []
+g_list_NESTED_JOIN = []
+g_list_Semijoin_mat_optimize = []
+g_list_Cost_estimate = []
+g_list_Item_subselect  = []
+g_list_TABLE = []
+g_list_TABLE_SHARE = []
 g_list_line = []                             # 遍历对象时，如果两个对象之间有连线，则把连线信息插入这个列表。里面的元素时字符串
 g_list_object_string = []
 g_list_note = []
@@ -200,7 +206,7 @@ def traverse_Query_expression(list, object):
     else:
         prev__dereference = 0x0        
     display = textwrap.dedent(f'''
-                              map Query_expression_{object.address} #header:pink;back:lightblue{{
+                              map Query_expression_{object.address} #header:Gold;back:DarkOrange{{
                                        next => <Query_expression *> {object['next']}
                                        prev.dereference => <Query_expression **> {prev__dereference}
                                        master => <Query_block *> {object['master']}
@@ -235,41 +241,160 @@ def traverse_Query_expression(list, object):
     g_list_note.append(note)
     
     traverse_Query_block(g_list_Query_block, object['master'])    
-    add_line(g_list_line, f'Query_expression_{object.address}::master -up-> Query_block_', object['master'], 'master')
+    add_line(g_list_line, f'Query_expression_{object.address}::master -[#DarkOrange]up-> Query_block_', object['master'], 'master')
     
     traverse_Query_block(g_list_Query_block, object['slave'])
-    add_line(g_list_line, f'Query_expression_{object.address}::slave -down-> Query_block_', object['slave'], 'slave')
+    add_line(g_list_line, f'Query_expression_{object.address}::slave -[#DarkOrange]down-> Query_block_', object['slave'], 'slave')
     
     traverse_Query_expression(g_list_Query_expression, object['next'])
-    add_line(g_list_line, f'Query_expression_{object.address}::next --> Query_expression_', object['next'], 'next')
+    add_line(g_list_line, f'Query_expression_{object.address}::next -[#DarkOrange]-> Query_expression_', object['next'], 'next')
     
-    if prev__dereference != 0x0:
-        traverse_Query_expression(g_list_Query_expression, object['prev'].dereference())        
-        g_list_line.append(f'Query_expression_{object.address}::prev.dereference --> Query_expression_{prev__dereference} : prev.dereference')
+    #if prev__dereference != 0x0:
+    #    traverse_Query_expression(g_list_Query_expression, object['prev'].dereference())        
+    #    g_list_line.append(f'Query_expression_{object.address}::prev.dereference --> Query_expression_{prev__dereference} : prev.dereference')
 
     if str(object['m_query_term'].dynamic_type) in ['Query_term_except *','Query_term_intersect *','Query_term_unary *','Query_term_union *']:
         traverse_Query_term(g_list_Query_term, object['m_query_term'].cast(object['m_query_term'].dynamic_type))
-        add_line(g_list_line, f'Query_expression_{object.address}::m_query_term --> Query_term_', object['m_query_term'], 'm_query_term')
+        add_line(g_list_line, f'Query_expression_{object.address}::m_query_term -[#DarkOrange]-> Query_term_', object['m_query_term'], 'm_query_term')
     elif str(object['m_query_term'].dynamic_type) in ['Query_block *']:
         traverse_Query_block(g_list_Query_block, object['m_query_term'].cast(object['m_query_term'].dynamic_type))
-        add_line(g_list_line, f'Query_expression_{object.address}::m_query_term --> Query_block_', object['m_query_term'], 'm_query_term')
-        
+        add_line(g_list_line, f'Query_expression_{object.address}::m_query_term -[#DarkOrange]-> Query_block_', object['m_query_term'], 'm_query_term')
+
     traverse_Query_result(g_list_Query_result, object['m_query_result'])
-    add_line(g_list_line, f'Query_expression_{object.address}::m_query_result --> Query_result_', object['m_query_result'], 'm_query_result')
+    add_line(g_list_line, f'Query_expression_{object.address}::m_query_result -[#DarkOrange]-> Query_result_', object['m_query_result'], 'm_query_result')
 
     traverse_mem_root_deque__object(g_list_mem_root_deque__object, object['types'])
-    add_line(g_list_line, f'Query_expression_{object.address}::types.address --> mem_root_deque__Item_', object['types'].address, 'types')
+    add_line(g_list_line, f'Query_expression_{object.address}::types.address -[#DarkOrange]-> mem_root_deque__Item_', object['types'].address, 'types')
     
     if (traverse_Mem_root_array__object(g_list_Mem_root_array__object, object['m_operands'])):
-        add_line(g_list_line, f'Query_expression_{object.address}::m_operands.address --> Mem_root_array_MaterializePathParameters_Operand_', object['m_operands'].address, 'm_operands.address')
+        add_line(g_list_line, f'Query_expression_{object.address}::m_operands.address -[#DarkOrange]-> Mem_root_array_MaterializePathParameters_Operand_', object['m_operands'].address, 'm_operands.address')
 
+    traverse_Item_subselect(g_list_Item_subselect, object['item'])
+    add_line(g_list_line, f'Query_expression_{object.address}::item -[#DarkOrange]-> Item_subselect_', object['item'].cast(object['item'].dynamic_type), 'item')
+
+# 探索 Item_subselect
+# @list 存储 Item_subselect 指针的列表
+# @object Item_subselect
+# note Item_maxmin_subselect->Item_singlerow_subselect->Item_subselect
+# note Item_allany_subselect->Item_in_subselect->Item_exists_subselect->Item_subselect
+@object_decorator
+def traverse_Item_subselect(list, object):
+    object = object.cast(object.dynamic_type)
+    display = textwrap.dedent(f'''
+                              map Item_subselect_{object.address} #header:Gold;back:lightgreen{{
+                                       __dynamic_type_ => {object.dynamic_type}
+                                       result_field => <Field *> {object['result_field']}
+                                       in_cond_of_tab => <int> {object['in_cond_of_tab']}
+                                       m_query_expr => <Query_expression *> {object['m_query_expr']}
+                                       m_query_result => <Query_result_interceptor *> {object['m_query_result']}
+                                       indexsubquery_engine => <subselect_indexsubquery_engine *> {object['indexsubquery_engine']}
+                                       m_used_tables_cache => <table_map> {object['m_used_tables_cache']}
+                                       m_subquery_used_tables => <table_map> {object['m_subquery_used_tables']}
+                                       m_max_columns => <uint> {object['m_max_columns']}
+                                       m_parsing_place => <enum_parsing_context> {object['m_parsing_place']}
+                                       m_value_assigned => <bool> {object['m_value_assigned']}
+                                       m_traced_before => <bool> {object['m_traced_before']}
+                              ''')                                       
+    if str(object.dynamic_type) == 'Item_singlerow_subselect':        
+        display += textwrap.dedent(f'''
+                                       m_value => <Item_cache *> {object['m_value']}
+                                       m_row => <Item_cache **> {object['m_row']}
+                                       m_no_rows => <bool> {object['m_no_rows']}
+                              }}
+                              ''')
+    elif str(object.dynamic_type) == 'Item_maxmin_subselect':        
+        display += textwrap.dedent(f'''
+                                       m_value => <Item_cache *> {object['m_value']}
+                                       m_row => <Item_cache **> {object['m_row']}
+                                       m_no_rows => <bool> {object['m_no_rows']}
+                                       m_max => <bool> {object['m_max']}
+                                       m_has_values => <bool> {object['m_has_values']}
+                              }}
+                              ''')   
+    elif str(object.dynamic_type) == 'Item_exists_subselect':        
+        display += textwrap.dedent(f'''
+                                       left_expr => <Item *> {object['left_expr']}
+                                       sj_convert_priority => <int> {object['sj_convert_priority']}
+                                       strategy => <Subquery_strategy> {object['strategy']}
+                                       outer_condition_context => <enum_condition_context> {object['outer_condition_context']}
+                                       embedding_join_nest => <Table_ref *> {object['embedding_join_nest']}
+                                       value_transform => <Item::Bool_test> {object['value_transform']}
+                                       implicit_is_op => <bool> {object['implicit_is_op']}
+                                       can_do_aj => <bool> {object['can_do_aj']}
+                                       m_value => <bool> {object['m_value']}
+                                       abort_on_null => <bool> {object['abort_on_null']}
+                              }}
+                              ''')
+    elif str(object.dynamic_type) == 'Item_in_subselect':        
+        display += textwrap.dedent(f'''
+                                       left_expr => <Item *> {object['left_expr']}
+                                       sj_convert_priority => <int> {object['sj_convert_priority']}
+                                       strategy => <Subquery_strategy> {object['strategy']}
+                                       outer_condition_context => <enum_condition_context> {object['outer_condition_context']}
+                                       embedding_join_nest => <Table_ref *> {object['embedding_join_nest']}
+                                       value_transform => <Item::Bool_test> {object['value_transform']}
+                                       implicit_is_op => <bool> {object['implicit_is_op']}
+                                       can_do_aj => <bool> {object['can_do_aj']}
+                                       m_value => <bool> {object['m_value']}
+                                       abort_on_null => <bool> {object['abort_on_null']}
+                                       m_pushed_cond_guards => <bool *> {object['m_pushed_cond_guards']}
+                                       m_upper_item => <Item_func_not_all *> {object['m_upper_item']}
+                                       m_left_expr_cache => <List<Cached_item> *> {object['m_left_expr_cache']}
+                                       m_left_expr_cache_filled => <bool> {object['m_left_expr_cache_filled']}
+                                       need_expr_cache => <bool> {object['need_expr_cache']}
+                                       m_injected_left_expr => <Item_ref *> {object['m_injected_left_expr']}
+                                       m_was_null => <bool> {object['m_was_null']}
+                                       m_in2exists_info => <Item_in_subselect::In2exists_info *> {object['m_in2exists_info']}
+                                       pt_subselect => <PT_subquery *> {object['pt_subselect']}
+                              }}
+                              ''')
+        traverse_Item(g_list_Item, object['left_expr'])
+        add_line(g_list_line, f'Item_subselect_{object.address}::left_expr --> Item_', object['left_expr'], 'left_expr')
+    elif str(object.dynamic_type) == 'Item_allany_subselect':        
+        display += textwrap.dedent(f'''
+                                       left_expr => <Item *> {object['left_expr']}
+                                       sj_convert_priority => <int> {object['sj_convert_priority']}
+                                       strategy => <Subquery_strategy> {object['strategy']}
+                                       outer_condition_context => <enum_condition_context> {object['outer_condition_context']}
+                                       embedding_join_nest => <Table_ref *> {object['embedding_join_nest']}
+                                       value_transform => <Item::Bool_test> {object['value_transform']}
+                                       implicit_is_op => <bool> {object['implicit_is_op']}
+                                       can_do_aj => <bool> {object['can_do_aj']}
+                                       m_value => <bool> {object['m_value']}
+                                       abort_on_null => <bool> {object['abort_on_null']}
+                                       m_pushed_cond_guards => <bool *> {object['m_pushed_cond_guards']}
+                                       m_upper_item => <Item_func_not_all *> {object['m_upper_item']}
+                                       m_left_expr_cache => <List<Cached_item> *> {object['m_left_expr_cache']}
+                                       m_left_expr_cache_filled => <bool> {object['m_left_expr_cache_filled']}
+                                       need_expr_cache => <bool> {object['need_expr_cache']}
+                                       m_injected_left_expr => <Item_ref *> {object['m_injected_left_expr']}
+                                       m_was_null => <bool> {object['m_was_null']}
+                                       m_in2exists_info => <Item_in_subselect::In2exists_info *> {object['m_in2exists_info']}
+                                       pt_subselect => <PT_subquery *> {object['pt_subselect']}
+                                       m_func_creator => <chooser_compare_func_creator> {object['m_func_creator']}
+                                       m_func => <Comp_creator *> {object['m_func']}
+                                       m_all => <bool> {object['m_all']}
+                              }}
+                              ''')
+        traverse_Item(g_list_Item, object['left_expr'])
+        add_line(g_list_line, f'Item_subselect_{object.address}::left_expr --> Item_', object['left_expr'], 'left_expr')
+        
+        traverse_Item(g_list_Item, object['m_upper_item'])
+        add_line(g_list_line, f'Item_subselect_{object.address}::m_upper_item --> Item_', object['m_upper_item'], 'm_upper_item')
+    g_list_object_string.append(display)
+    
+    note = f'note right of Item_subselect_{object.address}\n' + \
+           f'{sqlparse.format(get_object_print_result(object), reindent=True, keyword_case="upper")}\n' + \
+           'end note'
+    g_list_note.append(note)
+    
 # 探索 Query_result 
 # @list 存储 Query_result  指针的列表
 # @object Query_result  的指针或者对象
 @object_decorator
 def traverse_Query_result(list, object):   
     display = textwrap.dedent(f'''
-                               map Query_result_{object.address} #header:pink;back:lightgreen{{
+                               map Query_result_{object.address} #header:Gold;back:lightgreen{{
                                        unit => <Query_expression *> {object['unit']}
                                        estimated_rowcount => <ha_rows> {object['estimated_rowcount']}
                                        estimated_cost => <double> {object['estimated_cost']}
@@ -299,7 +424,7 @@ def traverse_Query_block(list, object):
         offset_limit__value = 0
     
     display = textwrap.dedent(f'''
-                              map Query_block_{object.address} #header:pink;back:lightgreen{{
+                              map Query_block_{object.address} #header:Gold;back:Lime{{
                                        master => <Query_expression*> {object['master']}
                                        slave => <Query_expression*> {object['slave']}
                                        next => <Query_block*> {object['next']}
@@ -331,42 +456,44 @@ def traverse_Query_block(list, object):
     g_list_note.append(note)
         
     traverse_Query_expression(g_list_Query_expression, object['master'])
-    add_line(g_list_line, f'Query_block_{object.address}::master -up-> Query_expression_', object['master'], 'master')
+    add_line(g_list_line, f'Query_block_{object.address}::master -[#Lime]up-> Query_expression_', object['master'], 'master')
     
     traverse_Query_block(g_list_Query_block, object['next'])
-    add_line(g_list_line, f'Query_block_{object.address}::next --> Query_block_', object['next'], 'next')
+    add_line(g_list_line, f'Query_block_{object.address}::next -[#Lime]-> Query_block_', object['next'], 'next')
     
     traverse_Query_expression(g_list_Query_expression, object['slave'])
-    add_line(g_list_line, f'Query_block_{object.address}::slave -down-> Query_expression_', object['slave'], 'slave')
+    add_line(g_list_line, f'Query_block_{object.address}::slave -[#Lime]down-> Query_expression_', object['slave'], 'slave')
     
-    if link_prev__dereference != 0x0:
-        traverse_Query_block(g_list_Query_block, object['link_prev'].dereference())
-        g_list_line.append(f'Query_block_{object.address}::link_prev.dereference -right-> Query_block_{link_prev__dereference} : link_prev.dereference')
+    #if link_prev__dereference != 0x0:
+    #    traverse_Query_block(g_list_Query_block, object['link_prev'].dereference())
+    #    g_list_line.append(f'Query_block_{object.address}::link_prev.dereference -right-> Query_block_{link_prev__dereference} : link_prev.dereference')
     
     traverse_Table_ref(g_list_Table_ref, object['leaf_tables'])
-    add_line(g_list_line, f'Query_block_{object.address}::leaf_tables --> Table_ref_', object['leaf_tables'], 'leaf_tables')
+    add_line(g_list_line, f'Query_block_{object.address}::leaf_tables -[#Lime]-> Table_ref_', object['leaf_tables'], 'leaf_tables')
     
     traverse_Item(g_list_Item, object['m_where_cond'])
-    add_line(g_list_line, f'Query_block_{object.address}::m_where_cond --> Item_', object['m_where_cond'], 'm_where_cond')
+    add_line(g_list_line, f'Query_block_{object.address}::m_where_cond -[#Lime]-> Item_', object['m_where_cond'], 'm_where_cond')
     
     traverse_Item(g_list_Item, object['m_having_cond'])
-    add_line(g_list_line, f'Query_block_{object.address}::m_having_cond --> Item_', object['m_having_cond'], 'm_having_cond')
+    add_line(g_list_line, f'Query_block_{object.address}::m_having_cond -[#Lime]-> Item_', object['m_having_cond'], 'm_having_cond')
     
     traverse_SQL_I_List__object(g_list_SQL_I_List__object, object['m_table_list'])
     if object["m_table_list"].type.template_argument(0).code == gdb.TYPE_CODE_PTR:
-        add_line(g_list_line, f'Query_block_{object.address}::m_table_list --> SQL_I_List__{object["m_table_list"].type.template_argument(0).target()}_', object['m_table_list'].address, 'm_table_list')
+        add_line(g_list_line, f'Query_block_{object.address}::m_table_list -[#Lime]-> SQL_I_List__{object["m_table_list"].type.template_argument(0).target()}_', object['m_table_list'].address, 'm_table_list.address')
     else:
-        add_line(g_list_line, f'Query_block_{object.address}::m_table_list --> SQL_I_List__{object["m_table_list"].type.template_argument(0)}_', object['m_table_list'].address, 'm_table_list')
+        add_line(g_list_line, f'Query_block_{object.address}::m_table_list -[#Lime]-> SQL_I_List__{object["m_table_list"].type.template_argument(0)}_', object['m_table_list'].address, 'm_table_list.address')
     
     traverse_JOIN(g_list_JOIN, object['join'])
-    add_line(g_list_line, f'Query_block_{object.address}::join --> JOIN_', object['join'], 'join')
+    add_line(g_list_line, f'Query_block_{object.address}::join -[#Lime]-> JOIN_', object['join'], 'join')
     
     traverse_mem_root_deque__object(g_list_mem_root_deque__object, object['m_table_nest'])
-    add_line(g_list_line, f'Query_block_{object.address}::m_table_nest.address --> mem_root_deque__Table_ref_', object['m_table_nest'].address, 'm_table_nest')
+    add_line(g_list_line, f'Query_block_{object.address}::m_table_nest.address -[#Lime]-> mem_root_deque__Table_ref_', object['m_table_nest'].address, 'm_table_nest')
     
     traverse_mem_root_deque__object(g_list_mem_root_deque__object, object['sj_nests'])
-    add_line(g_list_line, f'Query_block_{object.address}::sj_nests.address --> mem_root_deque__Table_ref_', object['sj_nests'].address, 'sj_nests')
+    add_line(g_list_line, f'Query_block_{object.address}::sj_nests.address -[#Lime]-> mem_root_deque__Table_ref_', object['sj_nests'].address, 'sj_nests')
     
+    traverse_mem_root_deque__object(g_list_mem_root_deque__object, object['m_current_table_nest'])
+    add_line(g_list_line, f'Query_block_{object.address}::m_current_table_nest -[#Lime]-> mem_root_deque__Table_ref_', object['m_current_table_nest'], 'm_current_table_nest')
     
 # 探索 Query_term，包含子类 Query_term_except、Query_term_intersect、Query_term_unary、Query_term_union，不包含 Query_block
 # @list 存储 Query_term 指针的列表
@@ -376,7 +503,7 @@ def traverse_Query_term(list, object):
     if str(object.dynamic_type) not in ['Query_term_except','Query_term_intersect','Query_term_unary','Query_term_union']:
         return
     display = textwrap.dedent(f'''
-                              map Query_term_{object.address} #header:pink;back:lightyellow{{
+                              map Query_term_{object.address} #header:Gold;back:lightyellow{{
                                        __dynamic_type => {object.dynamic_type}
                                        m_block => <Query_block*> {object['m_block']}
                                        m_children.address => <mem_root_deque<Query_term*>> {object['m_children'].address}
@@ -399,7 +526,7 @@ def traverse_mem_root_deque__object(list, object):
         target = object.type.template_argument(0).target()
     else:
         target = object.type.template_argument(0)
-    display = f'map mem_root_deque__{target}_{object.address} {{\n'    
+    display = f'map mem_root_deque__{target}_{object.address} #header:Gold;back:Tomato {{\n'    
     for i in mem_root_deque_to_list(object):
         address = 0x0
         if object.type.template_argument(0).code == gdb.TYPE_CODE_PTR:
@@ -408,17 +535,17 @@ def traverse_mem_root_deque__object(list, object):
             address = str(i.address)
         display += f'         {address} => {i.dynamic_type}\n'
         if str(i.dynamic_type.target()) == 'Query_block':
-            g_list_line.append(f'mem_root_deque__{target}_{object.address}::{address} --> Query_block_{address} : {address}')
+            g_list_line.append(f'mem_root_deque__{target}_{object.address}::{address} -[#Tomato]-> Query_block_{address} : {address}')
             traverse_Query_block(g_list_Query_block, i.cast(i.dynamic_type))
         elif str(i.dynamic_type.target()) in ['Query_term_except','Query_term_intersect','Query_term_unary','Query_term_union']:
-            g_list_line.append(f'mem_root_deque__{target}_{object.address}::{address} --> Query_term_{address} : {address}')
+            g_list_line.append(f'mem_root_deque__{target}_{object.address}::{address} -[#Tomato]-> Query_term_{address} : {address}')
             traverse_Query_term(g_list_Query_term, i.cast(i.dynamic_type))
         elif str(i.dynamic_type.target()) in ['Item_field']:
-            g_list_line.append(f'mem_root_deque__{target}_{object.address}::{address} --> Item_{address} : {address}')
+            g_list_line.append(f'mem_root_deque__{target}_{object.address}::{address} -[#Tomato]-> Item_{address} : {address}')
             traverse_Item(g_list_Item, i.cast(i.dynamic_type))
         elif str(i.dynamic_type.target()) in ['Table_ref']:
-            g_list_line.append(f'mem_root_deque__{target}_{object.address}::{address} --> Table_ref_{address} : {address}')
-            traverse_Item(g_list_Table_ref, i.cast(i.dynamic_type))
+            g_list_line.append(f'mem_root_deque__{target}_{object.address}::{address} -[#Tomato]-> Table_ref_{address} : {address}')
+            traverse_Table_ref(g_list_Table_ref, i.cast(i.dynamic_type))
     display += '}\n'
     g_list_object_string.append(display)
     
@@ -428,14 +555,14 @@ def traverse_SQL_I_List__object(list, object):
         target = object.type.template_argument(0).target()
     else:
         target = object.type.template_argument(0)
-    display = f'map SQL_I_List__{target}_{object.address} {{\n'
+    display = f'map SQL_I_List__{target}_{object.address} #header:Gold;back:Tomato {{\n'
 
     for i in SQL_I_List_to_list(object):
         address = str(i)
         display += f'         {address} => {i.dynamic_type}\n'
         if str(target) == 'Table_ref':
             traverse_Table_ref(g_list_Table_ref, i)
-            g_list_line.append(f'SQL_I_List__{target}_{object.address}::{address} --> Table_ref_{address} : {address}')
+            g_list_line.append(f'SQL_I_List__{target}_{object.address}::{address} -[#Tomato]-> Table_ref_{address} : {address}')
     display += '}\n'
     g_list_object_string.append(display)
     
@@ -445,17 +572,17 @@ def traverse_List__object(list, object):
         target = object.type.template_argument(0).target()
     else:
         target = object.type.template_argument(0)
-    display = f'map List__{target}_{object.address} {{\n'
+    display = f'map List__{target}_{object.address} #header:Gold;back:Tomato {{\n'
 
     for i in List_to_list(object):
         address = str(i)
         display += f'         {address} => {i.dynamic_type}\n'
         if str(target) == 'Item_equal':
             traverse_Item(g_list_Item, i)
-            g_list_line.append(f'List__{target}_{object.address}::{address} --> Item_{address} : {address}')
+            g_list_line.append(f'List__{target}_{object.address}::{address} -[#Tomato]-> Item_{address} : {address}')
         elif str(target) == 'Natural_join_column':    
             traverse_Natural_join_column(g_list_Natural_join_column, i)
-            g_list_line.append(f'List__{target}_{object.address}::{address} --> Natural_join_column_{address} : {address}')
+            g_list_line.append(f'List__{target}_{object.address}::{address} -[#Tomato]-> Natural_join_column_{address} : {address}')
     display += '}\n'
     g_list_object_string.append(display)
 
@@ -467,11 +594,11 @@ def traverse_Mem_root_array__object(list, object):
     else:
         target = object.type.template_argument(0)
     if str(target) in ['Item', 'Item_eq_base']:
-        display = f'map Mem_root_array_Item_{object.address} {{\n'
+        display = f'map Mem_root_array_Item_{object.address} #header:Gold;back:Tomato {{\n'
     elif str(target) in ['const Field']:
-        display = f'map Mem_root_array_Field_{object.address} {{\n'
+        display = f'map Mem_root_array_Field_{object.address} #header:Gold;back:Tomato {{\n'
     else:
-        display = f'map Mem_root_array_{str(target).replace("::","_")}_{object.address} {{\n'
+        display = f'map Mem_root_array_{str(target).replace("::","_")}_{object.address} #header:Gold;back:Tomato {{\n'
     out_list = Mem_root_array_to_list(object)
     for i in range(len(out_list)):
         address = str(out_list[i])
@@ -492,33 +619,33 @@ def traverse_Mem_root_array__object(list, object):
         elif str(target) == 'JoinHypergraph::Node':
             display += f'         {address} => {out_list[i].dynamic_type}\n'
             traverse_JoinHypergraph_Node(g_list_JoinHypergraph_Node, out_list[i])
-            g_list_line.append(f'Mem_root_array_{str(target).replace("::","_")}_{object.address}::{address} --> JoinHypergraph_Node_{address} : {address}')
+            g_list_line.append(f'Mem_root_array_{str(target).replace("::","_")}_{object.address}::{address} -[#Tomato]-> JoinHypergraph_Node_{address} : {address}')
         elif str(target) == 'Predicate':
             display += f'         {address} => {out_list[i].dynamic_type}\n'
             traverse_Predicate(g_list_Predicate, out_list[i])
-            g_list_line.append(f'Mem_root_array_{str(target).replace("::","_")}_{object.address}::{address} --> Predicate_{address} : {address}')
+            g_list_line.append(f'Mem_root_array_{str(target).replace("::","_")}_{object.address}::{address} -[#Tomato]-> Predicate_{address} : {address}')
         elif str(target) == 'JoinPredicate':
             display += f'         {address} => {out_list[i].dynamic_type}\n'
             traverse_JoinPredicate(g_list_JoinPredicate, out_list[i])
-            g_list_line.append(f'Mem_root_array_{str(target).replace("::","_")}_{object.address}::{address} --> JoinPredicate_{address} : {address}')
+            g_list_line.append(f'Mem_root_array_{str(target).replace("::","_")}_{object.address}::{address} -[#Tomato]-> JoinPredicate_{address} : {address}')
         elif str(target) in ['Item', 'Item_eq_base']:
             display += f'         {address} => {out_list[i].dynamic_type}\n'
             traverse_Item(g_list_Item, out_list[i])
-            g_list_line.append(f'Mem_root_array_Item_{object.address}::{address} --> Item_{address} : {address}')
+            g_list_line.append(f'Mem_root_array_Item_{object.address}::{address} -[#Tomato]-> Item_{address} : {address}')
         elif str(target) in ['CompanionSet::EqualTerm']:
             display += f'         {address} => {out_list[i].dynamic_type}\n'
             traverse_CompanionSet_EqualTerm(g_list_CompanionSet_EqualTerm, out_list[i])
-            g_list_line.append(f'Mem_root_array_CompanionSet_EqualTerm_{object.address}::{address} --> CompanionSet_EqualTerm_{address} : {address}')
+            g_list_line.append(f'Mem_root_array_CompanionSet_EqualTerm_{object.address}::{address} -[#Tomato]-> CompanionSet_EqualTerm_{address} : {address}')
         elif str(target) in ['const Field']:
             display += f'         {address} => {out_list[i].dynamic_type} ---- field_name:{out_list[i]["table_name"].dereference().string()}.{out_list[i]["field_name"].string()}\n'           
         elif str(target) in ['ConflictRule']:
             display += f'         {address} => {out_list[i].dynamic_type}\n'
             traverse_ConflictRule(g_list_ConflictRule, out_list[i])
-            g_list_line.append(f'Mem_root_array_ConflictRule_{object.address}::{address} --> ConflictRule_{address} : {address}')
+            g_list_line.append(f'Mem_root_array_ConflictRule_{object.address}::{address} -[#Tomato]-> ConflictRule_{address} : {address}')
         elif str(target) in ['CachedPropertiesForPredicate']:
             display += f'         {address} => {out_list[i].dynamic_type}\n'
             traverse_CachedPropertiesForPredicate(g_list_CachedPropertiesForPredicate, out_list[i])
-            g_list_line.append(f'Mem_root_array_CachedPropertiesForPredicate_{object.address}::{address} --> CachedPropertiesForPredicate_{address} : {address}') 
+            g_list_line.append(f'Mem_root_array_CachedPropertiesForPredicate_{object.address}::{address} -[#Tomato]-> CachedPropertiesForPredicate_{address} : {address}') 
         else:
             display += f'         {address} => {out_list[i].dynamic_type}\n'
     display += '}\n'
@@ -534,7 +661,7 @@ def traverse_std_vector__object(list, object):
         target = object.type.template_argument(0).target()
     else:
         target = object.type.template_argument(0)
-    display = f'map std_vector_{str(target).replace("::","_").replace(" ","_")}_{object.address} {{\n'
+    display = f'map std_vector_{str(target).replace("::","_").replace(" ","_")}_{object.address} #header:Gold;back:Tomato {{\n'
     for i in std_vector_to_list(object):
         #address = str(i)
         display += f'         {bin(i.dereference())[2:].zfill(10)} => {i.dynamic_type}\n'
@@ -546,6 +673,7 @@ def traverse_std_vector__object(list, object):
 # @object Table_ref 的指针或者对象
 @object_decorator
 def traverse_Table_ref(list, object):
+    return
     if object['db'] != 0x0:
         db = object['db'].string()
     else:
@@ -559,7 +687,7 @@ def traverse_Table_ref(list, object):
     else:
         alias = 0x0
 #    display = textwrap.dedent(f'''
-#                              map Table_ref_{object.address} #header:pink;back:lightblue{{
+#                              map Table_ref_{object.address} #header:Gold;back:lightblue{{
 #                                       db => <const char*> {db}
 #                                       table_name => <const char*> {table_name}
 #                                       alias => <const char*> {alias}
@@ -593,7 +721,7 @@ def traverse_Table_ref(list, object):
 #                              }}
 #                              ''')
     display = textwrap.dedent(f'''
-                              map Table_ref_{object.address} #header:pink;back:lightgreen{{
+                              map Table_ref_{object.address} #header:Gold;back:lightgreen{{
                                        next_local => <Table_ref *> {object['next_local']}
                                        next_global => <Table_ref *> {object['next_global']}
                                        prev_global => <Table_ref **> {object['prev_global']}
@@ -747,13 +875,283 @@ def traverse_Table_ref(list, object):
     traverse_List__object(g_list_List__object, object['join_columns'])
     add_line(g_list_line, f'Table_ref_{object.address}::join_columns --> List__Natural_join_column_', object['join_columns'], 'join_columns')
 
+    traverse_NESTED_JOIN(g_list_NESTED_JOIN, object['nested_join'])
+    add_line(g_list_line, f'Table_ref_{object.address}::nested_join --> NESTED_JOIN_', object['nested_join'], 'nested_join')
+
+
+# 探索 TABLE 
+# @list 存储 TABLE  指针的列表
+# @object TABLE  的指针或者对象
+@object_decorator
+def traverse_TABLE (list, object):
+    display = textwrap.dedent(f'''
+                              map TABLE_{object.address} #header:Gold;back:lightgreen{{
+                                       s => <TABLE_SHARE *> {object['s']}
+                                       file => <handler *> {object['file']}
+                                       next => <TABLE *> {object['next']}
+                                       prev => <TABLE *> {object['prev']}
+                                       cache_next => <TABLE *> {object['cache_next']}
+                                       cache_prev => <TABLE **> {object['cache_prev']}
+                                       histograms => <const Table_histograms *> {object['histograms']}
+                                       fields_for_functional_indexes => <MY_BITMAP> {object['fields_for_functional_indexes']}
+                                       in_use => <THD *> {object['in_use']}
+                                       field => <Field **> {object['field']}
+                                       hidden_field_count => <uint> {object['hidden_field_count']}
+                                       record => <uchar *[2]> {object['record']}
+                                       write_row_record => <uchar *> {object['write_row_record']}
+                                       insert_values => <uchar *> {object['insert_values']}
+                                       m_record_buffer => <Record_buffer> {object['m_record_buffer']}
+                                       covering_keys => <Key_map> {object['covering_keys']}
+                                       quick_keys => <Key_map> {object['quick_keys']}
+                                       merge_keys => <Key_map> {object['merge_keys']}
+                                       possible_quick_keys => <Key_map> {object['possible_quick_keys']}
+                                       keys_in_use_for_query => <Key_map> {object['keys_in_use_for_query']}
+                                       keys_in_use_for_group_by => <Key_map> {object['keys_in_use_for_group_by']}
+                                       keys_in_use_for_order_by => <Key_map> {object['keys_in_use_for_order_by']}
+                                       key_info => <KEY *> {object['key_info']}
+                                       base_key_parts => <KEY_PART_INFO *> {object['base_key_parts']}
+                                       next_number_field => <Field *> {object['next_number_field']}
+                                       found_next_number_field => <Field *> {object['found_next_number_field']}
+                                       vfield => <Field **> {object['vfield']}
+                                       gen_def_fields_ptr => <Field **> {object['gen_def_fields_ptr']}
+                                       hash_field => <Field *> {object['hash_field']}
+                                       m_limit_rows => <ha_rows> {object['m_limit_rows']}
+                                       m_set_counter => <Field_longlong *> {object['m_set_counter']}
+                                       m_last_operation_is_distinct => <bool> {object['m_last_operation_is_distinct']}
+                                       m_deduplicate_with_hashing => <bool> {object['m_deduplicate_with_hashing']}
+                                       m_set_op_type => <TABLE::Set_operator_type> {object['m_set_op_type']}
+                                       fts_doc_id_field => <Field *> {object['fts_doc_id_field']}
+                                       triggers => <Table_trigger_dispatcher *> {object['triggers']}
+                                       pos_in_table_list => <Table_ref *> {object['pos_in_table_list']}
+                                       pos_in_locked_tables => <Table_ref *> {object['pos_in_locked_tables']}
+                                       group => <ORDER *> {object['group']}
+                                       alias => <const char *> {object['alias']}
+                                       null_flags => <uchar *> {object['null_flags']}
+                                       null_flags_saved => <uchar *> {object['null_flags_saved']}
+                                       def_read_set => <MY_BITMAP> {object['def_read_set']}
+                                       def_write_set => <MY_BITMAP> {object['def_write_set']}
+                                       tmp_set => <MY_BITMAP> {object['tmp_set']}
+                                       pack_row_tmp_set => <MY_BITMAP> {object['pack_row_tmp_set']}
+                                       cond_set => <MY_BITMAP> {object['cond_set']}
+                                       def_fields_set_during_insert => <MY_BITMAP> {object['def_fields_set_during_insert']}
+                                       read_set => <MY_BITMAP *> {object['read_set']}
+                                       write_set => <MY_BITMAP *> {object['write_set']}
+                                       read_set_internal => <MY_BITMAP> {object['read_set_internal']}
+                                       fields_set_during_insert => <MY_BITMAP *> {object['fields_set_during_insert']}
+                                       query_id => <query_id_t> {object['query_id']}
+                                       quick_rows => <ha_rows [64]> {object['quick_rows']}
+                                       const_key_parts => <key_part_map [64]> {object['const_key_parts']}
+                                       quick_key_parts => <uint [64]> {object['quick_key_parts']}
+                                       quick_n_ranges => <uint [64]> {object['quick_n_ranges']}
+                                       quick_condition_rows => <ha_rows> {object['quick_condition_rows']}
+                                       lock_position => <uint> {object['lock_position']}
+                                       lock_data_start => <uint> {object['lock_data_start']}
+                                       lock_count => <uint> {object['lock_count']}
+                                       db_stat => <uint> {object['db_stat']}
+                                       current_lock => <int> {object['current_lock']}
+                                       table_check_constraint_list => <Sql_table_check_constraint_list *> {object['table_check_constraint_list']}
+                                       nullable => <bool> {object['nullable']}
+                                       m_status => <uint8> {object['m_status']}
+                                       null_row => <bool> {object['null_row']}
+                                       copy_blobs => <bool> {object['copy_blobs']}
+                                       force_index => <bool> {object['force_index']}
+                                       force_index_order => <bool> {object['force_index_order']}
+                                       force_index_group => <bool> {object['force_index_group']}
+                                       const_table => <bool> {object['const_table']}
+                                       no_rows => <bool> {object['no_rows']}
+                                       key_read => <bool> {object['key_read']}
+                                       no_keyread => <bool> {object['no_keyread']}
+                                       no_replicate => <bool> {object['no_replicate']}
+                                       open_by_handler => <bool> {object['open_by_handler']}
+                                       autoinc_field_has_explicit_non_null_value => <bool> {object['autoinc_field_has_explicit_non_null_value']}
+                                       alias_name_used => <bool> {object['alias_name_used']}
+                                       get_fields_in_item_tree => <bool> {object['get_fields_in_item_tree']}
+                                       m_invalid_dict => <bool> {object['m_invalid_dict']}
+                                       m_invalid_stats => <bool> {object['m_invalid_stats']}
+                                       created => <bool> {object['created']}
+                                       materialized => <bool> {object['materialized']}
+                                       reginfo => <struct {...}> {object['reginfo']}
+                                       mem_root => <MEM_ROOT> {object['mem_root']}
+                                       blob_storage => <Blob_mem_storage *> {object['blob_storage']}
+                                       sorting_iterator => <SortingIterator *> {object['sorting_iterator']}
+                                       duplicate_removal_iterator => <SortingIterator *> {object['duplicate_removal_iterator']}
+                                       unique_result => <Sort_result> {object['unique_result']}
+                                       part_info => <partition_info *> {object['part_info']}
+                                       all_partitions_pruned_away => <bool> {object['all_partitions_pruned_away']}
+                                       mdl_ticket => <MDL_ticket *> {object['mdl_ticket']}
+                                       m_cost_model => <Cost_model_table> {object['m_cost_model']}
+                                       tmp_table_seq_id => <uint> {object['tmp_table_seq_id']}
+                                       m_partial_update_columns => <MY_BITMAP *> {object['m_partial_update_columns']}
+                                       m_partial_update_info => <Partial_update_info *> {object['m_partial_update_info']}
+                                       should_binlog_drop_if_temp_flag => <bool> {object['should_binlog_drop_if_temp_flag']}
+                              }}
+                              ''')
+    g_list_object_string.append(display)
+
+# 探索 TABLE_SHARE 
+# @list 存储 TABLE_SHARE  指针的列表
+# @object TABLE_SHARE  的指针或者对象
+@object_decorator
+def traverse_TABLE_SHARE (list, object):
+    display = textwrap.dedent(f'''
+                              map TABLE_SHARE_{object.address} #header:Gold;back:lightgreen{{
+                                       m_histograms => <Table_histograms_collection *> {object['m_histograms']}
+                                       table_category => <TABLE_CATEGORY> {object['table_category']}
+                                       mem_root => <MEM_ROOT> {object['mem_root']}
+                                       alloc_for_tmp_file_handler => <MEM_ROOT *> {object['alloc_for_tmp_file_handler']}
+                                       keynames => <TYPELIB> {object['keynames']}
+                                       intervals => <TYPELIB *> {object['intervals']}
+                                       LOCK_ha_data => <mysql_mutex_t> {object['LOCK_ha_data']}
+                                       next => <TABLE_SHARE *> {object['next']}
+                                       prev => <TABLE_SHARE **> {object['prev']}
+                                       cache_element => <Table_cache_element **> {object['cache_element']}
+                                       field => <Field **> {object['field']}
+                                       found_next_number_field => <Field **> {object['found_next_number_field']}
+                                       key_info => <KEY *> {object['key_info']}
+                                       blob_field => <uint *> {object['blob_field']}
+                                       default_values => <uchar *> {object['default_values']}
+                                       comment => <LEX_STRING> {object['comment']}
+                                       compress => <LEX_STRING> {object['compress']}
+                                       encrypt_type => <LEX_STRING> {object['encrypt_type']}
+                                       secondary_engine => <LEX_CSTRING> {object['secondary_engine']}
+                                       secondary_load => <bool> {object['secondary_load']}
+                                       table_charset => <const CHARSET_INFO *> {object['table_charset']}
+                                       all_set => <MY_BITMAP> {object['all_set']}
+                                       table_cache_key => <LEX_CSTRING> {object['table_cache_key']}
+                                       db => <LEX_CSTRING> {object['db']}
+                                       table_name => <LEX_CSTRING> {object['table_name']}
+                                       path => <LEX_STRING> {object['path']}
+                                       normalized_path => <LEX_CSTRING> {object['normalized_path']}
+                                       connect_string => <LEX_STRING> {object['connect_string']}
+                                       engine_attribute => <LEX_CSTRING> {object['engine_attribute']}
+                                       secondary_engine_attribute => <LEX_CSTRING> {object['secondary_engine_attribute']}
+                                       keys_in_use => <Key_map> {object['keys_in_use']}
+                                       visible_indexes => <Key_map> {object['visible_indexes']}
+                                       keys_for_keyread => <Key_map> {object['keys_for_keyread']}
+                                       min_rows => <ha_rows> {object['min_rows']}
+                                       max_rows => <ha_rows> {object['max_rows']}
+                                       avg_row_length => <ulong> {object['avg_row_length']}
+                                       mysql_version => <ulong> {object['mysql_version']}
+                                       reclength => <ulong> {object['reclength']}
+                                       stored_rec_length => <ulong> {object['stored_rec_length']}
+                                       autoextend_size => <ulonglong> {object['autoextend_size']}
+                                       db_plugin => <plugin_ref> {object['db_plugin']}
+                                       row_type => <row_type> {object['row_type']}
+                                       real_row_type => <row_type> {object['real_row_type']}
+                                       tmp_table => <tmp_table_type> {object['tmp_table']}
+                                       tmp_handler_count => <uint> {object['tmp_handler_count']}
+                                       tmp_open_count => <uint> {object['tmp_open_count']}
+                                       key_block_size => <uint32_t> {object['key_block_size']}
+                                       stats_sample_pages => <uint> {object['stats_sample_pages']}
+                                       stats_auto_recalc => <enum_stats_auto_recalc> {object['stats_auto_recalc']}
+                                       null_bytes => <uint> {object['null_bytes']}
+                                       last_null_bit_pos => <uint> {object['last_null_bit_pos']}
+                                       fields => <uint> {object['fields']}
+                                       rec_buff_length => <uint> {object['rec_buff_length']}
+                                       keys => <uint> {object['keys']}
+                                       key_parts => <uint> {object['key_parts']}
+                                       max_key_length => <uint> {object['max_key_length']}
+                                       max_unique_length => <uint> {object['max_unique_length']}
+                                       total_key_length => <uint> {object['total_key_length']}
+                                       is_distinct => <bool> {object['is_distinct']}
+                                       null_fields => <uint> {object['null_fields']}
+                                       blob_fields => <uint> {object['blob_fields']}
+                                       varchar_fields => <uint> {object['varchar_fields']}
+                                       first_unused_tmp_key => <uint> {object['first_unused_tmp_key']}
+                                       max_tmp_keys => <uint> {object['max_tmp_keys']}
+                                       max_tmp_key_parts => <uint> {object['max_tmp_key_parts']}
+                                       key_names => <Key_name *> {object['key_names']}
+                                       base_rec_per_key => <ulong *> {object['base_rec_per_key']}
+                                       base_rec_per_key_float => <rec_per_key_t *> {object['base_rec_per_key_float']}
+                                       db_create_options => <uint> {object['db_create_options']}
+                                       db_options_in_use => <uint> {object['db_options_in_use']}
+                                       rowid_field_offset => <uint> {object['rowid_field_offset']}
+                                       primary_key => <uint> {object['primary_key']}
+                                       next_number_index => <uint> {object['next_number_index']}
+                                       next_number_key_offset => <uint> {object['next_number_key_offset']}
+                                       next_number_keypart => <uint> {object['next_number_keypart']}
+                                       error => <bool> {object['error']}
+                                       column_bitmap_size => <uint> {object['column_bitmap_size']}
+                                       vfields => <uint> {object['vfields']}
+                                       gen_def_field_count => <uint> {object['gen_def_field_count']}
+                                       system => <bool> {object['system']}
+                                       db_low_byte_first => <bool> {object['db_low_byte_first']}
+                                       crashed => <bool> {object['crashed']}
+                                       is_view => <bool> {object['is_view']}
+                                       m_open_in_progress => <bool> {object['m_open_in_progress']}
+                                       table_map_id => <mysql::binlog::event::Table_id> {object['table_map_id']}
+                                       cached_row_logging_check => <int> {object['cached_row_logging_check']}
+                                       default_storage_media => <ha_storage_media> {object['default_storage_media']}
+                                       tablespace => <const char *> {object['tablespace']}
+                                       m_part_info => <partition_info *> {object['m_part_info']}
+                                       auto_partitioned => <bool> {object['auto_partitioned']}
+                                       partition_info_str => <char *> {object['partition_info_str']}
+                                       partition_info_str_len => <uint> {object['partition_info_str_len']}
+                                       table_field_def_cache => <const TABLE_FIELD_DEF *> {object['table_field_def_cache']}
+                                       ha_share => <Handler_share *> {object['ha_share']}
+                                       m_psi => <PSI_table_share *> {object['m_psi']}
+                                       m_flush_tickets => <Wait_for_flush_list> {object['m_flush_tickets']}
+                                       view_object => <const dd::View *> {object['view_object']}
+                                       tmp_table_def => <dd::Table *> {object['tmp_table_def']}
+                                       owner_of_possible_tmp_keys => <Query_block *> {object['owner_of_possible_tmp_keys']}
+                                       foreign_keys => <uint> {object['foreign_keys']}
+                                       foreign_key => <TABLE_SHARE_FOREIGN_KEY_INFO *> {object['foreign_key']}
+                                       foreign_key_parents => <uint> {object['foreign_key_parents']}
+                                       foreign_key_parent => <TABLE_SHARE_FOREIGN_KEY_PARENT_INFO *> {object['foreign_key_parent']}
+                                       check_constraint_share_list => <Sql_check_constraint_share_list *> {object['check_constraint_share_list']}
+                                       schema_read_only => <TABLE_SHARE::Schema_read_only> {object['schema_read_only']}
+                                       m_ref_count => <unsigned int> {object['m_ref_count']}
+                                       m_version => <unsigned long> {object['m_version']}
+                                       m_secondary_engine => <bool> {object['m_secondary_engine']}
+                              }}
+                              ''')
+    g_list_object_string.append(display)
+
+# 探索 NESTED_JOIN 
+# @list 存储 NESTED_JOIN  指针的列表
+# @object NESTED_JOIN  的指针或者对象
+@object_decorator
+def traverse_NESTED_JOIN (list, object):
+    display = textwrap.dedent(f'''
+                              map NESTED_JOIN_{object.address} #header:Gold;back:lightgreen{{
+                                       m_tables.address => <mem_root_deque<Table_ref*>> {object['m_tables'].address}
+                                       used_tables => <table_map> {object['used_tables']}
+                                       not_null_tables => <table_map> {object['not_null_tables']}
+                                       first_nested => <plan_idx> {object['first_nested']}
+                                       natural_join_processed => <bool> {object['natural_join_processed']}
+                                       nj_total => <uint> {object['nj_total']}
+                                       nj_counter => <uint> {object['nj_counter']}
+                                       nj_map => <nested_join_map> {object['nj_map']}
+                                       sj_depends_on => <table_map> {object['sj_depends_on']}
+                                       sj_corr_tables => <table_map> {object['sj_corr_tables']}
+                                       query_block_id => <uint> {object['query_block_id']}
+                                       sj_enabled_strategies => <uint> {object['sj_enabled_strategies']}
+                                       sj_outer_exprs.address => <mem_root_deque<Item*>> {object['sj_outer_exprs'].address}
+                                       sj_inner_exprs.address => <mem_root_deque<Item*>> {object['sj_inner_exprs'].address}
+                                       sjm.address => <Semijoin_mat_optimize> {object['sjm'].address}
+                              }}
+                              ''')
+    g_list_object_string.append(display)
+    
+    traverse_mem_root_deque__object(g_list_mem_root_deque__object, object['m_tables'])
+    add_line(g_list_line, f'NESTED_JOIN_{object.address}::m_tables.address --> mem_root_deque__Table_ref_', object['m_tables'].address, 'm_tables.address')
+    
+    traverse_mem_root_deque__object(g_list_mem_root_deque__object, object['sj_outer_exprs'])
+    add_line(g_list_line, f'NESTED_JOIN_{object.address}::sj_outer_exprs --> mem_root_deque__Item_', object['sj_outer_exprs'].address, 'sj_outer_exprs.address')
+    
+    traverse_mem_root_deque__object(g_list_mem_root_deque__object, object['sj_inner_exprs'])
+    add_line(g_list_line, f'NESTED_JOIN_{object.address}::sj_inner_exprs --> mem_root_deque__Item_', object['sj_inner_exprs'].address, 'sj_inner_exprs.address')
+
+    traverse_Semijoin_mat_optimize(g_list_Semijoin_mat_optimize, object['sjm'])
+    add_line(g_list_line, f'NESTED_JOIN_{object.address}::sjm --> Semijoin_mat_optimize_', object['sjm'].address, 'sjm.address')
+    
 # 探索 Natural_join_column 
 # @list 存储 Natural_join_column  指针的列表
 # @object Natural_join_column  的指针或者对象
 @object_decorator
 def traverse_Natural_join_column (list, object):
     display = textwrap.dedent(f'''
-                              map Natural_join_column_{object.address} #header:pink;back:lightgreen{{
+                              map Natural_join_column_{object.address} #header:Gold;back:lightgreen{{
                                        view_field => <Field_translator *> {object['view_field']}
                                        table_field => <Item_field *> {object['table_field']}
                                        table_ref => <Table_ref *> {object['table_ref']}
@@ -768,6 +1166,49 @@ def traverse_Natural_join_column (list, object):
     traverse_Item(g_list_Item, object['table_field'])
     add_line(g_list_line, f'Natural_join_column_{object.address}::table_field --> Item_', object['table_field'], 'table_field')
 
+# 探索 Semijoin_mat_optimize 
+# @list 存储 Semijoin_mat_optimize  指针的列表
+# @object Semijoin_mat_optimize  的指针或者对象
+@object_decorator
+def traverse_Semijoin_mat_optimize (list, object):
+    display = textwrap.dedent(f'''
+                              map Semijoin_mat_optimize_{object.address} #header:Gold;back:lightgreen{{
+                                       positions => <POSITION *> {object['positions']}
+                                       lookup_allowed => <bool> {object['lookup_allowed']}
+                                       scan_allowed => <bool> {object['scan_allowed']}
+                                       expected_rowcount => <double> {object['expected_rowcount']}
+                                       materialization_cost.address => <Cost_estimate> {object['materialization_cost'].address}
+                                       lookup_cost.address => <Cost_estimate> {object['lookup_cost'].address}
+                                       scan_cost.address => <Cost_estimate> {object['scan_cost'].address}
+                                       mat_fields => <Item_field **> {object['mat_fields']}
+                              }}
+                              ''')
+    g_list_object_string.append(display)
+    
+    traverse_Cost_estimate(g_list_Cost_estimate, object['materialization_cost'])
+    add_line(g_list_line, f'Semijoin_mat_optimize_{object.address}::materialization_cost.address --> Cost_estimate_', object['materialization_cost'].address, 'materialization_cost.address')
+    
+    traverse_Cost_estimate(g_list_Cost_estimate, object['lookup_cost'])
+    add_line(g_list_line, f'Semijoin_mat_optimize_{object.address}::lookup_cost.address --> Cost_estimate_', object['lookup_cost'].address, 'lookup_cost.address')
+    
+    traverse_Cost_estimate(g_list_Cost_estimate, object['scan_cost'])
+    add_line(g_list_line, f'Semijoin_mat_optimize_{object.address}::scan_cost.address --> Cost_estimate_', object['scan_cost'].address, 'scan_cost.address')
+
+# 探索 Cost_estimate 
+# @list 存储 Cost_estimate  指针的列表
+# @object Cost_estimate  的指针或者对象
+@object_decorator
+def traverse_Cost_estimate (list, object):
+    display = textwrap.dedent(f'''
+                              map Cost_estimate_{object.address} #header:Gold;back:lightgreen{{
+                                       io_cost => <double> {object['io_cost']}
+                                       cpu_cost => <double> {object['cpu_cost']}
+                                       import_cost => <double> {object['import_cost']}
+                                       mem_cost => <double> {object['mem_cost']}
+                              }}
+                              ''')
+    g_list_object_string.append(display)
+    
 # 探索 Item
 # @list 存储 Item 指针的列表
 # @object Item 的指针或者对象
@@ -775,7 +1216,7 @@ def traverse_Natural_join_column (list, object):
 def traverse_Item(list, object):
     gdb_str = sqlparse.format(get_object_print_result(object), reindent=True, keyword_case="upper").replace("\n","\\\\n")
     display = textwrap.dedent(f'''
-                              map Item_{object.address} #header:pink;back:orange{{
+                              map Item_{object.address} #header:Gold;back:orange{{
                                        __dynamic_type => {object.dynamic_type}
                                        __print => {get_object_print_result(object)}
                               }}
@@ -796,7 +1237,7 @@ def traverse_JOIN(list, object):
     else:
         map2table__dereference = 0x0
     display = textwrap.dedent(f'''
-                              map JOIN_{object.address} #header:pink;back:lightgreen{{
+                              map JOIN_{object.address} #header:Gold;back:lightgreen{{
                                        query_block => <Query_block * const> {object['query_block']}
                                        thd => <THD * const> {object['thd']}
                                        join_tab => <JOIN_TAB *> {object['join_tab']}
@@ -932,7 +1373,7 @@ def traverse_Ref_item_array(list, object):
     REF_SLICE_SAVED_BASE = 3
     REF_SLICE_WIN_1 = 4
     display = textwrap.dedent(f'''
-                              map Ref_item_array_{object.address} #header:pink;back:lightgreen{{
+                              map Ref_item_array_{object.address} #header:Gold;back:lightgreen{{
                                        m_size => {object['m_size']}
                                        REF_SLICE_ACTIVE => <Item *> {object['m_array'][REF_SLICE_ACTIVE]}
                                        REF_SLICE_TMP1 => <Item *> {object['m_array'][REF_SLICE_TMP1]}
@@ -974,7 +1415,7 @@ def traverse_Ref_item_array(list, object):
 @object_decorator
 def traverse_QEP_shared(list, object):
     display = textwrap.dedent(f'''
-                              map QEP_shared_{object.address} #header:pink;back:lightgreen{{
+                              map QEP_shared_{object.address} #header:Gold;back:lightgreen{{
                                        m_join => <JOIN *> {object['m_join']}
                                        m_idx => <plan_idx> {object['m_idx']}
                                        m_table => <TABLE *> {object['m_table']}
@@ -1011,7 +1452,7 @@ def traverse_QEP_shared(list, object):
 @object_decorator
 def traverse_JOIN_TAB(list, object):
     display = textwrap.dedent(f'''
-                              map JOIN_TAB_{object.address} #header:pink;back:lightgreen{{
+                              map JOIN_TAB_{object.address} #header:Gold;back:lightgreen{{
                                        m_qs => <QEP_shared *> {object['m_qs']}
                                        table_ref => <Table_ref *> {object['table_ref']}
                                        m_keyuse => <Key_use *> {object['m_keyuse']}
@@ -1047,7 +1488,7 @@ def traverse_JOIN_TAB(list, object):
 @object_decorator
 def traverse_QEP_TAB(list, object):
     display = textwrap.dedent(f'''
-                              map QEP_TAB_{object.address} #header:pink;back:lightgreen{{
+                              map QEP_TAB_{object.address} #header:Gold;back:lightgreen{{
                                        m_qs => <QEP_shared *> {object['m_qs']}
                                        table_ref => <Table_ref *> {object['table_ref']}
                                        flush_weedout_table => <SJ_TMP_TABLE *> {object['flush_weedout_table']}
@@ -1090,7 +1531,7 @@ def traverse_QEP_TAB(list, object):
 @object_decorator
 def traverse_COND_EQUAL(list, object):
     display = textwrap.dedent(f'''
-                              map COND_EQUAL_{object.address} #header:pink;back:lightgreen{{
+                              map COND_EQUAL_{object.address} #header:Gold;back:lightgreen{{
                                        max_members => <uint> {object['max_members']}
                                        upper_levels => <COND_EQUAL *> {object['upper_levels']}
                                        current_level.address => <List<Item_equal>> {object['current_level'].address}
@@ -1107,7 +1548,7 @@ def traverse_COND_EQUAL(list, object):
 @object_decorator
 def traverse_AccessPath(list, object):
     display = textwrap.dedent(f'''
-                              map AccessPath_{object.address} #header:pink;back:lightgreen{{
+                              map AccessPath_{object.address} #header:Gold;back:lightgreen{{
                                        type => <AccessPath::Type> {object['type']}
                                        safe_for_rowid => <AccessPath::Safety> {object['safe_for_rowid']}
                                        count_examined_rows => <bool> {object['count_examined_rows']}
@@ -1137,7 +1578,7 @@ def traverse_AccessPath(list, object):
 @object_decorator
 def traverse_JoinHypergraph(list, object):
     display = textwrap.dedent(f'''
-                              map JoinHypergraph_{object.address} #header:pink;back:lightgreen{{
+                              map JoinHypergraph_{object.address} #header:Gold;back:lightgreen{{
                                        graph.address => <hypergraph::Hypergraph> {object['graph'].address}
                                        secondary_engine_costing_flags => <SecondaryEngineCostingFlags> {object['secondary_engine_costing_flags']}
                                        table_num_to_node_num.address => <std::array<int, 61>> {object['table_num_to_node_num'].address}
@@ -1176,7 +1617,7 @@ def traverse_JoinHypergraph(list, object):
 @object_decorator
 def traverse_hypergraph_Hypergraph(list, object):
     display = textwrap.dedent(f'''
-                              map hypergraph_Hypergraph_{object.address} #header:pink;back:lightgreen{{
+                              map hypergraph_Hypergraph_{object.address} #header:Gold;back:lightgreen{{
                                        nodes.address => <Mem_root_array<hypergraph::Node>> {object['nodes'].address}
                                        edges.address => <Mem_root_array<hypergraph::Hyperedge>> {object['edges'].address}
                               }}
@@ -1197,7 +1638,7 @@ def traverse_hypergraph_Hypergraph(list, object):
 @object_decorator
 def traverse_Predicate(list, object):
     display = textwrap.dedent(f'''
-                              map Predicate_{object.address} #header:pink;back:lightgreen{{
+                              map Predicate_{object.address} #header:Gold;back:lightgreen{{
                                        condition => <Item *> {object['condition']}
                                        used_nodes => <hypergraph::NodeMap> {bin(object['used_nodes'])[2:].zfill(16)}
                                        total_eligibility_set => <hypergraph::NodeMap> {bin(object['total_eligibility_set'])[2:].zfill(16)}
@@ -1220,7 +1661,7 @@ def traverse_Predicate(list, object):
 @object_decorator
 def traverse_JoinHypergraph_Node(list, object):
     display = textwrap.dedent(f'''
-                              map JoinHypergraph_Node_{object.address} #header:pink;back:lightgreen{{
+                              map JoinHypergraph_Node_{object.address} #header:Gold;back:lightgreen{{
                                        table.s.table_name.str => <TABLE *> {object['table']['s']['table_name']['str']}
                                        join_conditions_pushable_to_this.address => <Mem_root_array<Item*>> {object['join_conditions_pushable_to_this'].address}
                                        sargable_predicates.address => <Mem_root_array<SargablePredicate>> {object['sargable_predicates'].address}
@@ -1245,7 +1686,7 @@ def traverse_JoinHypergraph_Node(list, object):
 @object_decorator
 def traverse_CompanionSet(list, object):
     display = textwrap.dedent(f'''
-                              map CompanionSet_{object.address} #header:pink;back:lightgreen{{
+                              map CompanionSet_{object.address} #header:Gold;back:lightgreen{{
                                        m_equal_terms.address => <Mem_root_array<CompanionSet::EqualTerm>> {object['m_equal_terms'].address}
                               }}
                               ''')
@@ -1260,7 +1701,7 @@ def traverse_CompanionSet(list, object):
 @object_decorator
 def traverse_CompanionSet_EqualTerm(list, object):
     display = textwrap.dedent(f'''
-                              map CompanionSet_EqualTerm_{object.address} #header:pink;back:lightgreen{{
+                              map CompanionSet_EqualTerm_{object.address} #header:Gold;back:lightgreen{{
                                        fields => <CompanionSet::FieldArray *> {object['fields']}
                                        tables => <table_map> {bin(object['tables'])[2:].zfill(16)}
                               }}
@@ -1277,7 +1718,7 @@ def traverse_CompanionSet_EqualTerm(list, object):
 @object_decorator
 def traverse_JoinPredicate(list, object):
     display = textwrap.dedent(f'''
-                              map JoinPredicate_{object.address} #header:pink;back:lightgreen{{
+                              map JoinPredicate_{object.address} #header:Gold;back:lightgreen{{
                                        expr => <RelationalExpression *> {object['expr']}
                                        selectivity => <double> {object['selectivity']}
                                        estimated_bytes_per_row => <size_t> {object['estimated_bytes_per_row']}
@@ -1299,7 +1740,7 @@ def traverse_JoinPredicate(list, object):
 @object_decorator
 def traverse_RelationalExpression(list, object):
     display = textwrap.dedent(f'''
-                              map RelationalExpression_{object.address} #header:pink;back:lightgreen{{
+                              map RelationalExpression_{object.address} #header:Gold;back:lightgreen{{
                                        type => <RelationalExpression::Type> {object['type']}
                                        tables_in_subtree => <table_map> {bin(object['tables_in_subtree'])[2:].zfill(16)}
                                        nodes_in_subtree => <hypergraph::NodeMap> {bin(object['nodes_in_subtree'])[2:].zfill(16)}
@@ -1358,7 +1799,7 @@ def traverse_RelationalExpression(list, object):
 @object_decorator
 def traverse_ConflictRule(list, object):
     display = textwrap.dedent(f'''
-                              map ConflictRule_{object.address} #header:pink;back:lightgreen{{
+                              map ConflictRule_{object.address} #header:Gold;back:lightgreen{{
                                        needed_to_activate_rule => <hypergraph::NodeMap> {object['needed_to_activate_rule']}
                                        required_nodes => <hypergraph::NodeMap> {object['required_nodes']}
                               }}
@@ -1371,7 +1812,7 @@ def traverse_ConflictRule(list, object):
 @object_decorator
 def traverse_CachedPropertiesForPredicate(list, object):
     display = textwrap.dedent(f'''
-                              map CachedPropertiesForPredicate_{object.address} #header:pink;back:lightgreen{{
+                              map CachedPropertiesForPredicate_{object.address} #header:Gold;back:lightgreen{{
                                        contained_subqueries.address => <Mem_root_array<ContainedSubquery>> {object['contained_subqueries'].address}
                                        selectivity => <double> {object['selectivity']}
                                        redundant_against_sargable_predicates.address => <OverflowBitset> {object['redundant_against_sargable_predicates'].address}
@@ -1389,7 +1830,7 @@ def traverse_CachedPropertiesForPredicate(list, object):
 @object_decorator
 def traverse_ContainedSubquery(list, object):
     display = textwrap.dedent(f'''
-                              map ContainedSubquery_{object.address} #header:pink;back:lightgreen{{
+                              map ContainedSubquery_{object.address} #header:Gold;back:lightgreen{{
                                        path => <AccessPath *> {object['path']}
                                        strategy => <ContainedSubquery::Strategy> {object['strategy']}
                                        row_width => <int> {object['row_width']}
@@ -1404,7 +1845,7 @@ def traverse_ContainedSubquery(list, object):
 #@object_decorator
 #def traverse_hypergraph_Node(list, object):
 #    display = textwrap.dedent(f'''
-#                              map hypergraph_Node_{object.address} #header:pink;back:lightgreen{{
+#                              map hypergraph_Node_{object.address} #header:Gold;back:lightgreen{{
 #                                       complex_edges.address => <std::vector<unsigned int, std::allocator<unsigned int> >> {object['complex_edges'].address}
 #                                       simple_edges.address => <std::vector<unsigned int, std::allocator<unsigned int> >> {object['simple_edges'].address}
 #                                       simple_neighborhood => <hypergraph::NodeMap> {bin(object['simple_neighborhood'])[2:].zfill(16)}
@@ -1424,7 +1865,7 @@ def traverse_ContainedSubquery(list, object):
 #@object_decorator
 #def traverse_hypergraph_Hyperedge(list, object):
 #    display = textwrap.dedent(f'''
-#                              map hypergraph_Hyperedge_{object.address} #header:pink;back:lightgreen{{
+#                              map hypergraph_Hyperedge_{object.address} #header:Gold;back:lightgreen{{
 #                                       left => <hypergraph::NodeMap> {bin(object['left'])[2:].zfill(16)}
 #                                       right => <hypergraph::NodeMap> {bin(object['right'])[2:].zfill(16)}
 #                              }}
@@ -1687,6 +2128,12 @@ class GDB_expr(gdb.Command):
         del g_list_Ref_item_array[:]
         del g_list_Query_result[:]
         del g_list_Natural_join_column[:]
+        del g_list_NESTED_JOIN[:]
+        del g_list_Semijoin_mat_optimize[:]
+        del g_list_Cost_estimate[:]
+        del g_list_Item_subselect[:]
+        del g_list_TABLE[:]
+        del g_list_TABLE_SHARE[:]
         
         expr = gdb.parse_and_eval(arg)
         traverse_Query_expression(g_list_Query_expression, expr)
@@ -1718,7 +2165,7 @@ class GDB_object(gdb.Command):
     def invoke(self, arg, from_tty):        
         class_type = gdb.lookup_type(arg)
         fields = class_type.fields()
-        print(f'                              map {arg}_{{object.address}} #header:pink;back:lightgreen{{{{')
+        print(f'                              map {arg}_{{object.address}} #header:Gold;back:lightgreen{{{{')
         for field in fields:
             print(f'                                       {field.name} => <{field.type}> {{object[\'{field.name}\']}}')
         print('                              }}')
@@ -1769,6 +2216,12 @@ class GDB_JoinHypergraph(gdb.Command):
         del g_list_Ref_item_array[:]
         del g_list_Query_result[:]
         del g_list_Natural_join_column[:]
+        del g_list_NESTED_JOIN[:]
+        del g_list_Semijoin_mat_optimize[:]
+        del g_list_Cost_estimate[:]
+        del g_list_Item_subselect[:]
+        del g_list_TABLE[:]
+        del g_list_TABLE_SHARE[:]
         
         expr = gdb.parse_and_eval(arg)
         traverse_JoinHypergraph(g_list_JoinHypergraph, expr)
