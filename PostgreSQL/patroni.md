@@ -397,3 +397,8 @@ patronictl -c /etc/patroni.yml switchover pgsql
 # 不要求主库存活，强制切换
 patronictl -c /etc/patroni.yml failover  pgsql
 ```
+
+# 清理 etcd 中集群信息
+```sh
+patronictl -c /etc/patroni.yml remove 集群名称
+```
