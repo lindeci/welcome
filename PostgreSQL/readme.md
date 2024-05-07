@@ -666,7 +666,7 @@ ALTER DATABASE kong OWNER TO kong_dev;
 
 # 物理备份恢复
 注意点：  
-1、文件权限、属主
+1、文件权限、属主  
 2、注释 postgresql.conf 中的这段：
 ```sh
 recovery_target = ''
