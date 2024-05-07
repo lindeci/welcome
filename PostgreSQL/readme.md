@@ -53,6 +53,8 @@
   - [Connection](#connection)
   - [Operating System](#operating-system)
   - [Variables](#variables)
+- [启动关闭](#启动关闭)
+- [物理备份恢复](#物理备份恢复)
 
 # 官网
 
@@ -655,3 +657,23 @@ ALTER DATABASE kong OWNER TO kong_dev;
 | \prompt [TEXT] NAME | prompt user to set internal variable                | 提示用户设置内部变量                       |
 | \set [NAME [VALUE]] | set internal variable, or list all if no parameters | 设置内部变量，如果没有参数，则列出所有变量 |
 | \unset NAME         | unset (delete) internal variable                    | 取消设置（删除）内部变量                   |
+
+# 启动关闭
+```sql
+/data/pgsql/13/bin/pg_ctl  -D /data/pgsql/13/data start
+/data/pgsql/13/bin/pg_ctl -D /data/pgsql/13/data stop
+```
+
+# 物理备份恢复
+注意点：  
+1、文件权限、属主
+2、注释 postgresql.conf 中的这段：
+```sh
+recovery_target = ''
+recovery_target_lsn = ''
+recovery_target_name = ''
+recovery_target_time = ''
+recovery_target_timeline = 'latest'
+recovery_target_xid = ''
+```
+3、 postgresql.base.conf 中的 shared_buffers 调整
