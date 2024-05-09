@@ -61,3 +61,4 @@ docker run -d -p 8080:8080 plantuml/plantuml-server:jetty
 "plantuml.server": "http://容器的IP:8080",
 "plantuml.render": "PlantUMLServer"
 ```
+docker run -d -p 8080:8080 -e "_JAVA_OPTIONS=-Djetty.httpConfig.requestHeaderSize=65536" -e PLANTUML_LIMIT_SIZE=8192 plantuml/plantuml-server:jetty
