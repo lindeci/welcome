@@ -1181,6 +1181,39 @@ node_03                    : ok=4    changed=0    unreachable=0    failed=0    s
 
 - name: start es
   shell: "su - es -c '{{ es_base_path }}/bin/elasticsearch -d'"
+
+- name: get es passward
+  shell: "cat /data/elasticsearch-7.17.0/passwords.txt | grep 'PASSWORD elastic' | awk -F' = '  '{print $2}'"
+  register: es_passward
+  when: inventory_hostname == groups['es'][0]
+
+- name: Update es password
+  uri:
+        url: 'http://localhost:9200/_security/user/elastic/_password'
+        method: POST
+        user: elastic
+        password: "{{ es_passward.stdout }}"
+        body_format: json
+        body: '{"password": "elastic"}'
+        headers:
+          Content-Type: application/json
+  when: inventory_hostname == groups['es'][0]
+
+- name: set https
+  shell: "sed -i 's/^#//' /data/elasticsearch-7.17.0/config/elasticsearch.yml"
+
+- name: stop elasticsearch service
+  shell: "pkill -f elasticsearch"
+
+- name: start es again
+  shell: "sleep 10 && su - es -c '{{ es_base_path }}/bin/elasticsearch -d'"
+
+- name: fetch passwords.txt
+  fetch:
+    src: "{{ es_base_path }}/passwords.txt"
+    dest: "{{ role_path }}/files/"
+    flat: yes
+  when: inventory_hostname == groups['es'][0]
 ```
 
 ## 其中 init_es_machine.sh
