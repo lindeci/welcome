@@ -677,3 +677,44 @@ recovery_target_timeline = 'latest'
 recovery_target_xid = ''
 ```
 3、 postgresql.base.conf 中的 shared_buffers 调整
+
+# 参数讲解
+```
+在 PostgreSQL 中，参数配置对于数据库性能和稳定性至关重要。最优参数配置方案将根据你的具体硬件、工作负载和应用程序需求而变化。以下是一些通用的建议，但在实际配置之前，请先在测试环境中进行评估和测试，并根据测试结果进行调整。
+
+内存配置：
+    shared_buffers：设置为物理内存的 25% - 50%。这是最重要的参数，用于设置 PostgreSQL 缓冲区的大小。
+    work_mem：设置每个连接的内存排序和哈希操作的内存量。根据并发连接数和工作负载进行调整。
+    maintenance_work_mem：设置维护操作（如 VACUUM、索引创建等）的内存量。根据数据库大小进行调整。
+
+并发连接：
+    max_connections：设置数据库允许的最大并发连接数。根据应用程序的并发需求进行调整，避免过多的连接数导致资源耗尽。
+
+并发控制：
+    deadlock_timeout：设置检测死锁的超时时间。
+    max_locks_per_transaction：限制每个事务可以获取的锁的数量，避免死锁。
+
+日志和统计：
+    log_destination：配置日志输出的目标（例如日志文件或控制台）。
+    logging_collector：启用日志收集器，用于管理日志文件。
+    log_rotation_age 和 log_rotation_size：配置日志文件的自动轮换策略。
+    log_statement：根据需求设置记录哪些 SQL 语句到日志中（例如 'all' 记录所有语句）。
+    track_counts：启用或禁用表行计数。
+
+查询优化：
+    effective_cache_size：设置查询规划器预估的系统缓存大小。
+    random_page_cost 和 seq_page_cost：根据存储设备类型调整随机 IO 和顺序 IO 的成本估算。
+    autovacuum：启用自动 VACUUM 进程，定期回收过时数据，避免表膨胀。
+	
+自动保存配置：
+    autovacuum：启用自动 VACUUM 进程，它有助于维护数据库表的性能。
+    autovacuum_vacuum_scale_factor 和 autovacuum_analyze_scale_factor：根据表的大小，调整自动 VACUUM 和自动分析操作的阈值。默认值为 0.2 和 0.1。
+
+其他：
+    timezone：设置数据库的时区。
+    synchronous_commit：设置事务的同步提交方式，可以根据对数据安全性和性能的需求调整。
+    max_wal_size 和 min_wal_size：配置 WAL 日志大小，以确保足够的日志保留和切换频率。
+
+以上仅是一些常见的 PostgreSQL 参数配置建议，实际配置应根据你的具体情况进行调整。注意，在更改配置后，需要重新启动 PostgreSQL 服务才能使配置生效。始终建议在进行参数调整前备份数据库，并进行充分的性能测试，以确保改动不会导致意外的影响。
+
+```
