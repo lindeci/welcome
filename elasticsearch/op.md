@@ -1932,6 +1932,382 @@ POST /_aliases
   ]
 }
 ```
+# 查看索引碎片恢复进度
+```
+GET /_cat/recovery?v
+GET /_cat/recovery/shard_scale_test?v
+index            shard time  type        stage source_host   source_node target_host   target_node repository snapshot files files_recovered files_percent files_total bytes bytes_recovered bytes_percent bytes_total translog_ops translog_ops_recovered translog_ops_percent
+shard_scale_test 0     341ms empty_store done  n/a           n/a         172.16.13.196 es01        n/a        n/a      0     0               0.0%          0           0     0               0.0%          0           0            0                      100.0%
+shard_scale_test 0     846ms peer        done  172.16.13.196 es01        172.16.13.197 es02        n/a        n/a      4     4               100.0%        4           4907  4907            100.0%        4907        0            0                      100.0%
+shard_scale_test 1     299ms peer        done  172.16.13.197 es02        172.16.13.196 es01        n/a        n/a      4     4               100.0%        4           4693  4693            100.0%        4693        0            0                      100.0%
+shard_scale_test 1     224ms empty_store done  n/a           n/a         172.16.13.197 es02        n/a        n/a      0     0               0.0%          0           0     0               0.0%          0           0            0                      100.0%
+
+GET _cluster/settings
+返回
+{
+  "persistent" : { },
+  "transient" : { }
+}
+
+curl -X GET http://172.1.1.1:9200/_cat/recovery?h=index,shard,time,type,stage,target_host,files,files_percent,bytes,bytes_percent,translog_ops,translog_ops_percent\&v
+或者
+GET /_cat/recovery?h=index,shard,time,type,stage,target_host,files,files_percent,bytes,bytes_percent,translog_ops,translog_ops_percent&v
+
+index                           shard time  type           stage target_host   files files_percent bytes   bytes_percent translog_ops translog_ops_percent
+.kibana_7.17.0_001              0     262ms existing_store done  172.16.13.196 0     100.0%        0       100.0%        0            100.0%
+.kibana_7.17.0_001              0     2.1s  peer           done  172.16.13.198 63    100.0%        2546563 100.0%        37           100.0%
+.apm-custom-link                0     109ms peer           done  172.16.13.197 0     0.0%          0       0.0%          0            100.0%
+.apm-custom-link                0     894ms peer           done  172.16.13.198 1     100.0%        226     100.0%        0            100.0%
+.apm-agent-configuration        0     252ms peer           done  172.16.13.196 0     0.0%          0       0.0%          0            100.0%
+.apm-agent-configuration        0     1.6s  existing_store done  172.16.13.197 0     100.0%        0       100.0%        0            100.0%
+shard_scale_test                0     341ms empty_store    done  172.16.13.196 0     0.0%          0       0.0%          0            100.0%
+shard_scale_test                0     846ms peer           done  172.16.13.197 4     100.0%        4907    100.0%        0            100.0%
+shard_scale_test                1     299ms peer           done  172.16.13.196 4     100.0%        4693    100.0%        0            100.0%
+shard_scale_test                1     224ms empty_store    done  172.16.13.197 0     0.0%          0       0.0%          0            100.0%
+.kibana_task_manager_7.17.0_001 0     195ms existing_store done  172.16.13.196 0     100.0%        0       100.0%        0            100.0%
+.kibana_task_manager_7.17.0_001 0     41.4s peer           done  172.16.13.198 71    100.0%        296414  100.0%        248744       100.0%
+.tasks                          0     1.3s  existing_store done  172.16.13.196 0     100.0%        0       100.0%        0            100.0%
+.tasks                          0     291ms peer           done  172.16.13.197 0     0.0%          0       0.0%          0            100.0%
+```
+# 各节点上已存在的数据
+```
+GET /_cat/allocation?v
+shards disk.indices disk.used disk.avail disk.total disk.percent host          ip            node
+    11       69.4mb    11.3gb    187.6gb    198.9gb            5 172.16.13.197 172.16.13.197 es02
+    11       69.3mb    12.1gb    186.8gb    198.9gb            6 172.16.13.196 172.16.13.196 es01
+```
+
+# 索引分片分配情况
+```
+GET _cat/shards?v
+GET _cat/shards/shard_scale_test?v
+index            shard prirep state   docs store ip            node
+shard_scale_test 1     r      STARTED    6 4.5kb 172.16.13.196 es01
+shard_scale_test 1     p      STARTED    6 4.5kb 172.16.13.197 es02
+shard_scale_test 0     p      STARTED    9 4.7kb 172.16.13.196 es01
+shard_scale_test 0     r      STARTED    9 4.7kb 172.16.13.197 es02
+```
+# split操做
+```
+对索引锁写，以便下面执行split操做
+PUT shard_scale_test/_settings
+{
+    "blocks.write": true
+}
+
+写数据测试，确保锁写生效
+PUT shard_scale_test/_doc/21
+{"title":"hello_21","contend":"contend_21"}
+
+
+取消索引别名
+PUT shard_scale_test/_alias/my_shard_scale_test
+GET shard_scale_test/_alias
+DELETE shard_scale_test/_alias/my_shard_scale_test
+GET shard_scale_test/_alias
+
+开始执行 split 切分索引的操做，new_shard_scale_test，且主shard数量为8
+POST shard_scale_test/_split/new_shard_scale_test
+{
+	"settings": {
+    "index.number_of_shards": 8,
+    "index.number_of_replicas": 0
+  }
+}
+
+# 对新的index添加alias
+PUT new_shard_scale_test/_alias/my_shard_scale_test
+GET new_shard_scale_test/_alias
+
+补充：
+查看split的进度，可使用 _cat/recovery 这个api， 或者在 cerebro 界面上查看。
+
+对新索引写数据测试,能够看到失败的
+PUT new_shard_scale_test/_doc/21
+{"title":"hello_21","contend":"contend_21"}
+
+打开索引的写功能
+PUT new_shard_scale_test/_settings
+{
+    "blocks.write": false
+}
+再次对新索引写数据测试,能够看到此时，写入是成功的
+PUT new_shard_scale_test/_doc/21
+{"title":"hello_21","contend":"contend_21"}
+
+删除索引
+DELETE shard_scale_test
+```
+# _cluster/settings 设置
+```
+PUT _cluster/settings
+{ 
+  "persistent" :
+  { 
+     "cluster.routing.rebalance.enable": "none",
+       ##允许在一个节点上发生多少并发传入分片恢复。 默认为2。
+       ##多数为副本
+      "cluster.routing.allocation.node_concurrent_incoming_recoveries":2，
+      ##允许在一个节点上发生多少并发传出分片恢复，默认为2.
+       ## 多数为主分片
+      "cluster.routing.allocation.node_concurrent_outgoing_recoveries":2,
+       ##为上面两个的统一简写
+      "cluster.routing.allocation.node_concurrent_recoveries":2,
+      ##在通过网络恢复副本时，节点重新启动后未分配的主节点的恢复使用来自本地  磁盘的数据。 
+      ##这些应该很快，因此更多初始主要恢复可以在同一节点上并行发生。 默认为4。
+      "cluster.routing.allocation.node_initial_primaries_recoveries":4,
+      ##允许执行检查以防止基于主机名和主机地址在单个主机上分配同一分片的多个实例。 
+      ##默认为false，表示默认情况下不执行检查。 此设置仅适用于在同一台计算机上启动多个节点的情况。这个我的理解是如果设置为false，
+      ##则同一个节点上多个实例可以存储同一个shard的多个副本没有容灾作用了
+      "cluster.routing.allocation.same_shard.host":true
+    }
+}
+```
+# 缩容测试
+```
+PUT _cluster/settings
+{
+  "transient" : {
+    "cluster.routing.allocation.exclude._ip" : "172.16.13.197"
+  }
+}
+执行成功后观察，节点还在集群内
+GET _cat/nodes?v
+ip            heap.percent ram.percent cpu load_1m load_5m load_15m node.role   master name
+172.16.13.198           45          59   1    0.26    0.13     0.10 cdfhilmrstw -      es03
+172.16.13.196           48          76   2    0.12    0.11     0.10 cdfhilmrstw *      es01
+172.16.13.197           60          73   0    0.02    0.01     0.00 cdfhilmrstw -      es02
+
+但是192.168.0.151和192.168.0.152上面已经没有数据了（第二个字段可以看出）
+GET _cat/allocation?v
+shards disk.indices disk.used disk.avail disk.total disk.percent host          ip            node
+    15       75.8mb    12.3gb    186.6gb    198.9gb            6 172.16.13.196 172.16.13.196 es01
+     0           0b    11.1gb    187.8gb    198.9gb            5 172.16.13.197 172.16.13.197 es02
+    15       50.6mb     4.3gb    194.6gb    198.9gb            2 172.16.13.198 172.16.13.198 es03
+
+开始缩容
+关停1个节点
+停止es02上的elasticsearch实例
+ps -ef|grep elasticsearch
+kill -SIGTERM 54652 54627
+ps -ef|grep elasticsearch
+
+观察集群和索引
+
+两个节点已经没了
+
+GET _cat/nodes?v
+ip            heap.percent ram.percent cpu load_1m load_5m load_15m node.role   master name
+172.16.13.198           12          60   2    0.17    0.09     0.09 cdfhilmrstw -      es03
+172.16.13.196           16          76   3    0.26    0.15     0.11 cdfhilmrstw *      es01
+
+GET _cat/allocation?v
+shards disk.indices disk.used disk.avail disk.total disk.percent host          ip            node
+    15      156.9mb    12.4gb    186.5gb    198.9gb            6 172.16.13.196 172.16.13.196 es01
+    15       51.3mb     4.4gb    194.5gb    198.9gb            2 172.16.13.198 172.16.13.198 es03
+	
+索引健康
+GET _cat/indices?v
+health status index                           uuid                   pri rep docs.count docs.deleted store.size pri.store.size
+green  open   .geoip_databases                9SbjRGZfSxOVtQMB9AW30A   1   1         44           76    162.5mb        120.6mb
+green  open   .kibana_7.17.0_001              FiGjsJClR9WeWGxMHOwJvw   1   1        165           19      7.2mb          4.7mb
+green  open   .apm-custom-link                6wjGLXxZRL-bZV4sRaWB-w   1   1          0            0       452b           226b
+green  open   .apm-agent-configuration        3zBy2kGKTkCcEEjud72c0Q   1   1          0            0       452b           226b
+green  open   shard_scale_test                mEg1a0qVSu-8Wi1xAFr3cQ   2   1         15            0     18.7kb          9.3kb
+green  open   new_shard_scale_test            v4fm0LclSxagUiQdbOuX0A   8   0         16            2     32.8kb         32.8kb
+green  open   .kibana_task_manager_7.17.0_001 RVkFQGMhS1CIZxJ4iIpDgA   1   1         17       312150     37.5mb         31.3mb
+green  open   .tasks                          GWlaPX51SEK3Ow-72C_KVQ   1   1          4            0     43.1kb         21.5kb
+
+集群健康
+GET _cat/health?v
+epoch      timestamp cluster    status node.total node.data shards pri relo init unassign pending_tasks max_task_wait_time active_shards_percent
+1668494613 06:43:33  es-cluster green           2         2     30  19    0    0        0             0                  -                100.0%
+
+缩容完成
+
+结论：先禁止数据分配，而后等数据分配完成后，再关停节点，即可无损缩容
+```
+# 查询仓库
+```
+查询仓库
+GET _snapshot
+
+{
+  "my_s3_repository" : {
+    "type" : "s3",
+    "settings" : {
+      "path_style_access" : "true",
+      "signer_override" : "S3SignerType",
+      "chunk_size" : "10gb",
+      "max_restore_bytes_per_sec" : "100mb",
+      "storage_class" : "standard",
+      "compress" : "true",
+      "base_path" : "backup",
+      "max_snapshot_bytes_per_sec" : "40mb",
+      "bucket" : "es-backup-test-ldc",
+      "endpoint" : "osstest.qevoc.com",
+      "protocol" : "https",
+      "readonly" : "false",
+      "region" : "us"
+    }
+  }
+}
+
+通过verify 验证节点仓库是否在所有节点已生效
+POST /_snapshot/my_fs_backup/_verify
+
+{
+  "nodes" : {
+    "x69-suuTTzG5lDQFQg8cbQ" : {
+      "name" : "es01"
+    },
+    "lnOjL2RlTJClMMR0e8An8g" : {
+      "name" : "es02"
+    },
+    "DTt2FGRgTG-fP3cnq5Da5g" : {
+      "name" : "es03"
+    }
+  }
+}
+
+Snapshot 快照备份
+# wait_for_completion 参数表示是否要同步等Snapshot 创建完成再返回
+# PUT 请求如果传参为空则默认备份所有可读索引、流
+# my_fs_backup：指定(已创建的)仓库名称
+# snapshot_1：指定快照名称
+PUT /_snapshot/my_fs_backup/snapshot_1?wait_for_completion=true
+{
+# indices：指定要进行快照备份的索引、流
+"indices": "hundredsman,index_1,index_2",
+# ignore_unavailable：忽略不可用的索引和流
+"ignore_unavailable": true,
+# include_global_state：是否保存集群全局状态
+"include_global_state": false,
+# metadata：元数据，一些注释性的数据。
+"metadata": {
+"taken_by": "james",
+"taken_because": "Hundreds man fighting for book backup."
+}
+}
+
+
+PUT /_snapshot/my_s3_repository/snapshot_1?wait_for_completion=true
+{
+  "indices": "shard_scale_test,new_shard_scale_test",
+  "ignore_unavailable": true,
+  "include_global_state": false,
+  "metadata": {
+    "taken_by": "lindeci",
+    "taken_because": "ES backup test."
+    }
+}
+
+{
+  "snapshot" : {
+    "snapshot" : "snapshot_1",
+    "uuid" : "st_BSc9dSAicoAWPH3xVdQ",
+    "repository" : "my_s3_repository",
+    "version_id" : 7170099,
+    "version" : "7.17.0",
+    "indices" : [
+      "shard_scale_test",
+      "new_shard_scale_test"
+    ],
+    "data_streams" : [ ],
+    "include_global_state" : false,
+    "metadata" : {
+      "taken_by" : "lindeci",
+      "taken_because" : "ES backup test."
+    },
+    "state" : "SUCCESS",
+    "start_time" : "2022-12-12T11:47:19.210Z",
+    "start_time_in_millis" : 1670845639210,
+    "end_time" : "2022-12-12T11:47:20.612Z",
+    "end_time_in_millis" : 1670845640612,
+    "duration_in_millis" : 1402,
+    "failures" : [ ],
+    "shards" : {
+      "total" : 10,
+      "failed" : 0,
+      "successful" : 10
+    },
+    "feature_states" : [ ]
+  }
+}
+```
+# s3 备份
+```
+PUT /_snapshot/backup-repo/chencheng_backup_20221213_01?wait_for_completion=true
+{
+  "indices": "device_elastic,gateway_elastic,device_model",
+  "ignore_unavailable": true,
+  "include_global_state": false,
+  "metadata": {
+    "taken_by": "lindeci",
+    "taken_because": "ES backup device_elastic,gateway_elastic,device_model."
+    }
+}
+访问地址：osstest.qevoc.com
+AK：B5JYXZE264Q4IDFKG7S7
+SK：5NpkFxdZbgD9ZBrOnzsL8mhhiaWDCJk1Qtz3AnEq
+存储桶：es-backup-test-ldc
+容量：20GB
+```
+
+# snmptrap 的 logstash 测试、配置
+```
+bin/logstash-plugin list |grep snmp
+
+snmptrap {
+        port => "1064"
+        community => ["public"]
+        host => "192.168.101.204"
+    }
+	
+	
+snmptrap -v 2c -c public 172.16.13.196 "" .1.3.6.1.4.1.2021.251.1 sysLocation.0 s "i come from hadoop02 trap message"
+
+91iot.qevoc.com
+
+
+
+
+
+input {
+  udp {
+    port => 5044
+    type => rsyslog
+  }
+  snmptrap {
+    port => 5044
+    community => ["public"]
+    type => snmptrap
+  }
+}
+
+filter {
+  if [type] == "rsyslog" {
+    grok {
+      match => { "message" => "%{SYSLOGTIMESTAMP:syslog_timestamp} %{SYSLOGHOST:syslog_hostname} %{DATA:syslog_program}(?:\[%{POSINT:syslog_pid}\])?: %{GREEDYDATA:syslog_message}" }
+      add_field => [ "received_at", "%{@timestamp}" ]
+      add_field => [ "received_from", "%{host}" ]
+    }
+    date {
+      match => [ "syslog_timestamp", "MMM  d HH:mm:ss", "MMM dd HH:mm:ss" ]
+    }
+  }
+}
+
+output {
+  elasticsearch {
+    hosts => ["172.16.13.196:9200","172.16.13.197:9200","172.16.13.198:9200"]
+    index => "network_service_log_v1_%{+YYYY.MM}"
+    user => elastic
+    password => elastic
+  }
+  stdout { codec => rubydebug }
+}
+```
 
 # null 值测试
 ```sql
