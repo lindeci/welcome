@@ -233,6 +233,7 @@ STACK      max stack size                       8388608 unlimited bytes
 `lsof -i tcp:3306`
 
 # OOM
+less /var/log/messages-20240623 然后查找 kill 
 对照一个OOM实例并解析如下：
 ```sh
 1. [19174.926798] copy invoked oom-killer: gfp_mask=0x24200c8(GFP_USER|__GFP_MOVABLE), nodemask=0, order=0, oom_score_adj=0--------参考dump_header()，输出OOM产生现场线程信息，包括分配掩码、OOM信息。 
