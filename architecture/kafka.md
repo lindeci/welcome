@@ -1182,3 +1182,49 @@ PartitionAssignor(分区分配器)会根据给定的消费者和主题，决定�
 - heartbeat.interval.ms
 
 在消费组中，消费者心跳到消费者协调器的频率，默认值:3000ms
+
+# 日常运维命令
+```
+# 查看记录条数
+./kafka-run-class.sh kafka.tools.GetOffsetShell --broker-list 172.1.1.19:9092,172.1.1.20:9092,172.1.1.21:9092 --topic example --time -1
+
+kafka-run-class kafka.tools.GetOffsetShell --broker-list 172.1.1.19:9092,172.1.1.20:9092,172.1.1.21:9092 --topic example --time -1 # 返回每个分区的最大偏移量
+kafka-run-class kafka.tools.GetOffsetShell --broker-list 172.1.1.19:9092,172.1.1.20:9092,172.1.1.21:9092 --topic example --time -2 # 返回每个分区的最小偏移量
+# 从特定偏移量开始消费
+kafka-console-consumer --bootstrap-server localhost:9092 --topic test-topic --partition 0 --offset 60 --max-messages 1
+
+# 压测脚本
+
+# 重置canal偏移量
+set /otter/canal/destinations/example3/1001/cursor {"@type":"com.alibaba.otter.canal.protocol.position.LogPosition","identity":{"slaveId":-1,"sourceAddress":{"address":"172.21.228.96","port":3305}},"postion":{"gtid":"89190175-d2ce-11ed-896b-fa163eefcff4:1-2","included":false,"journalName":"mysql-bin.000012","position":1535343321,"serverId":10780,"timestamp":1695024689000}}
+
+set /otter/canal/destinations/press-test/1001/cursor {"@type":"com.alibaba.otter.canal.protocol.position.LogPosition","identity":{"slaveId":-1,"sourceAddress":{"address":"172.21.228.96","port":3305}},"postion":{"gtid":"89190175-d2ce-11ed-896b-fa163eefcff4:1-2","included":false,"journalName":"mysql-bin.000012","position":270570756,"serverId":10780,"timestamp":1695000937000}}
+
+# 重建topic
+./kafka-topics.sh --delete --topic example --bootstrap-server 172.21.227.19:9092,172.21.227.20:9092,172.21.227.21:9092
+./kafka-topics.sh --delete --topic example2 --bootstrap-server 172.21.227.19:9092,172.21.227.20:9092,172.21.227.21:9092
+./kafka-topics.sh --delete --topic example3 --bootstrap-server 172.21.227.19:9092,172.21.227.20:9092,172.21.227.21:9092
+./kafka-topics.sh --bootstrap-server 172.21.227.19:9092,172.21.227.20:9092,172.21.227.21:9092 --create --topic example --replica-assignment 1
+./kafka-topics.sh --bootstrap-server 172.21.227.19:9092,172.21.227.20:9092,172.21.227.21:9092 --create --topic example2 --replica-assignment 1
+./kafka-topics.sh --bootstrap-server 172.21.227.19:9092,172.21.227.20:9092,172.21.227.21:9092 --create --topic example3 --replica-assignment 1
+# 查看同步进度
+get -s /otter/canal/destinations/example3/1001/cursor 
+get -s /otter/canal/destinations/example2/1001/cursor
+get -s /otter/canal/destinations/press-test/1001/cursor 
+# 查看KAFKA记录数
+./kafka-run-class.sh kafka.tools.GetOffsetShell --broker-list 172.21.227.19:9092,172.21.227.20:9092,172.21.227.21:9092 --topic example --time -1
+./kafka-run-class.sh kafka.tools.GetOffsetShell --broker-list 172.21.227.19:9092,172.21.227.20:9092,172.21.227.21:9092 --topic example2 --time -1
+./kafka-run-class.sh kafka.tools.GetOffsetShell --broker-list 172.21.227.19:9092,172.21.227.20:9092,172.21.227.21:9092 --topic example3 --time -1
+# 查看第一条记录时间戳
+./kafka-console-consumer.sh --bootstrap-server  172.21.227.19:9092,172.21.227.20:9092,172.21.227.21:9092 --topic example --partition 0 --offset 0 –property print.timestamp=true --max-messages 1
+./kafka-console-consumer.sh --bootstrap-server  172.21.227.19:9092,172.21.227.20:9092,172.21.227.21:9092 --topic example2 --partition 0 --offset 0 –property print.timestamp=true --max-messages 1
+./kafka-console-consumer.sh --bootstrap-server  172.21.227.19:9092,172.21.227.20:9092,172.21.227.21:9092 --topic example3 --partition 0 --offset 0 –property print.timestamp=true --max-messages 1
+# 查看最后一条记录时间戳
+./kafka-console-consumer.sh --bootstrap-server  172.21.227.19:9092,172.21.227.20:9092,172.21.227.21:9092 --topic example --partition 0 --offset 1180 –property print.timestamp=true --max-messages 1
+./kafka-console-consumer.sh --bootstrap-server  172.21.227.19:9092,172.21.227.20:9092,172.21.227.21:9092 --topic example2 --partition 0 --offset 1180 –property print.timestamp=true --max-messages 1
+./kafka-console-consumer.sh --bootstrap-server  172.21.227.19:9092,172.21.227.20:9092,172.21.227.21:9092 --topic example3 --partition 0 --offset 1180 –property print.timestamp=true --max-messages 1
+
+# 压测
+./kafka-producer-perf-test.sh --topic example --num-records 1000000 --record-size 100 --throughput -1 --producer-props bootstrap-server 172.21.227.19:9092,172.21.227.20:9092,172.21.227.21:9092
+这个命令会向名为test-topic的topic发送1000000条大小为100字节的消息，发送时不限制吞吐量
+```
