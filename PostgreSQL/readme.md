@@ -716,5 +716,9 @@ recovery_target_xid = ''
     max_wal_size 和 min_wal_size：配置 WAL 日志大小，以确保足够的日志保留和切换频率。
 
 以上仅是一些常见的 PostgreSQL 参数配置建议，实际配置应根据你的具体情况进行调整。注意，在更改配置后，需要重新启动 PostgreSQL 服务才能使配置生效。始终建议在进行参数调整前备份数据库，并进行充分的性能测试，以确保改动不会导致意外的影响。
+```
 
+# 数据同步点位日志
+```
+Starting stream read, table list: [pgbench_branches, pgbench_accounts, pgbench_tellers, pgbench_history], offset: {"sortString":null,"offsetValue":null,"sourceOffset":"{\"lsn_proc\":1854861168,\"lsn_commit\":1854861168,\"lsn\":1854861168,\"ts_usec\":1718957298702780}"}
 ```
