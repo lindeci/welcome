@@ -722,3 +722,139 @@ recovery_target_xid = ''
 ```
 Starting stream read, table list: [pgbench_branches, pgbench_accounts, pgbench_tellers, pgbench_history], offset: {"sortString":null,"offsetValue":null,"sourceOffset":"{\"lsn_proc\":1854861168,\"lsn_commit\":1854861168,\"lsn\":1854861168,\"ts_usec\":1718957298702780}"}
 ```
+
+# PG 编译脚本
+```sh
+cat install.sh 
+#!/bin/bash
+basepath=$(cd `dirname $0`; pwd)
+postgres='postgresql-12.3'
+geos='geos-3.6.1'
+proj='proj-4.9.1'
+gdal='gdal-2.2.1'
+postgis='postgis-3.0.1'
+ipsegment=`ifconfig -a|grep inet | grep -v 127.0.0.1 | grep -v inet6 | awk '{print $2}' | awk -F . '{print $1,$2,$3}' OFS="."`
+neiwangIP=`ifconfig -a|grep inet|grep -v 127.0.0.1|grep -v inet6|awk '{print $2}'|tr -d "addr:"`
+
+mkdir -p /tmp/xlwlogs/
+
+zlibpack=`rpm -qa |grep zlib|grep i686`
+if [ "$zlibpack" != "" ]; then
+   yum remove $zlibpack -y
+fi
+
+rpm -ivh ${basepath}/json-c-devel-0.11-4.el7_0.x86_64.rpm --nodeps >>/dev/null
+tar -xzvf ${basepath}/${postgres}.tar.gz -C /tmp/ >>/dev/null
+tar -xzvf ${basepath}/${geos}-make.tar.gz  -C /tmp/ >> /dev/null
+tar -xzvf ${basepath}/${proj}-make.tar.gz -C /tmp/ >> /dev/null
+tar -xzvf ${basepath}/${gdal}.tar.gz -C /tmp/ >> /dev/null
+tar -xvf ${basepath}/${postgis}.tar.gz -C /tmp/ >> /dev/null
+
+mkdir -p /usr/local/postgresql
+
+cd /tmp/$postgres
+echo -e "\033[1;34m安装postgresql，请稍候......（时间较久，请勿强制停止脚本） \033[0m"
+echo -e "\033[1;34m开始编译安装postgresql,0为成功，其它数字为失败 \033[0m" >>/tmp/xlwlogs/install.log
+./configure --prefix=/usr/local/postgresql >> /dev/null
+make  >> /dev/null
+make install >> /dev/null && echo $? >>/tmp/xlwlogs/install.log
+
+cd /tmp/$proj
+echo -e "\033[1;34m安装proj，请稍候...... \033[0m"
+echo -e "\033[1;34m开始编译安装proj,0为成功，其它数字为失败 \033[0m" >>/tmp/xlwlogs/install.log
+./configure --prefix=/usr/local/proj >> /dev/null && make >> /dev/null && make install >> /dev/null && echo $? >>/tmp/xlwlogs/install.log
+
+cd /tmp/$geos
+echo -e "\033[1;34m安装geos，请稍候...... \033[0m"
+echo -e "\033[1;34m开始编译安装geos,0为成功，其它数字为失败 \033[0m" >>/tmp/xlwlogs/install.log
+./configure --prefix=/usr/local/geos >> /dev/null
+make >> /dev/null
+make install >> /dev/null && echo $? >>/tmp/xlwlogs/install.log
+
+cd /tmp/$gdal/gdal/
+echo -e "\033[1;34m安装gdal，请稍候...... \033[0m"
+echo -e "\033[1;34m开始编译安装gdal,0为成功，其它数字为失败 \033[0m" >>/tmp/xlwlogs/install.log
+./configure --prefix=/usr/local/gdal --with-pg=/usr/local/postgresql/bin/pg_config >> /dev/null
+make >> /dev/null
+make install >> /dev/null && echo $? >>/tmp/xlwlogs/install.log
+
+cd /tmp/$postgis
+echo -e "\033[1;34m安装postgis，请稍候...... \033[0m"
+echo -e "\033[1;34m开始编译安装postgis,0为成功，其它数字为失败 \033[0m" >>/tmp/xlwlogs/install.log
+echo '/usr/local/postgresql/lib' >>/etc/ld.so.conf
+echo '/usr/local/proj/lib' >>/etc/ld.so.conf
+echo '/usr/local/gdal/lib' >>/etc/ld.so.conf
+echo '/usr/local/geos/lib' >>/etc/ld.so.conf
+ldconfig
+./configure --prefix=/usr/local/postgresql/ --with-pgconfig=/usr/local/postgresql/bin/pg_config --with-geosconfig=/usr/local/geos/bin/geos-config --with-projdir=/usr/local/proj/ --with-gdalconfig=/usr/local/gdal/bin/gdal-config >> /dev/null
+make >> /dev/null && make install >> /dev/null && echo $? >>/tmp/xlwlogs/install.log
+
+echo "signalway        hard    nofile          65535" >> /etc/security/limits.conf
+echo "signalway        soft    nofile          65535" >> /etc/security/limits.conf
+
+g=`egrep "^signalway" /etc/group |wc -l`
+if [ $g == 0 ]
+then
+    groupadd signalway
+fi
+
+u=`egrep "^signalway" /etc/passwd |wc -l `
+if [ $u == 0 ]
+then
+    useradd -d /home/signalway -g signalway signalway
+fi
+
+echo -e "\033[1;33m请设置postgresql的存储路径，默认为/data目录，如果使用默认，请输入1并回车；如果需要自定义，请输入路径： \033[0m"
+read PG_DATA
+if [ $PG_DATA = 1 ]
+  then PG_DATA_HOME=/data/postgresql/data
+  else PG_DATA_HOME=$PG_DATA/postgresql/data
+fi
+
+rm -rf $PG_DATA_HOME/*
+mkdir -p $PG_DATA_HOME
+chown -R signalway:signalway $PG_DATA_HOME
+su - signalway -c "/usr/local/postgresql/bin/initdb -D $PG_DATA_HOME" >> /dev/null
+
+echo "PATH=/usr/local/postgresql/bin:\$PATH" >> /home/signalway/.bashrc
+echo "port = 5432" >> $PG_DATA_HOME/postgresql.conf
+echo "listen_addresses = '*'" >> $PG_DATA_HOME/postgresql.conf
+
+echo -e "\033[1;34m你的内网IP地址为: \033[0m \n\033[1;31m$neiwangIP \033[0m"
+echo -e "\033[1;34m请确认是否正确，正确则输入1并回车；如果错误，请手动输入你的内网IP地址： \033[0m"
+read ifconfig
+if [ $ifconfig = 1 ]
+  then ip=$ipsegment
+  else ip=`echo $ifconfig >>/tmp/ip | awk '{print $2}' /tmp/ip | awk -F . '{print $1,$2,$3}' OFS="." /tmp/ip`
+fi
+
+rm -rf /tmp/ip
+
+echo "host    all             all             $ip.0/0            md5" >> $PG_DATA_HOME/pg_hba.conf
+chown -R signalway:signalway $PG_DATA_HOME
+
+sed -i "s#PGDATA=/usr/local/postgresql/data#PGDATA="$PG_DATA_HOME"#" ${basepath}/postgresql
+/bin/cp -f ${basepath}/postgresql /etc/init.d/postgresql
+chmod +x /etc/init.d/postgresql
+chkconfig postgresql on
+echo -e "\033[1;34m启动postgresql \033[0m" >>/tmp/xlwlogs/install.log
+/etc/init.d/postgresql start >>/tmp/xlwlogs/install.log
+
+sleep 3
+ps -ef |grep postgresql |grep -v grep >>/dev/null
+if [ $? = 0 ]
+  then
+    echo -e "\033[1;33mpostgresql正常运行 \033[0m"
+  else
+    echo -e "\033[1;31mpostgresql启动失败 \033[0m"
+fi
+
+echo -e "\033[1;34mpostgresql安装完成 \033[0m"
+echo -e "\033[1;34mpostgresql安装目录为：/usr/local/postgresql \033[0m" && echo -e "\033[1;34mpostgresql安装目录为：/usr/local/postgresql \033[0m" >>/tmp/xlwlogs/install.log
+echo -e "\033[1;34mpostgresql存储目录为：$PG_DATA_HOME \033[0m" && echo -e "\033[1;34mpostgresql存储目录为：$PG_DATA_HOME \033[0m" >>/tmp/xlwlogs/install.log
+echo -e "\033[1;34mpostgresql配置文件目录为：$PG_DATA_HOME \033[0m" && echo -e "\033[1;34mpostgresql存储目录为：$PG_DATA_HOME \033[0m" >>/tmp/xlwlogs/install.log
+
+/etc/init.d/postgresql start
+/usr/local/postgresql/bin/psql -U signalway -d postgres -c "ALTER USER signalway WITH PASSWORD '1234zxcv';"
+```
+
