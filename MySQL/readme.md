@@ -4221,3 +4221,22 @@ Modifying the definition of an ENUM or SET column by adding new enumeration or s
 |Modifying the definition of an ENUM or SET column|	Yes|	Yes|	No|	Yes|	Yes|
 
 # decimal 跟浮点数的区别
+
+# 阿里巴巴的数据库开发规范中，对于金额的扣减，推荐使用乐观锁
+在阿里巴巴的数据库开发规范中，对于金额的扣减，推荐使用乐观锁。乐观锁假设在大多数情况下，数据不会造成冲突，因此在数据提交更新时，才会检查是否存在冲突。
+
+乐观锁的一种常见实现方式是使用版本号控制²。例如，可以在数据表中添加一个`data_version`字段来记录数据的版本号。当更新数据时，同时更新`data_version`字段的值（例如，`data_version = data_version + 1`）。这样，
+如果在提交更新时发现版本号已经被其他事务修改，就说明数据已经发生了冲突，此时更新操作就会失败²。
+
+具体的SQL可能如下：
+
+```sql
+UPDATE your_table
+SET amount = amount - 100,  -- 扣减金额
+    data_version = data_version + 1  -- 更新版本号
+WHERE id = 1 AND data_version = your_old_version and amount - 100 > 0;  -- 检查版本号
+```
+订单:订单中心服务做消息队列处理,异步下单;使用分布式锁限制扣减库存并发;快速回包确认下单成功。
+
+
+库存:基于分布式锁和库存监听机制实现高并发下的安全下单;
