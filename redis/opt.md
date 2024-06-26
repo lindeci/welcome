@@ -1343,3 +1343,7 @@ REDIS 开发规范
 
   16）禁止同一集群跨数据中心部署
 ```
+https://developer.aliyun.com/article/1009125
+```
+
+```
