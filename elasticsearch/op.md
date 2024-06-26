@@ -2446,3 +2446,34 @@ curl -X DELETE 'https://172.1.1.2:9200/.xxxx-test-2023.11.30-000024' -uelastic:1
 ## 2、扩容磁盘空间
 
 ## 
+# 统计 ingress 最近7天平均响应时间
+```
+POST _sql?format=txt
+{
+  "query": """
+  SELECT DATE_TRUNC('day', "@timestamp") AS date,
+       COUNT(1) AS count, 
+       avg(CAST(request_time AS double)) as avg_time
+FROM "logs-prod-ingress-nginx"
+WHERE request_domain = 'h5.evocqd.com'
+  AND "@timestamp" BETWEEN '2024-06-19T00:00:00' AND '2024-06-27T00:00:00'
+GROUP BY date
+ORDER BY date
+  """
+}
+```
+
+# http 异常 监控 统计
+```
+cat eslog-script.sh
+#!/bin/bash
+instance_ip=172.1.1.1
+begin_time=$(TZ='UTC+0'  date -d"-60 seconds" '+%Y-%m-%dT%H:%M:%S')
+end_time=$(TZ='UTC+0'  date -d"seconds" '+%Y-%m-%dT%H:%M:%S')
+warnings_num=$(curl -X POST "http://172.21.16.31:9200/_sql?format=json" -uelastic:ggfw_elastic@123 -H 'Content-Type: application/json' -d "{\"query\": \"SELECT COUNT(*) as cnt FROM \\\"logs-prod-ingress-nginx\\\" WHERE status between 400 and 599 and upstream_status between 400 and 599 and \\\"@timestamp\\\" between '$begin_time' and '$end_time' and proxy_upstream_name like 'evoc1-diving%'\"}" | jq -r '.rows[0] | @tsv')
+ 
+cat <<EOF | curl --data-binary @- http://172.16.3.167:9001/metrics/job/es-$instance_ip/instance/$instance_ip
+  # TYPE warnings_num
+  es_warnings $warnings_num
+EOF
+```
