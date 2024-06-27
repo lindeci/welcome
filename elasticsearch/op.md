@@ -2477,3 +2477,96 @@ cat <<EOF | curl --data-binary @- http://172.16.3.167:9001/metrics/job/es-$insta
   es_warnings $warnings_num
 EOF
 ```
+
+# ik 分词器建索引失败
+```
+PUT appstore_tenant_services_event
+{
+  "mappings": {
+    "properties": {
+      "id": { "type": "integer" },
+      "create_time": { "type": "date" },
+      "event_id": { "type": "keyword" },
+      "tenant_id": { "type": "keyword" },
+      "service_id": { "type": "keyword" },
+      "target": { "type": "keyword" },
+      "target_id": { "type": "keyword" },
+      "request_body": { "type": "text" },
+      "user_name": { "type": "keyword" },
+      "start_time": { "type": "keyword" },
+      "end_time": { "type": "keyword" },
+      "opt_type": { "type": "keyword" },
+      "syn_type": { "type": "integer" },
+      "status": { "type": "keyword" },
+      "final_status": { "type": "keyword" },
+      "message": { 
+        "type": "text",
+        "analyzer": "ik_max_word",
+        "search_analyzer": "ik_smart_analyzer"
+      }
+      "reason": { "type": "text" }
+    }
+  }
+}
+报错内容：
+  "error" : {
+    "root_cause" : [
+      {
+        "type" : "mapper_parsing_exception",
+        "reason" : "Failed to parse mapping [_doc]: analyzer [ik_smart_analyzer] has not been configured in mappings"
+      }
+    ],
+    "type" : "mapper_parsing_exception",
+    "reason" : "Failed to parse mapping [_doc]: analyzer [ik_smart_analyzer] has not been configured in mappings",
+    "caused_by" : {
+      "type" : "illegal_argument_exception",
+      "reason" : "analyzer [ik_smart_analyzer] has not been configured in mappings"
+    }
+  },
+  "status" : 400
+}
+
+修正语句
+PUT /appstore_tenant_services_event
+{
+  "settings": {
+    "analysis": {
+      "analyzer": {
+        "ik_max_word": {
+          "type": "custom",
+          "tokenizer": "ik_max_word"
+        },
+        "ik_smart_analyzer": {
+          "type": "custom",
+          "tokenizer": "ik_smart"
+        }
+      }
+    }
+  },
+  "mappings": {
+    "properties": {
+      "id": { "type": "integer" },
+      "create_time": { "type": "date" },
+      "event_id": { "type": "keyword" },
+      "tenant_id": { "type": "keyword" },
+      "service_id": { "type": "keyword" },
+      "target": { "type": "keyword" },
+      "target_id": { "type": "keyword" },
+      "request_body": { "type": "text" },
+      "user_name": { "type": "keyword" },
+      "start_time": { "type": "keyword" },
+      "end_time": { "type": "keyword" },
+      "opt_type": { "type": "keyword" },
+      "syn_type": { "type": "integer" },
+      "status": { "type": "keyword" },
+      "final_status": { "type": "keyword" },
+      "message": { 
+        "type": "text",
+        "analyzer": "ik_max_word",
+        "search_analyzer": "ik_smart"
+      },
+      "reason": { "type": "text" }
+    }
+  }
+}
+```
