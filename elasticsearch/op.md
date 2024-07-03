@@ -2570,3 +2570,84 @@ PUT /appstore_tenant_services_event
   }
 }
 ```
+
+# 防止数据倾斜
+在 Elasticsearch 中，扩容新数据节点后，为了防止数据倾斜（数据分布不均匀），需要对集群进行一些调整和优化。以下是一些常见的方法：
+
+## 1. **重新分配分片 (Shard Reallocation)**
+扩容新数据节点后，Elasticsearch 会自动尝试重新分配分片到新的节点。可以手动触发分片重新分配来确保数据均匀分布。
+
+```bash
+POST /_cluster/reroute
+```
+
+## 2. **调整分片数量**
+根据数据规模和节点数量，调整索引的主分片和副本分片数量。更多的分片可以提高数据分布的均匀性。
+
+```bash
+PUT /my_index/_settings
+{
+  "number_of_replicas": 1
+}
+```
+
+## 3. **平衡分片**
+Elasticsearch 的分片分配机制依赖于集群设置中的分配和再平衡策略。确保以下设置合适，以帮助分片均匀分布。
+
+检查和调整集群设置：
+
+```bash
+PUT /_cluster/settings
+{
+  "transient": {
+    "cluster.routing.rebalance.enable": "all",
+    "cluster.routing.allocation.enable": "all",
+    "cluster.routing.allocation.cluster_concurrent_rebalance": 2
+  }
+}
+```
+
+## 4. **分片过滤 (Shard Allocation Filtering)**
+在新节点上启用分片分配过滤，以暂时阻止分片分配，然后再启用，以确保分片分配更均匀。
+
+```bash
+PUT /_cluster/settings
+{
+  "transient": {
+    "cluster.routing.allocation.exclude._name": "new_node_name"
+  }
+}
+
+# 等待一段时间后移除过滤
+PUT /_cluster/settings
+{
+  "transient": {
+    "cluster.routing.allocation.exclude._name": ""
+  }
+}
+```
+
+## 5. **监控与调整**
+使用 Kibana 或其他监控工具（如 Elasticsearch Kopf 插件）来监控分片分布和数据均匀性。根据监控结果调整上述设置。
+
+## 6. **适当的索引生命周期管理 (ILM)**
+利用 Elasticsearch 的索引生命周期管理策略，确保数据在生命周期内的分配和移动是合理的，避免数据热点。
+
+```bash
+PUT _ilm/policy/my_policy
+{
+  "policy": {
+    "phases": {
+      "hot": {
+        "actions": {
+          "rollover": {
+            "max_size": "50GB"
+          }
+        }
+      }
+    }
+  }
+}
+```
+
+通过这些方法，你可以在扩展新的数据节点后有效地管理和均衡数据，避免数据倾斜问题。
