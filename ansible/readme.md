@@ -991,28 +991,28 @@ Ansible提供了一些特殊的变量来帮助你处理路径。以下是一些�
 ## hosts
 ```yml
 [es_mc]
-es_mc01 ansible_ssh_host=172.21.251.174
-es_mc02 ansible_ssh_host=172.21.251.181
-es_mc03 ansible_ssh_host=172.21.251.186
+es_mc01 ansible_ssh_host=172.1.1.174
+es_mc02 ansible_ssh_host=172.1.1.181
+es_mc03 ansible_ssh_host=172.1.1.186
 
 [node]
-node_01 ansible_ssh_host=172.21.251.174
-node_02 ansible_ssh_host=172.21.251.181
-node_03 ansible_ssh_host=172.21.251.186
+node_01 ansible_ssh_host=172.1.1.174
+node_02 ansible_ssh_host=172.1.1.181
+node_03 ansible_ssh_host=172.1.1.186
 
 [master]
-master_mc01 ansible_ssh_host=172.21.251.174
-master_mc02 ansible_ssh_host=172.21.251.181
-master_mc03 ansible_ssh_host=172.21.251.186
+master_mc01 ansible_ssh_host=172.1.1.174
+master_mc02 ansible_ssh_host=172.1.1.181
+master_mc03 ansible_ssh_host=172.1.1.186
 
 [data]
-data_mc01 ansible_ssh_host=172.21.251.174
-data_mc02 ansible_ssh_host=172.21.251.181
-data_mc03 ansible_ssh_host=172.21.251.186
+data_mc01 ansible_ssh_host=172.1.1.174
+data_mc02 ansible_ssh_host=172.1.1.181
+data_mc03 ansible_ssh_host=172.1.1.186
 
 [kibana]
-kibana_mc01 ansible_ssh_host=172.21.251.174
-kibana_mc02 ansible_ssh_host=172.21.251.181
+kibana_mc01 ansible_ssh_host=172.1.1.174
+kibana_mc02 ansible_ssh_host=172.1.1.181
 ```
 ## main.yml
 ```yml
@@ -1049,35 +1049,35 @@ ok: [node_03] => {
 
 TASK [es_beginning : Concatenate group values into a string2] ***********************
 ok: [node_01] => {
-    "msg": "ansible_play_hosts:['node_01', 'node_02', 'node_03'] | inventory_hostname:node_01 | group_names:['node'] | hostvars[inventory_hostname]['ansible_ssh_host']:172.21.251.174"
+    "msg": "ansible_play_hosts:['node_01', 'node_02', 'node_03'] | inventory_hostname:node_01 | group_names:['node'] | hostvars[inventory_hostname]['ansible_ssh_host']:172.1.1.174"
 }
 ok: [node_02] => {
-    "msg": "ansible_play_hosts:['node_01', 'node_02', 'node_03'] | inventory_hostname:node_02 | group_names:['node'] | hostvars[inventory_hostname]['ansible_ssh_host']:172.21.251.181"
+    "msg": "ansible_play_hosts:['node_01', 'node_02', 'node_03'] | inventory_hostname:node_02 | group_names:['node'] | hostvars[inventory_hostname]['ansible_ssh_host']:172.1.1.181"
 }
 ok: [node_03] => {
-    "msg": "ansible_play_hosts:['node_01', 'node_02', 'node_03'] | inventory_hostname:node_03 | group_names:['node'] | hostvars[inventory_hostname]['ansible_ssh_host']:172.21.251.186"
+    "msg": "ansible_play_hosts:['node_01', 'node_02', 'node_03'] | inventory_hostname:node_03 | group_names:['node'] | hostvars[inventory_hostname]['ansible_ssh_host']:172.1.1.186"
 }
 
 TASK [es_beginning : Get ansible_ssh_host values and concatenate into a string2] ***********************
 ok: [node_01] => {
-    "msg": "172.21.251.174\",\"172.21.251.181\",\"172.21.251.186"
+    "msg": "172.1.1.174\",\"172.1.1.181\",\"172.1.1.186"
 }
 ok: [node_02] => {
-    "msg": "172.21.251.174\",\"172.21.251.181\",\"172.21.251.186"
+    "msg": "172.1.1.174\",\"172.1.1.181\",\"172.1.1.186"
 }
 ok: [node_03] => {
-    "msg": "172.21.251.174\",\"172.21.251.181\",\"172.21.251.186"
+    "msg": "172.1.1.174\",\"172.1.1.181\",\"172.1.1.186"
 }
 
 TASK [es_beginning : Get ansible_ssh_host values and concatenate into a string3] ***********************
 ok: [node_01] => {
-    "msg": "172.21.251.174\",\"172.21.251.181"
+    "msg": "172.1.1.174\",\"172.1.1.181"
 }
 ok: [node_02] => {
-    "msg": "172.21.251.174\",\"172.21.251.181"
+    "msg": "172.1.1.174\",\"172.1.1.181"
 }
 ok: [node_03] => {
-    "msg": "172.21.251.174\",\"172.21.251.181"
+    "msg": "172.1.1.174\",\"172.1.1.181"
 }
 
 PLAY [install es server] ***********************

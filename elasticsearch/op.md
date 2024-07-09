@@ -72,6 +72,15 @@
   - [Elasticsearch 权限说明](#elasticsearch-权限说明)
 - [命令行授权](#命令行授权)
 - [别名操作](#别名操作)
+- [查看索引碎片恢复进度](#查看索引碎片恢复进度)
+- [各节点上已存在的数据](#各节点上已存在的数据)
+- [索引分片分配情况](#索引分片分配情况)
+- [split操做](#split操做)
+- [\_cluster/settings 设置](#_clustersettings-设置)
+- [缩容测试](#缩容测试)
+- [查询仓库](#查询仓库)
+- [s3 备份](#s3-备份)
+- [snmptrap 的 logstash 测试、配置](#snmptrap-的-logstash-测试配置)
 - [null 值测试](#null-值测试)
 - [\_cat命令集](#_cat命令集)
 - [\_cluster命令集](#_cluster命令集)
@@ -79,6 +88,16 @@
   - [1、TOO\_MANY\_REQUESTS/12/disk usage exceeded flood-stage watermark](#1too_many_requests12disk-usage-exceeded-flood-stage-watermark)
   - [2、扩容磁盘空间](#2扩容磁盘空间)
   - [](#)
+- [统计 ingress 最近7天平均响应时间](#统计-ingress-最近7天平均响应时间)
+- [http 异常 监控 统计](#http-异常-监控-统计)
+- [ik 分词器建索引失败](#ik-分词器建索引失败)
+- [防止数据倾斜](#防止数据倾斜)
+  - [1. **重新分配分片 (Shard Reallocation)**](#1-重新分配分片-shard-reallocation)
+  - [2. **调整分片数量**](#2-调整分片数量)
+  - [3. **平衡分片**](#3-平衡分片)
+  - [4. **分片过滤 (Shard Allocation Filtering)**](#4-分片过滤-shard-allocation-filtering)
+  - [5. **监控与调整**](#5-监控与调整)
+  - [6. **适当的索引生命周期管理 (ILM)**](#6-适当的索引生命周期管理-ilm)
 
 
 # 网上资料
@@ -1937,10 +1956,10 @@ POST /_aliases
 GET /_cat/recovery?v
 GET /_cat/recovery/shard_scale_test?v
 index            shard time  type        stage source_host   source_node target_host   target_node repository snapshot files files_recovered files_percent files_total bytes bytes_recovered bytes_percent bytes_total translog_ops translog_ops_recovered translog_ops_percent
-shard_scale_test 0     341ms empty_store done  n/a           n/a         172.16.13.196 es01        n/a        n/a      0     0               0.0%          0           0     0               0.0%          0           0            0                      100.0%
-shard_scale_test 0     846ms peer        done  172.16.13.196 es01        172.16.13.197 es02        n/a        n/a      4     4               100.0%        4           4907  4907            100.0%        4907        0            0                      100.0%
-shard_scale_test 1     299ms peer        done  172.16.13.197 es02        172.16.13.196 es01        n/a        n/a      4     4               100.0%        4           4693  4693            100.0%        4693        0            0                      100.0%
-shard_scale_test 1     224ms empty_store done  n/a           n/a         172.16.13.197 es02        n/a        n/a      0     0               0.0%          0           0     0               0.0%          0           0            0                      100.0%
+shard_scale_test 0     341ms empty_store done  n/a           n/a         172.1.1.196 es01        n/a        n/a      0     0               0.0%          0           0     0               0.0%          0           0            0                      100.0%
+shard_scale_test 0     846ms peer        done  172.1.1.196 es01        172.1.1.197 es02        n/a        n/a      4     4               100.0%        4           4907  4907            100.0%        4907        0            0                      100.0%
+shard_scale_test 1     299ms peer        done  172.1.1.197 es02        172.1.1.196 es01        n/a        n/a      4     4               100.0%        4           4693  4693            100.0%        4693        0            0                      100.0%
+shard_scale_test 1     224ms empty_store done  n/a           n/a         172.1.1.197 es02        n/a        n/a      0     0               0.0%          0           0     0               0.0%          0           0            0                      100.0%
 
 GET _cluster/settings
 返回
@@ -1954,27 +1973,27 @@ curl -X GET http://172.1.1.1:9200/_cat/recovery?h=index,shard,time,type,stage,ta
 GET /_cat/recovery?h=index,shard,time,type,stage,target_host,files,files_percent,bytes,bytes_percent,translog_ops,translog_ops_percent&v
 
 index                           shard time  type           stage target_host   files files_percent bytes   bytes_percent translog_ops translog_ops_percent
-.kibana_7.17.0_001              0     262ms existing_store done  172.16.13.196 0     100.0%        0       100.0%        0            100.0%
-.kibana_7.17.0_001              0     2.1s  peer           done  172.16.13.198 63    100.0%        2546563 100.0%        37           100.0%
-.apm-custom-link                0     109ms peer           done  172.16.13.197 0     0.0%          0       0.0%          0            100.0%
-.apm-custom-link                0     894ms peer           done  172.16.13.198 1     100.0%        226     100.0%        0            100.0%
-.apm-agent-configuration        0     252ms peer           done  172.16.13.196 0     0.0%          0       0.0%          0            100.0%
-.apm-agent-configuration        0     1.6s  existing_store done  172.16.13.197 0     100.0%        0       100.0%        0            100.0%
-shard_scale_test                0     341ms empty_store    done  172.16.13.196 0     0.0%          0       0.0%          0            100.0%
-shard_scale_test                0     846ms peer           done  172.16.13.197 4     100.0%        4907    100.0%        0            100.0%
-shard_scale_test                1     299ms peer           done  172.16.13.196 4     100.0%        4693    100.0%        0            100.0%
-shard_scale_test                1     224ms empty_store    done  172.16.13.197 0     0.0%          0       0.0%          0            100.0%
-.kibana_task_manager_7.17.0_001 0     195ms existing_store done  172.16.13.196 0     100.0%        0       100.0%        0            100.0%
-.kibana_task_manager_7.17.0_001 0     41.4s peer           done  172.16.13.198 71    100.0%        296414  100.0%        248744       100.0%
-.tasks                          0     1.3s  existing_store done  172.16.13.196 0     100.0%        0       100.0%        0            100.0%
-.tasks                          0     291ms peer           done  172.16.13.197 0     0.0%          0       0.0%          0            100.0%
+.kibana_7.17.0_001              0     262ms existing_store done  172.1.1.196 0     100.0%        0       100.0%        0            100.0%
+.kibana_7.17.0_001              0     2.1s  peer           done  172.1.1.198 63    100.0%        2546563 100.0%        37           100.0%
+.apm-custom-link                0     109ms peer           done  172.1.1.197 0     0.0%          0       0.0%          0            100.0%
+.apm-custom-link                0     894ms peer           done  172.1.1.198 1     100.0%        226     100.0%        0            100.0%
+.apm-agent-configuration        0     252ms peer           done  172.1.1.196 0     0.0%          0       0.0%          0            100.0%
+.apm-agent-configuration        0     1.6s  existing_store done  172.1.1.197 0     100.0%        0       100.0%        0            100.0%
+shard_scale_test                0     341ms empty_store    done  172.1.1.196 0     0.0%          0       0.0%          0            100.0%
+shard_scale_test                0     846ms peer           done  172.1.1.197 4     100.0%        4907    100.0%        0            100.0%
+shard_scale_test                1     299ms peer           done  172.1.1.196 4     100.0%        4693    100.0%        0            100.0%
+shard_scale_test                1     224ms empty_store    done  172.1.1.197 0     0.0%          0       0.0%          0            100.0%
+.kibana_task_manager_7.17.0_001 0     195ms existing_store done  172.1.1.196 0     100.0%        0       100.0%        0            100.0%
+.kibana_task_manager_7.17.0_001 0     41.4s peer           done  172.1.1.198 71    100.0%        296414  100.0%        248744       100.0%
+.tasks                          0     1.3s  existing_store done  172.1.1.196 0     100.0%        0       100.0%        0            100.0%
+.tasks                          0     291ms peer           done  172.1.1.197 0     0.0%          0       0.0%          0            100.0%
 ```
 # 各节点上已存在的数据
 ```
 GET /_cat/allocation?v
 shards disk.indices disk.used disk.avail disk.total disk.percent host          ip            node
-    11       69.4mb    11.3gb    187.6gb    198.9gb            5 172.16.13.197 172.16.13.197 es02
-    11       69.3mb    12.1gb    186.8gb    198.9gb            6 172.16.13.196 172.16.13.196 es01
+    11       69.4mb    11.3gb    187.6gb    198.9gb            5 172.1.1.197 172.1.1.197 es02
+    11       69.3mb    12.1gb    186.8gb    198.9gb            6 172.1.1.196 172.1.1.196 es01
 ```
 
 # 索引分片分配情况
@@ -1982,10 +2001,10 @@ shards disk.indices disk.used disk.avail disk.total disk.percent host          i
 GET _cat/shards?v
 GET _cat/shards/shard_scale_test?v
 index            shard prirep state   docs store ip            node
-shard_scale_test 1     r      STARTED    6 4.5kb 172.16.13.196 es01
-shard_scale_test 1     p      STARTED    6 4.5kb 172.16.13.197 es02
-shard_scale_test 0     p      STARTED    9 4.7kb 172.16.13.196 es01
-shard_scale_test 0     r      STARTED    9 4.7kb 172.16.13.197 es02
+shard_scale_test 1     r      STARTED    6 4.5kb 172.1.1.196 es01
+shard_scale_test 1     p      STARTED    6 4.5kb 172.1.1.197 es02
+shard_scale_test 0     p      STARTED    9 4.7kb 172.1.1.196 es01
+shard_scale_test 0     r      STARTED    9 4.7kb 172.1.1.197 es02
 ```
 # split操做
 ```
@@ -2068,22 +2087,22 @@ PUT _cluster/settings
 PUT _cluster/settings
 {
   "transient" : {
-    "cluster.routing.allocation.exclude._ip" : "172.16.13.197"
+    "cluster.routing.allocation.exclude._ip" : "172.1.1.197"
   }
 }
 执行成功后观察，节点还在集群内
 GET _cat/nodes?v
 ip            heap.percent ram.percent cpu load_1m load_5m load_15m node.role   master name
-172.16.13.198           45          59   1    0.26    0.13     0.10 cdfhilmrstw -      es03
-172.16.13.196           48          76   2    0.12    0.11     0.10 cdfhilmrstw *      es01
-172.16.13.197           60          73   0    0.02    0.01     0.00 cdfhilmrstw -      es02
+172.1.1.198           45          59   1    0.26    0.13     0.10 cdfhilmrstw -      es03
+172.1.1.196           48          76   2    0.12    0.11     0.10 cdfhilmrstw *      es01
+172.1.1.197           60          73   0    0.02    0.01     0.00 cdfhilmrstw -      es02
 
 但是192.168.0.151和192.168.0.152上面已经没有数据了（第二个字段可以看出）
 GET _cat/allocation?v
 shards disk.indices disk.used disk.avail disk.total disk.percent host          ip            node
-    15       75.8mb    12.3gb    186.6gb    198.9gb            6 172.16.13.196 172.16.13.196 es01
-     0           0b    11.1gb    187.8gb    198.9gb            5 172.16.13.197 172.16.13.197 es02
-    15       50.6mb     4.3gb    194.6gb    198.9gb            2 172.16.13.198 172.16.13.198 es03
+    15       75.8mb    12.3gb    186.6gb    198.9gb            6 172.1.1.196 172.1.1.196 es01
+     0           0b    11.1gb    187.8gb    198.9gb            5 172.1.1.197 172.1.1.197 es02
+    15       50.6mb     4.3gb    194.6gb    198.9gb            2 172.1.1.198 172.1.1.198 es03
 
 开始缩容
 关停1个节点
@@ -2098,13 +2117,13 @@ ps -ef|grep elasticsearch
 
 GET _cat/nodes?v
 ip            heap.percent ram.percent cpu load_1m load_5m load_15m node.role   master name
-172.16.13.198           12          60   2    0.17    0.09     0.09 cdfhilmrstw -      es03
-172.16.13.196           16          76   3    0.26    0.15     0.11 cdfhilmrstw *      es01
+172.1.1.198           12          60   2    0.17    0.09     0.09 cdfhilmrstw -      es03
+172.1.1.196           16          76   3    0.26    0.15     0.11 cdfhilmrstw *      es01
 
 GET _cat/allocation?v
 shards disk.indices disk.used disk.avail disk.total disk.percent host          ip            node
-    15      156.9mb    12.4gb    186.5gb    198.9gb            6 172.16.13.196 172.16.13.196 es01
-    15       51.3mb     4.4gb    194.5gb    198.9gb            2 172.16.13.198 172.16.13.198 es03
+    15      156.9mb    12.4gb    186.5gb    198.9gb            6 172.1.1.196 172.1.1.196 es01
+    15       51.3mb     4.4gb    194.5gb    198.9gb            2 172.1.1.198 172.1.1.198 es03
 	
 索引健康
 GET _cat/indices?v
@@ -2265,7 +2284,7 @@ snmptrap {
     }
 	
 	
-snmptrap -v 2c -c public 172.16.13.196 "" .1.3.6.1.4.1.2021.251.1 sysLocation.0 s "i come from hadoop02 trap message"
+snmptrap -v 2c -c public 172.1.1.196 "" .1.3.6.1.4.1.2021.251.1 sysLocation.0 s "i come from hadoop02 trap message"
 
 91iot.qevoc.com
 
@@ -2300,7 +2319,7 @@ filter {
 
 output {
   elasticsearch {
-    hosts => ["172.16.13.196:9200","172.16.13.197:9200","172.16.13.198:9200"]
+    hosts => ["172.1.1.196:9200","172.1.1.197:9200","172.1.1.198:9200"]
     index => "network_service_log_v1_%{+YYYY.MM}"
     user => elastic
     password => elastic
