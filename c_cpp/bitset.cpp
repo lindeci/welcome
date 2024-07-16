@@ -37,3 +37,30 @@ int main()
     cout<< "me.to_string()  :" << me.to_string() << endl;     //返回对应的字符串
     return 0;
 }
+/*
+------~操作-----------
+a            :8
+bitset<8>(a) :00001000
+bitset<8>(~a):11110111
+~a           :-9
+-------字符串赋值------
+bitset<8>("10011")       :00010011
+bitset<8>("10011",4)     :00001001
+bitset<8>("1101011",3,4) :00001001
+-------函数成员--------
+me              :10011011
+me.any()        :1
+me.none()       :0
+me.count()      :5
+me.size()       :8
+me.flip()       :01100100
+me.flip(2)      :01100000
+me[0]           :0
+me.set()        :11111111
+me.set(1)       :11111111
+me.reset()      :00000000
+me.reset(2)     :00000000
+me.test(1)      :0
+me.to_ulong()   :255
+me.to_string()  :11111111
+*/
