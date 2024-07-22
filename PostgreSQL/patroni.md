@@ -12,7 +12,7 @@
 	- [添加空密码用户](#添加空密码用户)
 - [高可用切换](#高可用切换)
 	- [手工切换](#手工切换)
-- [清理 etcd 中集群信息](#清理 etcd 中集群信息)
+- [清理 etcd 中集群信息](#清理-etcd-中集群信息)
 
 # 安装etcd
 
@@ -44,7 +44,7 @@ sudo yum install -y postgresql12-server
 ```
 
 # patroni 流程讲解
-https://github.com/zalando/patroni/blob/master/docs/ha_loop_diagram.png
+![](https://github.com/zalando/patroni/blob/master/docs/ha_loop_diagram.png)
 
 # 安装Patroni
 
