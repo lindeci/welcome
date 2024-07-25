@@ -2489,9 +2489,9 @@ cat eslog-script.sh
 instance_ip=172.1.1.1
 begin_time=$(TZ='UTC+0'  date -d"-60 seconds" '+%Y-%m-%dT%H:%M:%S')
 end_time=$(TZ='UTC+0'  date -d"seconds" '+%Y-%m-%dT%H:%M:%S')
-warnings_num=$(curl -X POST "http://172.21.16.31:9200/_sql?format=json" -uelastic:ggfw_elastic@123 -H 'Content-Type: application/json' -d "{\"query\": \"SELECT COUNT(*) as cnt FROM \\\"logs-prod-ingress-nginx\\\" WHERE status between 400 and 599 and upstream_status between 400 and 599 and \\\"@timestamp\\\" between '$begin_time' and '$end_time' and proxy_upstream_name like 'evoc1-diving%'\"}" | jq -r '.rows[0] | @tsv')
+warnings_num=$(curl -X POST "http://172.1.1.1:9200/_sql?format=json" -uelastic:ggfw_elastic@123 -H 'Content-Type: application/json' -d "{\"query\": \"SELECT COUNT(*) as cnt FROM \\\"logs-prod-ingress-nginx\\\" WHERE status between 400 and 599 and upstream_status between 400 and 599 and \\\"@timestamp\\\" between '$begin_time' and '$end_time' and proxy_upstream_name like 'evoc1-diving%'\"}" | jq -r '.rows[0] | @tsv')
  
-cat <<EOF | curl --data-binary @- http://172.16.3.167:9001/metrics/job/es-$instance_ip/instance/$instance_ip
+cat <<EOF | curl --data-binary @- http://172.1.1.1:9001/metrics/job/es-$instance_ip/instance/$instance_ip
   # TYPE warnings_num
   es_warnings $warnings_num
 EOF
