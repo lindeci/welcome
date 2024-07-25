@@ -41,6 +41,17 @@
 - [授权序列](#授权序列)
 - [给 kong 的所有权限](#给-kong-的所有权限)
 - [pgbench 压测](#pgbench-压测)
+- [关闭数据库所有会话](#关闭数据库所有会话)
+- [查询注释](#查询注释)
+- [to\_timestamp() 字符串转时间](#to_timestamp-字符串转时间)
+- [to\_char 时间转字符串](#to_char-时间转字符串)
+- [根据已有表结构创建表](#根据已有表结构创建表)
+- [时间加减](#时间加减)
+- [substring字符串截取](#substring字符串截取)
+- [执行sql脚本](#执行sql脚本)
+- [导出数据到SQL文件](#导出数据到sql文件)
+- [单机 PostgreSQL 连接串](#单机-postgresql-连接串)
+- [集群PostgreSQL 连接串](#集群postgresql-连接串)
 - [帮助命令](#帮助命令)
   - [General](#general)
   - [Help](#help)
@@ -55,6 +66,9 @@
   - [Variables](#variables)
 - [启动关闭](#启动关闭)
 - [物理备份恢复](#物理备份恢复)
+- [参数讲解](#参数讲解)
+- [数据同步点位日志](#数据同步点位日志)
+- [PG 编译脚本](#pg-编译脚本)
 
 # 官网
 
@@ -126,6 +140,87 @@ PGPASSWORD=123456 psql -h172.1.1.1 -Upostgres -p5432 -c "select id from test;"
 SET log_duration = on;
 ```
 
+在 PostgreSQL 中，如果你执行 `SET log_duration = on;`，它会记录每个已完成的 SQL 语句的持续时间。但是需要注意的是，默认情况下，这个选项是关闭的。如果你想要记录所有 SQL 语句，你还需要在 `postgresql.conf` 文件中设置以下参数：
+- 将 `log_statement` 设置为 `'all'`，以记录所有 SQL 语句。
+- 将 `log_min_duration_statement` 设置为 `0`，以记录所有语句的执行时间²。
+此外，确保你已经启用了 `logging_collector`，并且 `log_directory` 目录已经存在且可写入。
+
+
+postgresql 开启审计日志  
+1、审计清单说明
+```sh
+logging_collector     --是否开启日志收集开关，默认off，推荐on
+log_destination       --日志记录类型，默认是stderr，只记录错误输出，推荐csvlog，总共包含：stderr, csvlog, syslog, and eventlog,
+log_directory          --日志路径，默认是$PGDATA/pg_log, 
+log_filename            --日志名称，默认是postgresql-%Y-%m-%d_%H%M%S.log
+log_file_mode           --日志文件类型，默认为0600
+log_truncate_on_rotation  --默认为off，设置为on的话，文件内容覆盖方式：off后面附加，on：清空再加
+log_rotation_age      --保留单个文件的最大时长,默认是1d,也有1h,1min,1s
+log_rotation_size       --保留单个文件的最大尺寸，默认是10MB
+log_error_verbosity    --默认为default，verbose表示冗长的
+log_connections    --用户session登陆时是否写入日志，默认off，推荐为on
+log_disconnections --用户session退出时是否写入日志，默认off，推荐为on
+log_statement    --记录用户登陆数据库后的各种操作 none，即不记录ddl(记录create,drop和alter) mod(记录ddl+insert,delete,update和truncate) all(mod+select)
+log_min_duration_statement = 2s   --记录超过2秒的SQL
+log_checkpoints = on
+log_lock_waits ＝ on
+deadlock_timeout ＝ 1s
+```
+2、推荐的设置参数
+```
+logging_collector = on
+log_destination = 'csvlog'
+log_truncate_on_rotation = on
+log_connections = on
+log_disconnections = on
+log_error_verbosity = verbose
+log_statement = ddl
+log_min_duration_statement = 60s
+log_checkpoints = on
+log_lock_waits ＝ on
+deadlock_timeout ＝ 1s
+```
+log_min_duration_statement、log_checkpoints、log_lock_waits是postgresql.conf文件中没有的
+
+查看日志目录和日志文件名：
+``
+show log_directory;
+show log_filename;
+``
+3、参数修改方法
+
+直接修改配置文件
+
+postgresql.conf默认位于$PGDATA目录下。
+```
+vi /usr/data/pgsql/data/postgresql.conf
+
+用超级用户运行：postgres=# SELECT pg_reload_conf();
+```
+show命令可以查询当前状态
+
+ 审计日志例子
+```sh
+2024-07-20 03:50:20.371 UTC,"postgres","postgres",28023,"[local]",669b320b.6d77,8,"idle",2024-07-20 03:42:03 UTC,0/11,0,LOG,00000,"statement: select name,enumvals,extra_desc from pg_settings where name like 'log%';",,,,,,,,,"psql","client backend",,0
+```
+这个 PostgreSQL 的审计日志中的字段含义如下：
+1. **时间戳**：2024-07-20 03:50:20.371 UTC，表示日志记录的时间。
+2. **用户名**：`"postgres"`，表示执行 SQL 语句的数据库用户。
+3. **数据库名**：`"postgres"`，表示连接到的数据库名称。
+4. **进程 ID**：`28023`，表示执行 SQL 语句的后台进程的 ID。
+5. **客户端地址**：`"[local]"`，表示客户端连接的地址。
+6. **会话 ID**：`669b320b.6d77`，表示会话的唯一标识符。
+7. **会话状态**：`"idle"`，表示会话当前的状态。
+8. **开始时间**：`2024-07-20 03:42:03 UTC`，表示会话开始的时间。
+9. **事务 ID**：`0/11`，表示当前事务的 ID。
+10. **日志级别**：`LOG`，表示日志的级别。
+11. **消息代码**：`00000`，表示消息的代码。
+12. **SQL 语句**：`"statement: select name,enumvals,extra_desc from pg_settings where name like 'log%';"`，表示执行的 SQL 查询语句。
+13. **客户端应用程序名称**：`"psql"`，表示连接的客户端应用程序。
+14. **客户端类型**：`"client backend"`，表示客户端的类型。
+15. **错误位置**：空白，表示错误的位置（如果有）。
+16. **错误详情**：空白，表示错误的详细信息（如果有）。
+
 ## 显示SQL的执行耗时
 ```sql
 \timing
@@ -169,6 +264,155 @@ postgres=# SELECT datname FROM pg_database;
 SELECT schema_name
 FROM information_schema.schemata;
 ```
+查看 Schema 下有哪些表
+```sql
+SELECT table_name
+FROM information_schema.tables
+WHERE table_schema = 'information_schema';
+```
+
+
+当你查询 `information_schema` schema 下的表时，你会看到以下表，它们的用途如下：
+
+1. **`column_column_usage`**：存储关于列之间的关系的信息，例如外键关系。
+
+2. **`information_schema_catalog_name`**：存储关于数据库目录的信息。
+
+3. **`check_constraints`**：存储关于检查约束的信息。
+
+4. **`applicable_roles`**：存储适用于当前会话的角色信息。
+
+5. **`administrable_role_authorizations`**：存储角色授权信息。
+
+6. **`attributes`**：存储关于用户定义类型的属性信息。
+
+7. **`collations`**：存储关于排序规则的信息。
+
+8. **`character_sets`**：存储关于字符集的信息。
+
+9. **`check_constraint_routine_usage`**：存储关于检查约束的例程使用信息。
+
+10. **`column_privileges`**：存储关于列级权限的信息。
+
+11. **`collation_character_set_applicability`**：存储关于排序规则和字符集的适用性信息。
+
+12. **`column_domain_usage`**：存储关于列和域之间的关系的信息。
+
+13. **`column_udt_usage`**：存储关于列和用户定义类型之间的关系的信息。
+
+14. **`columns`**：存储关于表的列的信息。
+
+15. **`constraint_column_usage`**：存储关于约束和列之间的关系的信息。
+
+16. **`constraint_table_usage`**：存储关于约束和表之间的关系的信息。
+
+17. **`domain_constraints`**：存储关于域约束的信息。
+
+18. **`routine_table_usage`**：存储关于例程和表之间的关系的信息。
+
+19. **`domain_udt_usage`**：存储关于域和用户定义类型之间的关系的信息。
+
+20. **`domains`**：存储关于域的信息。
+
+21. **`enabled_roles`**：存储启用的角色信息。
+
+22. **`routines`**：存储关于例程（函数和过程）的信息。
+
+23. **`key_column_usage`**：存储关于主键和外键列之间的关系的信息。
+
+24. **`parameters`**：存储关于例程参数的信息。
+
+25. **`referential_constraints`**：存储关于引用约束的信息。
+
+26. **`schemata`**：存储关于模式（schema）的信息。
+
+27. **`role_column_grants`**：存储关于角色和列权限之间的关系的信息。
+
+28. **`routine_column_usage`**：存储关于例程和列之间的关系的信息。
+
+29. **`sql_parts`**：存储关于 SQL 语句部分的信息。
+
+30. **`routine_privileges`**：存储关于例程权限的信息。
+
+31. **`sequences`**：存储关于序列的信息。
+
+32. **`role_routine_grants`**：存储关于角色和例程权限之间的关系的信息。
+
+33. **`routine_routine_usage`**：存储关于例程之间的关系的信息。
+
+34. **`routine_sequence_usage`**：存储关于例程和序列之间的关系的信息。
+
+35. **`sql_features`**：存储关于 SQL 功能的信息。
+
+36. **`sql_implementation_info`**：存储关于 SQL 实现的信息。
+
+37. **`role_table_grants`**：存储关于角色和表权限之间的关系的信息。
+
+38. **`sql_sizing`**：存储关于 SQL 大小的信息。
+
+39. **`table_privileges`**：存储关于表级权限的信息。
+
+40. **`table_constraints`**：存储关于表约束的信息。
+
+41. **`transforms`**：存储关于转换的信息。
+
+42. **`tables`**：存储关于数据库中所有表的信息，包括表名、所属模式、表类型等。
+
+43. **`triggered_update_columns`**：存储关于触发器更新的列的信息。
+
+44. **`triggers`**：存储关于触发器的信息，包括触发器名称、所属表、触发事件等。
+
+45. **`udt_privileges`**：存储关于用户定义类型（UDT）的权限信息。
+
+46. **`_pg_foreign_data_wrappers`**：存储外部数据包装器的信息，用于访问外部数据源。
+
+47. **`role_udt_grants`**：存储关于角色和用户定义类型权限之间的关系的信息。
+
+48. **`usage_privileges`**：存储关于对象使用权限的信息，例如表、视图等。
+
+49. **`foreign_tables`**：存储关于外部表的信息，这些表连接到外部数据源。
+
+50. **`role_usage_grants`**：存储关于角色和对象使用权限之间的关系的信息。
+
+51. **`foreign_data_wrapper_options`**：存储外部数据包装器的选项信息。
+
+52. **`user_defined_types`**：存储关于用户定义类型（UDT）的信息。
+
+53. **`view_column_usage`**：存储关于视图列的使用信息。
+
+54. **`view_routine_usage`**：存储关于视图和例程之间的关系的信息。
+
+55. **`foreign_data_wrappers`**：存储外部数据包装器的信息。
+
+56. **`view_table_usage`**：存储关于视图和表之间的关系的信息。
+
+57. **`views`**：存储关于数据库中所有视图的信息。
+
+58. **`_pg_foreign_servers`**：存储外部服务器的信息，用于连接到外部数据源。
+
+59. **`data_type_privileges`**：存储关于数据类型权限的信息。
+
+60. **`element_types`**：存储关于数组元素类型的信息。
+
+61. **`_pg_foreign_table_columns`**：存储外部表的列信息。
+
+62. **`_pg_user_mappings`**：存储用户映射的信息，用于连接到外部数据源。
+
+63. **`column_options`**：存储关于列选项的信息。
+
+64. **`foreign_server_options`**：存储外部服务器的选项信息。
+
+65. **`foreign_servers`**：存储外部服务器的信息。
+
+66. **`_pg_foreign_tables`**：存储外部表的信息。
+
+67. **`foreign_table_options`**：存储外部表的选项信息。
+
+68. **`user_mapping_options`**：存储用户映射的选项信息。
+
+69. **`user_mappings`**：存储用户映射的信息。
+
+
 
 ## 查看角色有哪些权限
 ### 角色级别的权限
@@ -500,7 +744,105 @@ ALTER DATABASE kong OWNER TO kong_dev;
 ```
 # pgbench 压测
 
+# 关闭数据库所有会话
+```sql
+SELECT pg_terminate_backend(pg_stat_activity.pid)
+FROM pg_stat_activity
+WHERE datname='mydb' AND pid<>pg_backend_pid();
+```
+# 查询注释
+```sql
+SELECT
+a.attname as "字段名",
+col_description(a.attrelid,a.attnum) as "注释",
+concat_ws('',t.typname,SUBSTRING(format_type(a.atttypid,a.atttypmod) from '(.*)')) as "字段类型"
+FROM
+pg_class as c,
+pg_attribute as a,
+pg_type as t
+WHERE
+c.relname = 't_batch_task'
+and a.atttypid = t.oid
+and a.attrelid = c.oid
+and a.attnum>0;
+```
+# to_timestamp() 字符串转时间
+```sql
+select * from t_user
+where create_time >= to_timestamp('2023-01-01 00:00:00', 'yyyy-mm-dd hh24:MI:SS');
+```
+# to_char 时间转字符串
+```sql
+select to_char(create_time, 'yyyy-mm-dd hh24:MI:SS') from t_user;
+```
 
+# 根据已有表结构创建表
+```sql
+create table if not exists 新表 (like 旧表 including indexes including comments including defaults);
+```
+# 时间加减
+```sql
+-- 当前时间加一天
+SELECT NOW()::TIMESTAMP + '1 day';
+SELECT NOW() + INTERVAL '1 DAY';
+SELECT now()::timestamp + ('1' || ' day')::interval
+-- 当前时间减一天
+SELECT NOW()::TIMESTAMP + '-1 day';
+SELECT NOW() - INTERVAL '1 DAY';
+SELECT now()::timestamp - ('1' || ' day')::interval
+-- 加1年1月1天1时1分1秒
+select NOW()::timestamp + '1 year 1 month 1 day 1 hour 1 min 1 sec';
+```
+# substring字符串截取
+```sql
+--从第一个位置开始截取，截取4个字符,返回结果:Post
+SELECT SUBSTRING ('PostgreSQL', 1, 4);
+-- 从第8个位置开始截取，截取到最后一个字符，返回结果:SQL
+SELECT SUBSTRING ('PostgreSQL', 8);
+--正则表达式截取，截取'gre'字符串
+SELECT SUBSTRING ('PostgreSQL', 'gre');
+```
+# 执行sql脚本
+方式一：先登录再执行
+```sql
+\i testdb.sql
+```
+
+方式二：通过psql执行
+```sql
+psql -d testdb -U postgres -f /pathA/xxx.sql
+```
+# 导出数据到SQL文件
+```sql
+pg_dump -h localhost -p 5432 -U postgres --column-inserts -t table_name -f save_sql.sql database_name
+
+--column-inserts #以带有列名的 `INSERT` 命令形式转储数据。
+-t #只转储指定名称的表。
+-f #指定输出文件或目录名。
+```
+
+# 单机 PostgreSQL 连接串
+```java
+url: jdbc:postgresql://10.20.1.231:5432/postgres?
+binaryTransfer=false&forceBinary=false&reWriteBatchedInserts=true
+
+binaryTransfer=false：控制是否使用二进制协议传输数据，false 表示不适用，默认为 true
+forceBinary=false：控制是否将非 ASCII 字符串强制转换为二进制格式，false 表示不强制转换，默认为 true
+reWriteBatchedInserts=true：控制是否将批量插入语句转换成更高效的形式，true 表示转换，默认为 false
+```
+# 集群PostgreSQL 连接串
+```java
+url: jdbc:postgresql://10.20.1.231:5432/postgres?
+binaryTransfer=false&forceBinary=false&reWriteBatchedInserts=true&targetServerType=master&loadBalanceHosts=true
+
+单机 PostgreSQL 连接串的所有参数。
+targetServerType=master：只允许连接到具有所需状态的服务器，可选值有：
+any：默认，表示连接到任何一个可用的数据库服务器，不区分主从数据库；
+master：表示连接到主数据库，可读写；
+slave：表示连接到从数据库，可读，不可写；
+其他不常用值：primary, master, slave, secondary, preferSlave, preferSecondary and preferPrimary。
+loadBalanceHosts=true：控制是否启用主从模式下的负载均衡，true 表示启用，开启后依序选择一个 ip1:port 进行连接，默认为 false。
+```
 
 # 帮助命令
 ## General

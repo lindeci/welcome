@@ -214,3 +214,21 @@ git config --global user.name lindeci
 git config --global user.password 上面生成的token
 git config --global user.email 541287039@qq.com
 ```
+
+# fork 代码后重建新分支
+```bash
+1、fork 代码到自己的git仓库
+
+2、clone 代码到本地
+git clone https://github.com/decilin/mysql-server.git --branch mysql-8.3.0 --single-branch --depth=1
+
+2、切换 tag
+git checkout mysql-8.3.0
+3、重建新分支
+git checkout -b mysql-8.3.0-study
+4、提交新分支
+touch gdb.py
+git add gdb.py
+git commit -m 'test'
+git push origin mysql-8.3.0-study
+```
